@@ -58,7 +58,9 @@ class ReferenceTarget(FrozenModel):
     def citation(self) -> str:
         """The division as a citation names it: 'Article 6(2)', 'Article 3, point (e)',
         'Annex I'."""
-        return format_citation(self.article, self.paragraph, self.annex, self.point)
+        return format_citation(
+            article=self.article, paragraph=self.paragraph, point=self.point, annex=self.annex
+        )
 
     @model_validator(mode="after")
     def _addresses_a_division(self) -> "ReferenceTarget":

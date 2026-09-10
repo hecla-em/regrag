@@ -6,6 +6,7 @@ from app.ingestion.chunk.references import (
     _find_instrument_mentions,
     _references_from_mentions,
     extract_references,
+    list_points,
 )
 
 
@@ -158,6 +159,16 @@ def test_find_instrument_mentions_records_the_span_and_its_celex() -> None:
     assert mention.celex == "32015R0757"
 
 
+def test_lists_the_points_the_text_opens_lines_with() -> None:
+    """A definitions article lists its terms one to a line, '(e)' or '(15)' first."""
+    text = "For the purposes of this Regulation:\n(a) ‘ship’ means a vessel;\n(15) ‘berth’ means"
+    assert list_points(text) == ("a", "15")
+
+
+def test_a_point_named_mid_line_is_not_listed() -> None:
+    assert list_points("as defined in Article 3, point (e), of Regulation X") == ()
+
+
 def test_find_instrument_mentions_leaves_celex_none_when_it_cannot_resolve() -> None:
     assert _find_instrument_mentions("the fictional Regulation 3021/4055")[0].celex is None
 
@@ -166,14 +177,14 @@ def test_a_division_is_qualified_by_the_instrument_that_follows_of() -> None:
     text = "under Article 6 of Regulation (EU) 2015/757"
     division = _find_division_mentions(text)[0]
     instrument = _find_instrument_mentions(text)[0]
-    assert division.is_qualified_by(instrument, text)
+    assert division.qualifier_before(instrument, text)
 
 
 def test_a_division_is_not_qualified_by_an_instrument_it_only_precedes() -> None:
     text = "Article 6 applies. Regulation (EU) 2015/757 does not."
     division = _find_division_mentions(text)[0]
     instrument = _find_instrument_mentions(text)[0]
-    assert not division.is_qualified_by(instrument, text)
+    assert division.qualifier_before(instrument, text) is None
 
 
 def test_an_instrument_a_division_claimed_is_not_cited_again_in_its_own_right() -> None:
@@ -295,7 +306,6 @@ def test_attributes_an_article_cited_by_point_to_the_instrument_after_the_point(
             point="e",
         ),
     )
-    assert references[0].point == "e"
 
 
 def test_keeps_a_numbered_point_under_the_paragraph_it_belongs_to() -> None:
@@ -311,7 +321,6 @@ def test_keeps_a_numbered_point_under_the_paragraph_it_belongs_to() -> None:
             point="15",
         ),
     )
-    assert references[0].point == "15"
 
 
 def test_attributes_an_article_cited_by_subparagraph_to_the_instrument_after_it() -> None:

@@ -36,7 +36,7 @@ def already_in_context(call: ToolCall, sources: Sequence[RetrievedChunk]) -> boo
         return False
     if target.paragraph is None:
         return False
-    citation = format_citation(target.article, target.paragraph).lower()
+    citation = format_citation(article=target.article, paragraph=target.paragraph).lower()
     shown = [s for s in sources if s.celex == target.celex and s.citation.lower() == citation]
     return bool(shown) and len({s.part for s in shown}) == shown[0].parts
 

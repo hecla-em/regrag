@@ -1,4 +1,3 @@
-from app.ingestion.chunk.models import Chunk
 from tests.conftest import chunk
 
 
@@ -56,17 +55,7 @@ def test_text_affects_the_content_hash_not_the_metadata_hash():
     assert chunk().metadata_hash == chunk(text="Something else entirely.").metadata_hash
 
 
-def test_points_are_what_the_text_opens_lines_with():
-    """A definitions article lists its terms one to a line, '(e)' or '(15)' first."""
-    text = "For the purposes of this Regulation:\n(a) ‘ship’ means a vessel;\n(15) ‘berth’ means"
-    assert chunk(text=text).points == ("a", "15")
-
-
-def test_a_point_named_mid_line_is_not_a_point_of_the_chunk():
-    assert chunk(text="as defined in Article 3, point (e), of Regulation X").points == ()
-
-
-def test_points_land_in_the_metadata_hash_not_the_content_hash():
-    """Points derive from the text, so a chunk that grows one changes only its metadata."""
-    assert chunk(text="(a) ‘ship’ means").metadata_hash != chunk(text="‘ship’ means").metadata_hash
-    assert "points" not in chunk().model_dump(exclude=Chunk.METADATA)
+def test_points_affect_the_metadata_hash_not_the_content_hash():
+    """Points derive from the text, so they are metadata like the references found in it."""
+    assert chunk(points=("a",)).metadata_hash != chunk().metadata_hash
+    assert chunk(points=("a",)).content_hash == chunk().content_hash

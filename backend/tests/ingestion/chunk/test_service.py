@@ -123,7 +123,7 @@ async def test_chunk_fields_are_mapped_onto_the_row(
     await sync(
         db_session,
         ingest_run,
-        chunk(heading_path=("Chapter I",), annex=None, part=2, parts=3, text="(a) ‘ship’ means"),
+        chunk(heading_path=("Chapter I",), annex=None, part=2, parts=3, points=("a",)),
     )
     row = (await chunk_rows(db_session))[0]
     assert row.topic == "fueleu"

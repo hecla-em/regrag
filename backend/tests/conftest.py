@@ -33,6 +33,7 @@ from app.core.llm.models import TokenUsage
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
+from app.ingestion.chunk.references import list_points
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.discover.models import ActsQueryRow, DiscoveredDocument
 from app.ingestion.discover.sparql import run_acts_by_topic_query
@@ -264,7 +265,9 @@ def make_chunk_row() -> Callable[..., DocumentChunk]:
             "text": "The greenhouse gas intensity of the energy used on board.",
             "references": [{"raw": "Annex I", "annex": "I"}],
         }
-        return DocumentChunk(**{**defaults, **overrides})
+        fields: dict[str, Any] = {**defaults, **overrides}
+        fields.setdefault("points", list(list_points(fields["text"])))
+        return DocumentChunk(**fields)
 
     return _make
 

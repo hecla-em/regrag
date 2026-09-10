@@ -2,7 +2,6 @@
 
 import hashlib
 import json
-import re
 from typing import ClassVar
 
 from pydantic import computed_field
@@ -10,16 +9,13 @@ from pydantic import computed_field
 from app.core.models import FrozenModel
 from app.ingestion.enums import SectionKind
 
-POINT_LINE = re.compile(r"^\(([0-9a-z]+)\) ", re.MULTILINE)
-"""A line opening with a point's label, '(e) ' or '(15) ', the way a definitions article
-lists its terms."""
-
 
 def format_citation(
+    *,
     article: str | None = None,
     paragraph: str | None = None,
-    annex: str | None = None,
     point: str | None = None,
+    annex: str | None = None,
 ) -> str:
     """A division as a lawyer would cite it: 'Article 6(2)', 'Article 3, point (e)', 'Annex I';
     empty outside any."""
@@ -55,7 +51,8 @@ class Locator(FrozenModel):
 
 
 class Chunk(Locator):
-    """One retrievable unit of a regulation, with its citation and cross-references."""
+    """One retrievable unit of a regulation, with its citation, the points it lists, and its
+    cross-references."""
 
     METADATA: ClassVar[set[str]] = {"citation", "points", "position", "references", "topic"}
     """Fields outside content_hash: topic records where the chunk came from, position is
@@ -69,19 +66,18 @@ class Chunk(Locator):
     part: int = 1
     parts: int = 1
     position: int = 0
+    points: tuple[str, ...] = ()
     references: tuple[Reference, ...] = ()
 
     @computed_field
     @property
     def citation(self) -> str:
         """The locator as a lawyer would cite it, or its title outside any division."""
-        return format_citation(self.article, self.paragraph, self.annex) or self.title or ""
-
-    @computed_field
-    @property
-    def points(self) -> tuple[str, ...]:
-        """The points the text opens lines with, so a citation by point reaches this chunk."""
-        return tuple(POINT_LINE.findall(self.text))
+        return (
+            format_citation(article=self.article, paragraph=self.paragraph, annex=self.annex)
+            or self.title
+            or ""
+        )
 
     @property
     def content_hash(self) -> str:

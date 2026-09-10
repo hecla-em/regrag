@@ -60,9 +60,8 @@ def build_assess_system_prompt(*, may_refuse: bool) -> str:
 
 
 def reference_addresses(source: RetrievedChunk) -> list[str]:
-    """Each followable address once, as 'celex division': a reference naming no division is
-    skipped, on the same rule follow_reference's target enforces, and a borrowed definition
-    is addressed by its point."""
+    """Each followable address as 'celex division': a reference naming no division is
+    skipped, on the same rule follow_reference's target enforces."""
     addresses = []
     for reference in source.references:
         try:
@@ -70,7 +69,7 @@ def reference_addresses(source: RetrievedChunk) -> list[str]:
         except ValidationError:
             continue
         addresses.append(f"{target.celex} {target.citation}")
-    return list(dict.fromkeys(addresses))
+    return addresses
 
 
 def cites_line(source: RetrievedChunk) -> str:

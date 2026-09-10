@@ -2,6 +2,7 @@
 
 "Article 7 of Regulation X" is two mentions, not one: a division ("Article 7") and the
 instrument that qualifies it. Divisions no instrument qualifies belong to this document.
+The points a text lists are the other end of a point citation, so they are read here too.
 """
 
 import re
@@ -27,9 +28,12 @@ class Mention(FrozenModel):
     start: int
     end: int
 
-    def is_qualified_by(self, other: "Mention", text: str) -> bool:
-        """True when nothing but a qualifier ('of', 'to', 'in') separates this mention from it."""
-        return other.start >= self.end and QUALIFIER.match(text[self.end : other.start]) is not None
+    def qualifier_before(self, other: "Mention", text: str) -> re.Match[str] | None:
+        """The qualifier ('of', 'to', 'in', with a point or subparagraph first) that alone
+        separates this mention from the other, or None when more than that does."""
+        if other.start < self.end:
+            return None
+        return QUALIFIER.match(text[self.end : other.start])
 
 
 ARTICLE_REF = re.compile(r"Articles?\s+(\d+[a-z]?)(?:\((\d+[a-z]?)\))?")
@@ -147,15 +151,13 @@ def _find_instrument_mentions(text: str) -> list[InstrumentMention]:
 
 
 def _attribute_division(
-    text: str, division: DivisionMention, owner: InstrumentMention
+    text: str, division: DivisionMention, owner: InstrumentMention, qualifier: re.Match[str]
 ) -> Reference:
     """A division re-pointed at the instrument qualifying it, its raw text stretched forward
     over the qualifier to cover that instrument, and carrying the point the qualifier named."""
-    qualifier = QUALIFIER.match(text[division.end : owner.start])
-    point = qualifier.group("point") if qualifier else None
     raw = division.reference.raw + text[division.end : owner.end]
     return division.reference.model_copy(
-        update={"raw": raw, "instrument": owner.celex, "point": point}
+        update={"raw": raw, "instrument": owner.celex, "point": qualifier.group("point")}
     )
 
 
@@ -170,6 +172,17 @@ def _cite_unclaimed_instruments(
     ]
 
 
+def _find_owner(
+    text: str, division: DivisionMention, instruments: Sequence[InstrumentMention]
+) -> tuple[InstrumentMention, re.Match[str]] | None:
+    """The first instrument a qualifier joins the division to, with that qualifier."""
+    for owner in instruments:
+        qualifier = division.qualifier_before(owner, text)
+        if qualifier is not None:
+            return owner, qualifier
+    return None
+
+
 def _references_from_mentions(
     text: str, divisions: Sequence[DivisionMention], instruments: Sequence[InstrumentMention]
 ) -> list[Reference]:
@@ -180,13 +193,25 @@ def _references_from_mentions(
     attributed: list[Reference] = []
     claimed: set[InstrumentMention] = set()
     for division in divisions:
-        owner = next((i for i in instruments if division.is_qualified_by(i, text)), None)
-        if owner is None:
+        found = _find_owner(text, division, instruments)
+        if found is None:
             attributed.append(division.reference)
-        elif owner.celex is not None:
+            continue
+        owner, qualifier = found
+        if owner.celex is not None:
             claimed.add(owner)
-            attributed.append(_attribute_division(text, division, owner))
+            attributed.append(_attribute_division(text, division, owner, qualifier))
     return attributed + _cite_unclaimed_instruments(text, instruments, claimed)
+
+
+POINT_LINE = re.compile(r"^\(([0-9a-z]+)\) ", re.MULTILINE)
+"""A line opening with a point's label, '(e) ' or '(15) ', the way a definitions article
+lists its terms."""
+
+
+def list_points(text: str) -> tuple[str, ...]:
+    """The points the text opens lines with: what a citation by point reaches."""
+    return tuple(POINT_LINE.findall(text))
 
 
 def extract_references(text: str) -> tuple[Reference, ...]:

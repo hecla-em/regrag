@@ -135,6 +135,11 @@ def test_attaches_references_found_in_the_chunk_text() -> None:
     assert chunk_document(doc)[0].references == (Reference(raw="Annex I", annex="I"),)
 
 
+def test_attaches_the_points_the_chunk_text_lists() -> None:
+    doc = document(article("3", "Definitions", paragraph(None, "For the purposes:\n(a) ‘ship’;")))
+    assert chunk_document(doc)[0].points == ("a",)
+
+
 def test_skips_sections_with_no_text() -> None:
     doc = document(article("4", "Limits", paragraph("1", ""), paragraph("2", "Second.")))
     assert [c.paragraph for c in chunk_document(doc)] == ["2"]
