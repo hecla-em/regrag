@@ -332,6 +332,55 @@ class TestFollowsOfBlocksAlreadyShown:
 
         assert run_calls == []
 
+    async def test_a_follow_of_a_point_a_shown_part_lists_is_dropped(
+        self, loop_on, answer_model, assess_turns, tool_results, monkeypatch
+    ):
+        """A definitions article numbers no paragraphs, so the part listing the point is
+        the whole of what the follow would return."""
+
+        async def fake_search(session, request):
+            return (
+                search_result(
+                    celex="32015R0757",
+                    citation="Article 3",
+                    article="3",
+                    paragraph=None,
+                    points=("c", "d"),
+                ),
+            )
+
+        install_search(monkeypatch, fake_search)
+        by_point = {"celex": "32015R0757", "article": "3", "point": "c"}
+        assess_turns(tool_call_message("follow_reference", by_point), AIMessage(content=""))
+        run_calls = tool_results()
+
+        await run_graph()
+
+        assert run_calls == []
+
+    async def test_a_follow_of_a_point_no_shown_part_lists_still_runs(
+        self, loop_on, answer_model, assess_turns, tool_results, monkeypatch
+    ):
+        async def fake_search(session, request):
+            return (
+                search_result(
+                    celex="32015R0757",
+                    citation="Article 3",
+                    article="3",
+                    paragraph=None,
+                    points=("a",),
+                ),
+            )
+
+        install_search(monkeypatch, fake_search)
+        by_point = {"celex": "32015R0757", "article": "3", "point": "c"}
+        assess_turns(tool_call_message("follow_reference", by_point), AIMessage(content=""))
+        run_calls = tool_results()
+
+        await run_graph()
+
+        assert run_calls == [ToolCall(name="follow_reference", args=by_point)]
+
     async def test_a_follow_of_a_paragraph_shown_only_in_part_still_runs(
         self, loop_on, answer_model, assess_turns, tool_results, monkeypatch
     ):
@@ -532,6 +581,22 @@ class TestBuildAssessMessage:
             "cites: 32015R0757 Article 3, point (c), 32015R0757 Article 3, point (e), "
             "32015R0757 Article 3, point (n)"
         ) in message
+
+    def test_names_an_address_once_however_it_is_phrased(self):
+        """Two phrasings of one target are two references but one place to fetch."""
+        references = (
+            Reference(
+                raw="Article 6 of Regulation (EU) 2015/757", instrument="32015R0757", article="6"
+            ),
+            Reference(
+                raw="Article 6 of Regulation (EU) No 2015/757", instrument="32015R0757", article="6"
+            ),
+        )
+        sources = (search_result(references=references),)
+
+        message = build_assess_message("q", sources)
+
+        assert message.count("32015R0757 Article 6") == 1
 
     def test_skips_references_that_name_no_division(self):
         reference = Reference(raw="Regulation (EU) 2015/757", instrument="32015R0757")

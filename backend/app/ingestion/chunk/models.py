@@ -19,12 +19,12 @@ def format_citation(
 ) -> str:
     """A division as a lawyer would cite it: 'Article 6(2)', 'Article 3, point (e)', 'Annex I';
     empty outside any."""
+    tail = f", point ({point})" if point else ""
     if article is not None:
         suffix = f"({paragraph})" if paragraph else ""
-        tail = f", point ({point})" if point else ""
         return f"Article {article}{suffix}{tail}"
     if annex is not None:
-        return f"Annex {annex}".rstrip()
+        return f"Annex {annex}".rstrip() + tail
     return ""
 
 

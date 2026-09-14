@@ -39,8 +39,12 @@ class ReferenceTarget(FrozenModel):
 
     celex: str
     article: str | None = None
-    paragraph: str | None = None
-    point: str | None = None
+    paragraph: str | None = Field(
+        default=None, description="A numbered paragraph: '2' in 'Article 6(2)'."
+    )
+    point: str | None = Field(
+        default=None, description="A lettered or numbered point: 'e' in 'Article 3, point (e)'."
+    )
     annex: str | None = None
 
     @classmethod
@@ -78,9 +82,11 @@ class RetrievedChunk(FrozenModel):
     topic: str
     citation: str
     article: str | None
+    paragraph: str | None = None
     annex: str | None = None
     title: str | None
     text: str
+    points: tuple[str, ...] = ()
     references: tuple[Reference, ...] = ()
     position: int
     part: int

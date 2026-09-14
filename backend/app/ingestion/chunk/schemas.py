@@ -67,7 +67,7 @@ class DocumentChunk(BaseSchema):
 
     # Search: the text, the points it lists, the acts it cites, and the two indexes queried over it.
     text: Mapped[str]
-    points: Mapped[list[str]] = mapped_column(ARRAY(String), server_default="{}")
+    points: Mapped[list[str]] = mapped_column(ARRAY(String))
     references: Mapped[list[dict]] = mapped_column(JSONB)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIMENSIONS))
     search_vector: Mapped[str | None] = mapped_column(

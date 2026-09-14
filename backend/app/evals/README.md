@@ -61,7 +61,7 @@ A problem the dataset faces is that laws get amended which may render some of ou
 
 `evals stamp` records what the cited text says now. Run it on a newly authored case, or on a stale one you have just re-reviewed against the new text. The stamp asserts that the dataset has been reviewed. `--case` stamps a subset.
 
-Stamps are excluded from `dataset_sha`, so re-stamping a case does not break comparability with runs that scored the same assertions before it.
+Stamps and fields a case leaves at their default are excluded from `dataset_sha`, so neither re-stamping a case nor adding an optional field breaks comparability with runs that scored the same assertions before it.
 
 ## Running
 

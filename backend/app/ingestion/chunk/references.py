@@ -13,13 +13,13 @@ from app.ingestion import celex
 from app.ingestion.chunk.models import Reference, format_citation
 
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "last")
-SUBDIVISION = rf"point\s+\((?P<point>[0-9a-z]+)\)|(?:{'|'.join(ORDINALS)})\s+subparagraph"
-"""A part named after the division it belongs to: 'point (e)', 'second subparagraph'. The point
-is kept, since it is how one act borrows a definition from another."""
+SUBPARAGRAPH = rf"(?:{'|'.join(ORDINALS)})\s+subparagraph"
+"""A part named by its place in the division: 'second subparagraph'."""
 
-QUALIFIER = re.compile(rf"^(?:,\s*(?:{SUBDIVISION}),?)?\s+(?:of|to|in)\s+(?:that\s+|the\s+)?$")
+QUALIFIER = re.compile(rf"^(?:,\s*{SUBPARAGRAPH})?,?\s+(?:of|to|in)\s+(?:that\s+|the\s+)?$")
 """What may sit between a division and the instrument qualifying it: the qualifier alone, or
-a point or subparagraph of the division first — 'Article 3, point (e), of Regulation X'."""
+a subparagraph of the division first — 'Article 6(2), second subparagraph, of Regulation X'.
+A point is part of the division mention, so only its trailing comma reaches here."""
 
 
 class Mention(FrozenModel):
@@ -28,18 +28,19 @@ class Mention(FrozenModel):
     start: int
     end: int
 
-    def qualifier_before(self, other: "Mention", text: str) -> re.Match[str] | None:
-        """The qualifier ('of', 'to', 'in', with a point or subparagraph first) that alone
-        separates this mention from the other, or None when more than that does."""
-        if other.start < self.end:
-            return None
-        return QUALIFIER.match(text[self.end : other.start])
+    def is_qualified_by(self, other: "Mention", text: str) -> bool:
+        """True when nothing but a qualifier ('of', 'to', 'in') separates this mention from it."""
+        return QUALIFIER.match(text[self.end : other.start]) is not None
 
 
-ARTICLE_REF = re.compile(r"Articles?\s+(\d+[a-z]?)(?:\((\d+[a-z]?)\))?")
-ARTICLE_TAIL = re.compile(r"\s*(?:,|and)\s+(\d{1,3}[a-z]?)\b(?:\((\d+[a-z]?)\))?")
-ANNEX_REF = re.compile(r"Annexe?s?\s+([IVXLC]+|\d+)")
-ANNEX_TAIL = re.compile(r"\s*(?:,|and)\s+([IVXLC]{1,4}|\d{1,2})\b")
+POINT = r"(?:,\s*point\s+\((?P<point>[0-9a-z]+)\))?"
+"""The point a division mention may end on: 'Article 3, point (e)', how a definition is
+borrowed, from this act or another."""
+
+ARTICLE_REF = re.compile(rf"Articles?\s+(\d+[a-z]?)(?:\((\d+[a-z]?)\))?{POINT}")
+ARTICLE_TAIL = re.compile(rf"\s*(?:,|and)\s+(\d{{1,3}}[a-z]?)\b(?:\((\d+[a-z]?)\))?{POINT}")
+ANNEX_REF = re.compile(rf"Annexe?s?\s+([IVXLC]+|\d+){POINT}")
+ANNEX_TAIL = re.compile(rf"\s*(?:,|and)\s+([IVXLC]{{1,4}}|\d{{1,2}})\b{POINT}")
 
 
 class DivisionMention(Mention):
@@ -56,15 +57,18 @@ def _find_division_mentions(text: str) -> list[DivisionMention]:
 
 
 def _find_article_mentions(text: str) -> list[DivisionMention]:
-    """One mention per article, each carrying the paragraph cited with it."""
+    """One mention per article, each carrying the paragraph and point cited with it."""
     return [
         DivisionMention(
             start=member.start(),
             end=run_end,
             reference=Reference(
-                raw=format_citation(article=member.group(1), paragraph=member.group(2)),
+                raw=format_citation(
+                    article=member.group(1), paragraph=member.group(2), point=member.group("point")
+                ),
                 article=member.group(1),
                 paragraph=member.group(2),
+                point=member.group("point"),
             ),
         )
         for member, run_end in _find_enumerated_members(text, ARTICLE_REF, ARTICLE_TAIL)
@@ -72,12 +76,16 @@ def _find_article_mentions(text: str) -> list[DivisionMention]:
 
 
 def _find_annex_mentions(text: str) -> list[DivisionMention]:
-    """One mention per annex; an annex is cited whole, so it carries no paragraph."""
+    """One mention per annex; an annex numbers no paragraphs, but may be cited by a point."""
     return [
         DivisionMention(
             start=member.start(),
             end=run_end,
-            reference=Reference(raw=format_citation(annex=member.group(1)), annex=member.group(1)),
+            reference=Reference(
+                raw=format_citation(annex=member.group(1), point=member.group("point")),
+                annex=member.group(1),
+                point=member.group("point"),
+            ),
         )
         for member, run_end in _find_enumerated_members(text, ANNEX_REF, ANNEX_TAIL)
     ]
@@ -151,14 +159,12 @@ def _find_instrument_mentions(text: str) -> list[InstrumentMention]:
 
 
 def _attribute_division(
-    text: str, division: DivisionMention, owner: InstrumentMention, qualifier: re.Match[str]
+    text: str, division: DivisionMention, owner: InstrumentMention
 ) -> Reference:
     """A division re-pointed at the instrument qualifying it, its raw text stretched forward
-    over the qualifier to cover that instrument, and carrying the point the qualifier named."""
+    over the qualifier to cover that instrument."""
     raw = division.reference.raw + text[division.end : owner.end]
-    return division.reference.model_copy(
-        update={"raw": raw, "instrument": owner.celex, "point": qualifier.group("point")}
-    )
+    return division.reference.model_copy(update={"raw": raw, "instrument": owner.celex})
 
 
 def _cite_unclaimed_instruments(
@@ -172,17 +178,6 @@ def _cite_unclaimed_instruments(
     ]
 
 
-def _find_owner(
-    text: str, division: DivisionMention, instruments: Sequence[InstrumentMention]
-) -> tuple[InstrumentMention, re.Match[str]] | None:
-    """The first instrument a qualifier joins the division to, with that qualifier."""
-    for owner in instruments:
-        qualifier = division.qualifier_before(owner, text)
-        if qualifier is not None:
-            return owner, qualifier
-    return None
-
-
 def _references_from_mentions(
     text: str, divisions: Sequence[DivisionMention], instruments: Sequence[InstrumentMention]
 ) -> list[Reference]:
@@ -193,20 +188,18 @@ def _references_from_mentions(
     attributed: list[Reference] = []
     claimed: set[InstrumentMention] = set()
     for division in divisions:
-        found = _find_owner(text, division, instruments)
-        if found is None:
+        owner = next((i for i in instruments if division.is_qualified_by(i, text)), None)
+        if owner is None:
             attributed.append(division.reference)
-            continue
-        owner, qualifier = found
-        if owner.celex is not None:
+        elif owner.celex is not None:
             claimed.add(owner)
-            attributed.append(_attribute_division(text, division, owner, qualifier))
+            attributed.append(_attribute_division(text, division, owner))
     return attributed + _cite_unclaimed_instruments(text, instruments, claimed)
 
 
 POINT_LINE = re.compile(r"^\(([0-9a-z]+)\) ", re.MULTILINE)
 """A line opening with a point's label, '(e) ' or '(15) ', the way a definitions article
-lists its terms."""
+lists its terms. A sub-point '(i)' under a point is listed the same way: the text keeps no depth."""
 
 
 def list_points(text: str) -> tuple[str, ...]:

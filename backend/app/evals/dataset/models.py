@@ -119,8 +119,11 @@ class EvalDataset(FrozenModel):
     @property
     def sha256(self) -> str:
         """Hash of what the cases assert — the whole dataset however a run filters it, with
-        the stamps left out so a re-stamp cannot break comparability with past runs."""
-        scored = self.model_dump_json(include={"cases"}, exclude=UNSCORED_FIELDS)
+        the stamps and untouched defaults left out, so neither a re-stamp nor a new optional
+        field can break comparability with past runs."""
+        scored = self.model_dump_json(
+            include={"cases"}, exclude=UNSCORED_FIELDS, exclude_defaults=True
+        )
         return hashlib.sha256(scored.encode()).hexdigest()
 
     @model_validator(mode="after")

@@ -19,14 +19,22 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+POINT_LINE = r"^\(([0-9a-z]+)\) "
+"""The chunker's POINT_LINE, as Postgres reads it; 'n' makes ^ match at every line."""
+
+
 def upgrade() -> None:
     """The points a chunk's text opens lines with, so a citation by point is a lookup rather
-    than a regex over the text. Empty until the next ingest run: the column is metadata, so
-    every row's metadata hash drifts and the run fills it without re-embedding anything."""
+    than a regex over the text; filled here so a follow works before the next ingest run."""
     op.add_column(
         "document_chunks",
         sa.Column("points", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
     )
+    op.execute(
+        "UPDATE document_chunks SET points = ARRAY("
+        f"SELECT m[1] FROM regexp_matches(\"text\", '{POINT_LINE}', 'gn') AS m)::varchar[]"
+    )
+    op.alter_column("document_chunks", "points", server_default=None)
 
 
 def downgrade() -> None:

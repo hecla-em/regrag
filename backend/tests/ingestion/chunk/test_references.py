@@ -177,14 +177,14 @@ def test_a_division_is_qualified_by_the_instrument_that_follows_of() -> None:
     text = "under Article 6 of Regulation (EU) 2015/757"
     division = _find_division_mentions(text)[0]
     instrument = _find_instrument_mentions(text)[0]
-    assert division.qualifier_before(instrument, text)
+    assert division.is_qualified_by(instrument, text)
 
 
 def test_a_division_is_not_qualified_by_an_instrument_it_only_precedes() -> None:
     text = "Article 6 applies. Regulation (EU) 2015/757 does not."
     division = _find_division_mentions(text)[0]
     instrument = _find_instrument_mentions(text)[0]
-    assert division.qualifier_before(instrument, text) is None
+    assert not division.is_qualified_by(instrument, text)
 
 
 def test_an_instrument_a_division_claimed_is_not_cited_again_in_its_own_right() -> None:
@@ -304,6 +304,24 @@ def test_attributes_an_article_cited_by_point_to_the_instrument_after_the_point(
             instrument="32015R0757",
             article="3",
             point="e",
+        ),
+    )
+
+
+def test_a_point_cited_in_this_act_carries_its_point() -> None:
+    """Most definition borrows name a point of this act's own definitions article."""
+    references = extract_references("‘ice class’ as defined in Article 3, point (23)")
+    assert references == (Reference(raw="Article 3, point (23)", article="3", point="23"),)
+
+
+def test_a_point_of_an_annex_is_attributed_with_its_point() -> None:
+    references = extract_references("as set out in Annex I, point (a), of Regulation (EU) 2015/757")
+    assert references == (
+        Reference(
+            raw="Annex I, point (a), of Regulation (EU) 2015/757",
+            instrument="32015R0757",
+            annex="I",
+            point="a",
         ),
     )
 

@@ -36,6 +36,16 @@ def test_a_point_is_cited_after_the_division_that_lists_it() -> None:
 
     assert by_article.citation == "Article 3, point (e)"
     assert by_paragraph.citation == "Article 3(1), point (15)"
+    assert (
+        ReferenceTarget(celex="32015R0757", annex="I", point="a").citation == "Annex I, point (a)"
+    )
+
+
+def test_the_tool_schema_tells_the_model_where_a_point_goes() -> None:
+    """The model reads '(e)' off a block's text; without the hint it lands in paragraph."""
+    properties = ReferenceTarget.model_json_schema()["properties"]
+    assert "(e)" in properties["point"]["description"]
+    assert "numbered paragraph" in properties["paragraph"]["description"]
 
 
 def test_a_reference_naming_a_point_targets_that_point() -> None:
