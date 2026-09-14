@@ -182,7 +182,7 @@ Legislation often makes references to other documents or other sections of the c
 
 An article named on its own belongs to the document it sits in; one qualified by an instrument takes that instrument's CELEX id, so it can be matched against the rest of the corpus.
 
-A point or subparagraph named between the article and its instrument — `Article 3, point (e), of Regulation (EU) 2015/757`, the form a definitions article borrows a term in — still qualifies the article by that instrument. The point itself is not stored: a definitions article numbers no paragraphs, so the reference addresses the article and the point is found in its text when followed.
+A point or subparagraph named between the article and its instrument — `Article 3, point (e), of Regulation (EU) 2015/757`, the form a definitions article borrows a term in — still qualifies the article by that instrument. The point is stored with the reference, and each chunk records the points its text opens lines with, so a follow by point is a lookup.
 
 This transforms the corpus into a graph for which references can be followed to the source in a deterministic fashion rather than relying on similarity to surface it.
 

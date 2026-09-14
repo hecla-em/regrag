@@ -1,8 +1,6 @@
 """Follow a stored cross-reference to the division it names, in reading order."""
 
-import re
-
-from sqlalchemy import Integer, Select, and_, cast, func, or_, select
+from sqlalchemy import Integer, Select, and_, any_, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ingestion.chunk.schemas import DocumentChunk
@@ -23,20 +21,24 @@ ANNEX_ORDER = (DocumentChunk.position, DocumentChunk.part)
 
 
 def _targeted(stmt: Select, target: ReferenceTarget) -> Select:
-    """Narrow to the one division the target names. A paragraph the division does not number
-    is read as a point of it — '(e)', '(15)' opening a line, the way a definitions article
-    lists its terms — since a citation addresses both the same way."""
+    """Narrow to the one division the target names. A point reaches the parts listing it. A
+    paragraph number an article does not number is read as a point of it, since EU drafting
+    writes 'Article 3(15)' for point (15) of a definitions article."""
     stmt = stmt.where(DocumentChunk.celex == target.celex)
     if target.article is not None:
         stmt = stmt.where(func.lower(DocumentChunk.article) == target.article.lower())
     if target.paragraph is not None:
-        point = rf"(^|\n)\({re.escape(target.paragraph)}\) "
         stmt = stmt.where(
             or_(
                 DocumentChunk.paragraph == target.paragraph,
-                and_(DocumentChunk.paragraph.is_(None), DocumentChunk.text.regexp_match(point)),
+                and_(
+                    DocumentChunk.paragraph.is_(None),
+                    any_(DocumentChunk.points) == target.paragraph,
+                ),
             )
         )
+    if target.point is not None:
+        stmt = stmt.where(any_(DocumentChunk.points) == target.point.lower())
     if target.annex is not None:
         stmt = stmt.where(DocumentChunk.annex == target.annex)
     return stmt

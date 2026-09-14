@@ -121,12 +121,15 @@ async def test_chunk_fields_are_mapped_onto_the_row(
     db_session: AsyncSession, ingest_run: IngestRun
 ):
     await sync(
-        db_session, ingest_run, chunk(heading_path=("Chapter I",), annex=None, part=2, parts=3)
+        db_session,
+        ingest_run,
+        chunk(heading_path=("Chapter I",), annex=None, part=2, parts=3, points=("a",)),
     )
     row = (await chunk_rows(db_session))[0]
     assert row.topic == "fueleu"
     assert row.citation == "Article 4(1)"
     assert row.heading_path == ["Chapter I"]
+    assert row.points == ["a"]
     assert (row.part, row.parts) == (2, 3)
     assert row.kind is SectionKind.PARAGRAPH
 

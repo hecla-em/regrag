@@ -11,14 +11,20 @@ from app.ingestion.enums import SectionKind
 
 
 def format_citation(
-    article: str | None = None, paragraph: str | None = None, annex: str | None = None
+    *,
+    article: str | None = None,
+    paragraph: str | None = None,
+    point: str | None = None,
+    annex: str | None = None,
 ) -> str:
-    """A division as a lawyer would cite it: 'Article 6(2)', 'Annex I'; empty outside any."""
+    """A division as a lawyer would cite it: 'Article 6(2)', 'Article 3, point (e)', 'Annex I';
+    empty outside any."""
+    tail = f", point ({point})" if point else ""
     if article is not None:
         suffix = f"({paragraph})" if paragraph else ""
-        return f"Article {article}{suffix}"
+        return f"Article {article}{suffix}{tail}"
     if annex is not None:
-        return f"Annex {annex}".rstrip()
+        return f"Annex {annex}".rstrip() + tail
     return ""
 
 
@@ -29,6 +35,7 @@ class Reference(FrozenModel):
     instrument: str | None = None
     article: str | None = None
     paragraph: str | None = None
+    point: str | None = None
     annex: str | None = None
 
 
@@ -44,9 +51,10 @@ class Locator(FrozenModel):
 
 
 class Chunk(Locator):
-    """One retrievable unit of a regulation, with its citation and cross-references."""
+    """One retrievable unit of a regulation, with its citation, the points it lists, and its
+    cross-references."""
 
-    METADATA: ClassVar[set[str]] = {"citation", "position", "references", "topic"}
+    METADATA: ClassVar[set[str]] = {"citation", "points", "position", "references", "topic"}
     """Fields outside content_hash: topic records where the chunk came from, position is
     placement, the rest derive from what is hashed."""
 
@@ -58,13 +66,18 @@ class Chunk(Locator):
     part: int = 1
     parts: int = 1
     position: int = 0
+    points: tuple[str, ...] = ()
     references: tuple[Reference, ...] = ()
 
     @computed_field
     @property
     def citation(self) -> str:
         """The locator as a lawyer would cite it, or its title outside any division."""
-        return format_citation(self.article, self.paragraph, self.annex) or self.title or ""
+        return (
+            format_citation(article=self.article, paragraph=self.paragraph, annex=self.annex)
+            or self.title
+            or ""
+        )
 
     @property
     def content_hash(self) -> str:

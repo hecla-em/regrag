@@ -65,8 +65,9 @@ class DocumentChunk(BaseSchema):
     # Placement: the chunk's ordinal in the document, the only sort key an annex has.
     position: Mapped[int]
 
-    # Search: the text, the acts it cites, and the two indexes queried over it.
+    # Search: the text, the points it lists, the acts it cites, and the two indexes queried over it.
     text: Mapped[str]
+    points: Mapped[list[str]] = mapped_column(ARRAY(String))
     references: Mapped[list[dict]] = mapped_column(JSONB)
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBED_DIMENSIONS))
     search_vector: Mapped[str | None] = mapped_column(

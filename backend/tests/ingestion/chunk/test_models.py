@@ -53,3 +53,9 @@ def test_position_affects_the_metadata_hash_not_the_content_hash():
 def test_text_affects_the_content_hash_not_the_metadata_hash():
     """Identity and metadata fields partition the chunk: each change lands in exactly one hash."""
     assert chunk().metadata_hash == chunk(text="Something else entirely.").metadata_hash
+
+
+def test_points_affect_the_metadata_hash_not_the_content_hash():
+    """Points derive from the text, so they are metadata like the references found in it."""
+    assert chunk(points=("a",)).metadata_hash != chunk().metadata_hash
+    assert chunk(points=("a",)).content_hash == chunk().content_hash

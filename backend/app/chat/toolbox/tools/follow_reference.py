@@ -22,20 +22,28 @@ async def run_follow_reference(
 
 
 def already_in_context(call: ToolCall, sources: Sequence[RetrievedChunk]) -> bool:
-    """Whether the call would only fetch a paragraph the context already shows in full, so
-    running it could add nothing. A whole article or annex is never known to be shown in
-    full: its chapeau's parts say nothing about what sits under it. A call the surface cannot
-    read is left to run_tool_call to reject."""
+    """Whether the call would only fetch what the context already shows: a point some shown
+    part lists, or a paragraph shown in full. A whole article or annex is never known to be
+    shown in full: its chapeau's parts say nothing about what sits under it."""
     if call.name != FOLLOW_REFERENCE.name:
         return False
     try:
         target = ReferenceTarget.model_validate(call.args)
     except ValidationError:
         return False
+    if target.article is None:
+        return False
+    shown = [
+        s
+        for s in sources
+        if s.celex == target.celex
+        and (s.article or "").lower() == target.article.lower()
+        and s.paragraph == target.paragraph
+    ]
+    if target.point is not None and any(target.point.lower() in s.points for s in shown):
+        return True
     if target.paragraph is None:
         return False
-    citation = target.citation.lower()
-    shown = [s for s in sources if s.celex == target.celex and s.citation.lower() == citation]
     return bool(shown) and len({s.part for s in shown}) == shown[0].parts
 
 
@@ -44,6 +52,7 @@ FOLLOW_REFERENCE = ToolSpec(
     step=ToolStep.FOLLOW_REFERENCE,
     args_model=ReferenceTarget,
     run=run_follow_reference,
-    description="Fetch the full text of one cited division: an article (optionally one paragraph) "
-    "or an annex of an act (celex). Use the addresses on the context's cites lines.",
+    description="Fetch the full text of one cited division: an article (optionally one paragraph, "
+    "or one point of it, as in 'Article 3, point (e)') or an annex of an act (celex). Use the "
+    "addresses on the context's cites lines.",
 )

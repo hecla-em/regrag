@@ -46,10 +46,10 @@ The loop handles that because of how the context is written for it. Every block 
 ```
 [2] (32023R1805, Article 3)
     'voyage' means voyage as defined in Article 3, point (c), of Regulation (EU) 2015/757 ...
-    cites: 32015R0757 Article 3
+    cites: 32015R0757 Article 3, point (c)
 ```
 
-So assess never has to fetch a block in order to discover where it points — the destination is already on the page. It asks for `32015R0757 Article 3` directly, in one go. Asked for by the point instead — article 3, paragraph `c`, as the block's own text names it — the follow lands on the part of the definitions article whose text opens with `(c)`, since a definitions article numbers no paragraphs.
+So assess never has to fetch a block in order to discover where it points — the destination is already on the page. It asks for `32015R0757 Article 3, point (c)` directly, in one go, and the follow lands on the part of the definitions article that lists `(c)`, since each chunk records the points its text opens lines with.
 
 That is why the loop is bounded by **how many things it can fetch, not how far away they are**. `ASSESS_MAX_CALLS` sets the width — four addresses in one round — and a chain three acts long costs the same single round as a chain one act long, as long as each address is visible before it is needed. A second round would only earn its cost if reading a fetched block revealed an address that nothing had shown before. `ASSESS_MAX_ROUNDS` therefore defaults to 1: measured against the multi-hop cases in the golden dataset, a second round changed no score and cost roughly a third of the tokens and two seconds a question.
 
