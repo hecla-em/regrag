@@ -65,7 +65,7 @@ def test_reuse_carries_the_title_discovery_found_this_run(local_store, store_doc
 def test_reuse_carries_the_version_that_was_served_not_the_one_that_was_asked_for(
     local_store, store_document
 ):
-    """The fallback case: reuse keeps pointing at the act EUR-Lex served, not at the candidate."""
+    """The fallback case: reuse keeps pointing at the act CELLAR served, not at the candidate."""
     prev = store_document(
         IngestRun(status=IngestRunStatus.SUCCESS),
         celex="32023R1805",
@@ -207,7 +207,7 @@ async def test_a_consolidation_eurlex_will_not_serve_is_not_asked_for_again(
     """An act with a consolidated id but no consolidated text: run 1 falls back to the act.
 
     Comparing the stored version against the candidate would deny the match every run and
-    re-download the whole corpus for as long as EUR-Lex serves no consolidation.
+    re-download the whole corpus for as long as CELLAR serves no consolidation.
     """
     sparql = {
         "mrv": httpx.Response(

@@ -1,43 +1,27 @@
-"""The EUR-Lex HTML endpoint and its quirks: which version it will actually serve, and its bytes."""
+"""The CELLAR document endpoint: which version it holds English text for, and its bytes."""
 
 import httpx
 
-from app.core.http import is_transient
-from app.core.retry import transient_retry
+from app.core.http import http_retry
 from app.ingestion.discover.models import DiscoveredDocument
-from app.ingestion.exceptions import DocumentStillRenderingError, NoFetchableVersionError
+from app.ingestion.exceptions import NoFetchableVersionError
 
-HTML_URL_TEMPLATE = "https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:{celex}"
-MISSING_PAGE_MARKER = "The requested document does not exist."
+DOCUMENT_URL_TEMPLATE = "https://publications.europa.eu/resource/celex/{celex}"
+DOCUMENT_HEADERS = {"Accept": "application/xhtml+xml", "Accept-Language": "eng"}
+"""Content negotiation picks the English XHTML manifestation; CELLAR wants the three-letter code."""
 
 
 def _is_version_missing(response: httpx.Response) -> bool:
-    """EUR-Lex denies a version two ways: a hard 404, or a 200 serving its 'does not exist' page."""
-    return response.status_code == httpx.codes.NOT_FOUND or (
-        response.is_success and (MISSING_PAGE_MARKER in response.text)
-    )
+    """CELLAR answers 404 for a version it holds no English text for."""
+    return response.status_code == httpx.codes.NOT_FOUND
 
 
-def _is_still_rendering(response: httpx.Response) -> bool:
-    """EUR-Lex answers 202 with an empty body while it generates a document on demand."""
-    return response.status_code == httpx.codes.ACCEPTED
-
-
-def _is_retryable(exc: BaseException) -> bool:
-    """A version EUR-Lex is rendering on demand resolves itself, like any transient failure."""
-    return isinstance(exc, DocumentStillRenderingError) or is_transient(exc)
-
-
-download_retry = transient_retry(_is_retryable)
-"""Decorator retrying one EUR-Lex request, including the 202 it answers while rendering."""
-
-
-@download_retry
+@http_retry
 async def _download_version_html(client: httpx.AsyncClient, version_celex: str) -> bytes | None:
-    """The HTML EUR-Lex serves for one version, or None if it denies having that version."""
-    response = await client.get(HTML_URL_TEMPLATE.format(celex=version_celex))
-    if _is_still_rendering(response):
-        raise DocumentStillRenderingError(f"EUR-Lex is still rendering {version_celex}")
+    """The XHTML CELLAR serves for one version, or None if it denies having that version."""
+    response = await client.get(
+        DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=DOCUMENT_HEADERS
+    )
     if _is_version_missing(response):
         return None
 
@@ -48,7 +32,7 @@ async def _download_version_html(client: httpx.AsyncClient, version_celex: str) 
 async def download_fetchable_version(
     client: httpx.AsyncClient, document: DiscoveredDocument
 ) -> tuple[str, bytes]:
-    """The newest version EUR-Lex will serve, and the HTML it served for it."""
+    """The newest version CELLAR will serve, and the XHTML it served for it."""
     for version_celex in document.versions:
         html = await _download_version_html(client, version_celex)
         if html is not None:

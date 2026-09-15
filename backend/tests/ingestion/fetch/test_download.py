@@ -1,4 +1,4 @@
-"""The EUR-Lex HTML endpoint: which version it serves, and how it denies the ones it has not."""
+"""The CELLAR document endpoint: which version it holds English text for, and how it denies one."""
 
 from pathlib import Path
 
@@ -7,21 +7,29 @@ import pytest
 
 from app.core.config import config
 from app.ingestion.discover.stage import discover_topics
-from app.ingestion.exceptions import DocumentStillRenderingError, NoFetchableVersionError
-from app.ingestion.fetch.download import _is_version_missing, download_fetchable_version
+from app.ingestion.exceptions import NoFetchableVersionError
+from app.ingestion.fetch.download import (
+    DOCUMENT_HEADERS,
+    DOCUMENT_URL_TEMPLATE,
+    _is_version_missing,
+    download_fetchable_version,
+)
 from tests.conftest import discovered_document
 
 pytestmark = pytest.mark.anyio
 
 FIXTURES = Path(__file__).parent / "fixtures"
 DOC_HTML = (FIXTURES / "doc.html").read_text()
-MISSING_HTML_PAGE = (FIXTURES / "missing.html").read_text()
+
+
+def celex_of(request: httpx.Request) -> str:
+    """The celex a document request names: the last segment of CELLAR's resource path."""
+    return request.url.path.rsplit("/", 1)[-1]
 
 
 def transport(responses):
     def handler(request):
-        celex = request.url.params["uri"].removeprefix("CELEX:")
-        return responses[celex]
+        return responses[celex_of(request)]
 
     return httpx.MockTransport(handler)
 
@@ -30,13 +38,9 @@ def doc_response():
     return httpx.Response(200, text=DOC_HTML)
 
 
-def missing_response(status=404):
-    return httpx.Response(status, text=MISSING_HTML_PAGE)
-
-
-def rendering_response():
-    """What EUR-Lex answers while it generates a document: 202, no body."""
-    return httpx.Response(202, content=b"")
+def missing_response():
+    """What CELLAR answers for a version it holds no English text for: a bare 404."""
+    return httpx.Response(404, text="")
 
 
 def queued(responses):
@@ -44,23 +48,35 @@ def queued(responses):
     calls: list[str] = []
 
     def handler(request):
-        calls.append(request.url.params["uri"].removeprefix("CELEX:"))
+        calls.append(celex_of(request))
         return responses.pop(0)
 
     return httpx.MockTransport(handler), calls
 
 
-def test_hard_404_is_missing():
-    assert _is_version_missing(missing_response(404))
-
-
-def test_soft_404_is_missing():
-    """A success status is not enough: EUR-Lex serves its 'does not exist' page with one."""
-    assert _is_version_missing(missing_response(200))
+def test_404_is_missing():
+    assert _is_version_missing(missing_response())
 
 
 def test_served_document_is_not_missing():
     assert not _is_version_missing(doc_response())
+
+
+async def test_asks_cellar_for_the_english_xhtml_of_the_version():
+    """The URL names the version; the headers pick the English XHTML manifestation."""
+    requests: list[httpx.Request] = []
+
+    def handler(request):
+        requests.append(request)
+        return doc_response()
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await download_fetchable_version(client, discovered_document(celex="32023R2449"))
+    (request,) = requests
+    assert str(request.url) == DOCUMENT_URL_TEMPLATE.format(celex="32023R2449")
+    assert request.url.host == "publications.europa.eu"
+    assert request.headers["Accept"] == DOCUMENT_HEADERS["Accept"] == "application/xhtml+xml"
+    assert request.headers["Accept-Language"] == DOCUMENT_HEADERS["Accept-Language"] == "eng"
 
 
 async def test_downloads_candidate_when_html_exists():
@@ -88,17 +104,8 @@ async def test_the_served_body_comes_back_so_the_caller_need_not_ask_again():
     assert len(calls) == 1
 
 
-async def test_falls_back_to_celex_on_hard_404():
-    responses = {"02023R2917-20231229": missing_response(404), "32023R2917": doc_response()}
-    async with httpx.AsyncClient(transport=transport(responses)) as client:
-        resolved_celex, _ = await download_fetchable_version(
-            client, discovered_document(celex="32023R2917", candidates=("02023R2917-20231229",))
-        )
-    assert resolved_celex == "32023R2917"
-
-
-async def test_falls_back_to_celex_on_soft_404():
-    responses = {"02023R2917-20231229": missing_response(200), "32023R2917": doc_response()}
+async def test_falls_back_to_celex_on_404():
+    responses = {"02023R2917-20231229": missing_response(), "32023R2917": doc_response()}
     async with httpx.AsyncClient(transport=transport(responses)) as client:
         resolved_celex, _ = await download_fetchable_version(
             client, discovered_document(celex="32023R2917", candidates=("02023R2917-20231229",))
@@ -115,7 +122,7 @@ async def test_no_candidate_downloads_the_celex_directly():
 
 
 async def test_raises_when_all_candidates_missing():
-    responses = {"02023R2917-20231229": missing_response(404), "32023R2917": missing_response(200)}
+    responses = {"02023R2917-20231229": missing_response(), "32023R2917": missing_response()}
     async with httpx.AsyncClient(transport=transport(responses)) as client:
         with pytest.raises(NoFetchableVersionError, match="32023R2917"):
             await download_fetchable_version(
@@ -123,38 +130,9 @@ async def test_raises_when_all_candidates_missing():
             )
 
 
-async def test_still_rendering_document_raises():
-    responses = {"32023R2917": rendering_response()}
-    async with httpx.AsyncClient(transport=transport(responses)) as client:
-        with pytest.raises(DocumentStillRenderingError, match="32023R2917"):
-            await download_fetchable_version(client, discovered_document(celex="32023R2917"))
-
-
-async def test_still_rendering_is_retried_until_eurlex_has_rendered_the_document():
-    """202 is the normal answer for a version nobody asked for recently, not a failed run."""
-    handler, calls = queued([rendering_response(), doc_response()])
-    async with httpx.AsyncClient(transport=handler) as client:
-        resolved_celex, content = await download_fetchable_version(
-            client, discovered_document(celex="32023R2917")
-        )
-    assert resolved_celex == "32023R2917"
-    assert content == DOC_HTML.encode()
-    assert calls == ["32023R2917", "32023R2917"]
-
-
-async def test_still_rendering_candidate_does_not_fall_back_to_the_original_act():
-    """Falling back would swap a consolidated version for the original act and call it changed."""
-    responses = {"02023R2917-20231229": rendering_response(), "32023R2917": doc_response()}
-    async with httpx.AsyncClient(transport=transport(responses)) as client:
-        with pytest.raises(DocumentStillRenderingError):
-            await download_fetchable_version(
-                client, discovered_document(celex="32023R2917", candidates=("02023R2917-20231229",))
-            )
-
-
 async def test_a_denied_candidate_is_not_requested_again_when_a_later_one_retries():
     """The retry covers one request: restarting the loop re-asks for a version already denied."""
-    handler, calls = queued([missing_response(404), httpx.Response(503), doc_response()])
+    handler, calls = queued([missing_response(), httpx.Response(503), doc_response()])
     async with httpx.AsyncClient(transport=handler) as client:
         resolved_celex, _ = await download_fetchable_version(
             client, discovered_document(celex="32023R2917", candidates=("02023R2917-20231229",))
@@ -196,14 +174,14 @@ def corpus_sparql() -> dict[str, httpx.Response]:
 
 
 def corpus_docs() -> dict[str, httpx.Response]:
-    """A 200 for every version EUR-Lex serves, a 404 for the consolidations it does not."""
+    """A 200 for every version CELLAR holds English text for, a 404 for the ids it does not."""
     return {celex: httpx.Response(200, text=DOC_HTML) for celex in EXPECTED_RESOLVED.values()} | {
-        celex: httpx.Response(404, text=MISSING_HTML_PAGE) for celex in MISSING_HTML
+        celex: missing_response() for celex in MISSING_HTML
     }
 
 
 @pytest.mark.parametrize("topic", sorted(config.TOPIC_BASE_ACTS))
-async def test_every_discovered_document_resolves_to_the_version_eurlex_serves(
+async def test_every_discovered_document_resolves_to_the_version_cellar_serves(
     topic, corpus_client
 ):
     """The handshake between the two packages: what discovery points at is what download gets."""

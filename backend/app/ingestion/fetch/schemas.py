@@ -13,7 +13,7 @@ class RawDocument(BaseSchema):
     """One source document as fetched: where it came from, which version, and its bytes.
 
     celex is the act discovery found and candidates the consolidations it offered; resolved_celex
-    is the version EUR-Lex served, one of those candidates or the act itself. title is the act's
+    is the version CELLAR served, one of those candidates or the act itself. title is the act's
     official English title as discovery read it, NULL where CELLAR had none. No column names the
     stored object: its key is derived from celex, resolved_celex and sha256.
     """

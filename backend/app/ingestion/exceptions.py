@@ -42,10 +42,6 @@ class NoFetchableVersionError(IngestionError):
     """None of a document's candidate celexes served HTML."""
 
 
-class DocumentStillRenderingError(IngestionError):
-    """EUR-Lex is generating the document on demand; it is worth asking again later."""
-
-
 class EmptyDownloadError(IngestionError):
     """A download returned no bytes, which is never a valid source document."""
 
