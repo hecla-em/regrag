@@ -20,4 +20,5 @@ class ParsedDocument(FrozenModel):
 
     celex: str
     topic: str
+    act_title: str | None = None
     sections: tuple[Section, ...]

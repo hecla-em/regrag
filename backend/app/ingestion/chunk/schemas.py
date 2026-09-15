@@ -46,6 +46,9 @@ class DocumentChunk(BaseSchema):
     content_hash: Mapped[str]
     occurrence: Mapped[int]
 
+    # Origin: the act's official title, copied from its document so a hit needs no join.
+    act_title: Mapped[str | None]
+
     # Drift: fingerprint of the metadata columns; NULL predates the column and reads as drifted.
     metadata_hash: Mapped[str | None]
 

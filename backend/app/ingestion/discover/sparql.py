@@ -13,7 +13,7 @@ _SPARQL_ENDPOINT = "https://publications.europa.eu/webapi/rdf/sparql"
 
 _ACTS_BY_TOPIC_QUERY = Template("""PREFIX cdm: <http://publications.europa.eu/ontology/cdm#>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
-SELECT DISTINCT ?c ?force ?cons WHERE {
+SELECT DISTINCT ?c ?force ?cons ?title WHERE {
   { ?act cdm:resource_legal_based_on_resource_legal ?base .
     ?base owl:sameAs <http://publications.europa.eu/resource/celex/$celex> . }
   UNION
@@ -22,7 +22,15 @@ SELECT DISTINCT ?c ?force ?cons WHERE {
   OPTIONAL { ?act cdm:resource_legal_in-force ?force }
   OPTIONAL { ?consact cdm:act_consolidated_consolidates_resource_legal ?act .
     ?consact cdm:resource_legal_id_celex ?cons }
+  OPTIONAL { ?expr cdm:expression_belongs_to_work ?act ;
+    cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/ENG> ;
+    cdm:expression_title ?title }
 }""")
+
+
+def _plain_title(value: str | None) -> str | None:
+    """A title as text: CELLAR sets dates and numbers with non-breaking spaces."""
+    return value.replace("\xa0", " ") if value is not None else None
 
 
 @http_retry
@@ -42,6 +50,7 @@ async def run_acts_by_topic_query(client: httpx.AsyncClient, celex: str) -> list
             celex=r["c"]["value"],
             in_force=r.get("force", {}).get("value"),
             consolidation=r.get("cons", {}).get("value"),
+            title=_plain_title(r.get("title", {}).get("value")),
         )
         for r in bindings
     ]

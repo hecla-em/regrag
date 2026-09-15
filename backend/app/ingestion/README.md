@@ -52,6 +52,8 @@ The results are wider than the corpus, so each act must pass three filters:
 
 CELLAR also reports every consolidated version it holds, and the latest one filed under the act's own id is carried forward as the version to try downloading first.
 
+CELLAR is also where each act's official English title comes from, since the EUR-Lex HTML carries none in a form worth parsing. The title is stored on the document and copied onto its chunks, so the chat can name an act as the law does rather than by its CELEX number alone.
+
 ### 1.3 Losing documents
 Discovery refuses a result set that has lost more than a fifth of the acts the previous run held, and at least three of them: a truncated SPARQL response and a mass repeal look identical from here, and only one of them should empty the corpus.
 

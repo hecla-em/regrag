@@ -71,7 +71,7 @@ async def test_model_receives_system_prompt_and_numbered_context(monkeypatch):
 
     (prompt,) = model.received
     assert isinstance(prompt[0], SystemMessage)
-    assert "[1] (32023R1805, Article 4(1))" in prompt[1].content
+    assert "[1] (Regulation (EU) 2023/1805, Article 4(1))" in prompt[1].content
     assert "A very specific clause." in prompt[1].content
 
 

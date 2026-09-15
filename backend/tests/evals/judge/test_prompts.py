@@ -27,7 +27,7 @@ def test_cited_blocks_keep_the_markers_the_answer_used() -> None:
 
     blocks = format_cited_blocks("So [3] and also [1].", sources)
 
-    assert blocks.startswith("[3] (32023R1805, Article 5)\nthird")
+    assert blocks.startswith("[3] (Regulation (EU) 2023/1805, Article 5)\nthird")
     assert "[1] (" in blocks
     assert "second" not in blocks
 

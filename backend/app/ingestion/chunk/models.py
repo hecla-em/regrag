@@ -54,12 +54,20 @@ class Chunk(Locator):
     """One retrievable unit of a regulation, with its citation, the points it lists, and its
     cross-references."""
 
-    METADATA: ClassVar[set[str]] = {"citation", "points", "position", "references", "topic"}
-    """Fields outside content_hash: topic records where the chunk came from, position is
-    placement, the rest derive from what is hashed."""
+    METADATA: ClassVar[set[str]] = {
+        "act_title",
+        "citation",
+        "points",
+        "position",
+        "references",
+        "topic",
+    }
+    """Fields outside content_hash: topic and act_title record where the chunk came from,
+    position is placement, the rest derive from what is hashed."""
 
     celex: str
     topic: str
+    act_title: str | None = None
     kind: SectionKind
     text: str
     paragraph: str | None = None

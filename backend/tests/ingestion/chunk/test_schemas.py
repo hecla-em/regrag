@@ -26,6 +26,19 @@ async def test_document_chunk_roundtrip(db_session: AsyncSession, ingest_run, ma
     assert fetched.created_at is not None
 
 
+async def test_document_chunk_carries_the_title_of_its_act(
+    db_session: AsyncSession, ingest_run, make_chunk_row
+):
+    db_session.add(
+        make_chunk_row(ingest_run, act_title="Regulation (EU) 2023/1805 on renewable fuels")
+    )
+    await db_session.flush()
+    db_session.expire_all()
+
+    fetched = (await db_session.scalars(select(DocumentChunk))).one()
+    assert fetched.act_title == "Regulation (EU) 2023/1805 on renewable fuels"
+
+
 async def test_chunk_identity_unique_per_document(
     db_session: AsyncSession, ingest_run, make_chunk_row
 ):

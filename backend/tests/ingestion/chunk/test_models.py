@@ -59,3 +59,9 @@ def test_points_affect_the_metadata_hash_not_the_content_hash():
     """Points derive from the text, so they are metadata like the references found in it."""
     assert chunk(points=("a",)).metadata_hash != chunk().metadata_hash
     assert chunk(points=("a",)).content_hash == chunk().content_hash
+
+
+def test_act_title_affects_the_metadata_hash_not_the_content_hash():
+    """A title is where the chunk came from, like its topic: a renamed act must not re-embed."""
+    assert chunk(act_title="FuelEU").metadata_hash != chunk().metadata_hash
+    assert chunk(act_title="FuelEU").content_hash == chunk().content_hash
