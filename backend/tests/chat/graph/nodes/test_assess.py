@@ -206,7 +206,7 @@ class TestAssessLoop:
 
         (prompt,) = assess.received
         assert str(prompt[0].content).startswith(ASSESS_SYSTEM_PROMPT)
-        assert "[1] (32023R1805" in prompt[1].content
+        assert "[1] (Regulation (EU) 2023/1805" in prompt[1].content
         assert str(prompt[1].content).endswith(f"Question: {QUESTION}")
 
     async def test_a_gated_question_still_refuses_without_any_model_call(
@@ -542,7 +542,7 @@ class TestBuildAssessMessage:
 
         message = build_assess_message("What is the limit?", sources)
 
-        assert "[1] (32023R1805, Article 4(1))" in message
+        assert "[1] (Regulation (EU) 2023/1805, Article 4(1))" in message
         assert "A very specific clause." in message
         assert message.endswith("Question: What is the limit?")
 

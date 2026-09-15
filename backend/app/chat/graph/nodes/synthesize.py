@@ -21,8 +21,8 @@ SYSTEM_PROMPT = (
     "Start directly with the answer: no title, no restating the question, and no "
     "preamble such as 'Based on the context provided'. When several acts give the same "
     "answer, give it once and name the acts it holds for, then note only where they "
-    "differ; do not repeat near-identical lists per act. Refer to an act by the number "
-    "the context gives it; never invent a name or title for it."
+    "differ; do not repeat near-identical lists per act. Refer to an act by the name and "
+    "number the context gives it; never invent a title for one."
 )
 
 
