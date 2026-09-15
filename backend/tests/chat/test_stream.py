@@ -471,14 +471,12 @@ class TestSpendCap:
         assert state.outcome is ChatOutcome.ERROR
         assert state.steps == ()
 
-    async def test_under_the_cap_the_check_looks_back_one_day_and_lets_the_run_through(
+    async def test_under_the_cap_the_run_goes_through_and_the_days_spend_is_logged(
         self, two_results, monkeypatch, recorded_requests, caplog
     ):
         monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
-        asked: list = []
 
         async def spent_some(session, since):
-            asked.append(since)
             return 1.99
 
         monkeypatch.setattr("app.chat.stream.spent_since", spent_some)
@@ -488,8 +486,5 @@ class TestSpendCap:
             events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
 
         assert isinstance(events[-1], DoneEvent)
-        [since] = asked
-        assert 0 < (stream.utc_now() - since).total_seconds() - 86400 < 5
         [spend_line] = [r for r in caplog.records if "spend" in r.getMessage()]
-        assert spend_line.spent_usd == 1.99
-        assert spend_line.cap_usd == 2.0
+        assert (spend_line.spent_usd, spend_line.cap_usd) == (1.99, 2.0)

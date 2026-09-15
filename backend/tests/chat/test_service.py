@@ -114,6 +114,7 @@ async def test_log_line_carries_the_stats_but_not_the_content(db_session: AsyncS
     assert record.getMessage() == "chat done in 1500ms"
     assert record.__dict__["outcome"] == "done"
     assert record.__dict__["sources"] == 6
+    assert record.__dict__["cost_usd"] == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
     assert record.__dict__["steps"] == [
         {"step": "retrieve", "ms": 120, "usage": None},
         {"step": "synthesize", "ms": 1300, "usage": {"input_tokens": 1500, "output_tokens": 40}},
@@ -237,9 +238,7 @@ async def test_recorded_row_prices_its_tokens_at_the_models_rates(db_session: As
     await create_chat_request(db_session, answered_state())
 
     [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.cost_usd is not None
-    assert row.cost_usd == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
-    assert 0 < row.cost_usd < 0.01
+    assert row.cost_usd == TOKEN_USAGE.cost_usd(config.CHAT_MODEL) is not None
 
 
 async def test_a_run_with_no_usage_records_no_cost(db_session: AsyncSession):

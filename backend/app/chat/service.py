@@ -21,9 +21,10 @@ logger = logging.getLogger(__name__)
 
 async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
     """The run as recorded: one stats line, and a chat_requests row with a row per step."""
-    fields = state.log_fields()
-    logger.info("chat %(outcome)s in %(total_ms)sms", fields, extra=fields)
     usage = state.token_usage()
+    cost_usd = usage.cost_usd(config.CHAT_MODEL) if usage else None
+    fields = state.log_fields() | {"cost_usd": cost_usd}
+    logger.info("chat %(outcome)s in %(total_ms)sms", fields, extra=fields)
     steps = [
         ChatRequestStep(
             position=idx,
@@ -43,7 +44,7 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         total_ms=state.total_ms,
         sources=len(state.sources),
         **(usage.model_dump() if usage else {}),
-        cost_usd=usage.cost_usd(config.CHAT_MODEL) if usage else None,
+        cost_usd=cost_usd,
         error=state.error,
         steps=steps,
     )
@@ -52,11 +53,9 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
 
 async def spent_since(session: AsyncSession, since: datetime) -> float:
     """What the requests recorded since that moment cost between them; unpriced rows add
-    nothing, so an empty or unmeasured ledger reads as zero."""
-    stmt = select(func.coalesce(func.sum(ChatRequest.cost_usd), 0.0)).where(
-        ChatRequest.created_at >= since
-    )
-    return float(await session.scalar(stmt) or 0.0)
+    nothing, and a sum over none is NULL, so an empty or unmeasured ledger reads as zero."""
+    stmt = select(func.sum(ChatRequest.cost_usd)).where(ChatRequest.created_at >= since)
+    return (await session.execute(stmt)).scalar_one() or 0.0
 
 
 async def load_thread_history(session: AsyncSession, thread_id: UUID) -> tuple[ChatTurn, ...]:
