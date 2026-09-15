@@ -1,5 +1,4 @@
-# Nightly corpus ingest against the production database, raw documents in R2.
-# Secrets live in the repo's `prod` environment; `workflow_dispatch` runs it by hand.
+# Nightly corpus ingest.
 name: Ingest
 
 on:
