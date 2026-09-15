@@ -12,11 +12,13 @@ def filter_legislative_acts(rows: list[ActsQueryRow]) -> list[ActsQueryRow]:
 
 
 def _candidate_act(act_celex: str, rows: list[ActsQueryRow]) -> CandidateAct:
-    """Every row for an act repeats its in-force flag and carries one of its consolidations."""
+    """Every row for an act repeats its in-force flag and title and carries one of its
+    consolidations."""
     return CandidateAct(
         celex=act_celex,
         in_force=rows[0].in_force,
         consolidations=frozenset(row.consolidation for row in rows if row.consolidation),
+        title=rows[0].title,
     )
 
 
@@ -66,6 +68,7 @@ def select_documents(topic: str, rows: list[ActsQueryRow]) -> list[DiscoveredDoc
             source="eurlex",
             celex=act.celex,
             candidates=_consolidations_newest_first(act),
+            title=act.title,
         )
         for act in fetchable
     ]

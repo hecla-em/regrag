@@ -332,13 +332,17 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
     return _make
 
 
-def binding(celex: str, force: str | None = None, cons: str | None = None) -> dict:
-    """One SPARQL result row for a celex, with optional in-force and consolidation."""
+def binding(
+    celex: str, force: str | None = None, cons: str | None = None, title: str | None = None
+) -> dict:
+    """One SPARQL result row for a celex, with optional in-force, consolidation and title."""
     b: dict = {"c": {"value": celex}}
     if force is not None:
         b["force"] = {"value": force}
     if cons is not None:
         b["cons"] = {"value": cons}
+    if title is not None:
+        b["title"] = {"value": title}
     return b
 
 
@@ -347,9 +351,14 @@ def payload(*bindings: dict) -> dict:
     return {"results": {"bindings": list(bindings)}}
 
 
-def act_row(celex: str, in_force: bool | None = None, consolidation: str | None = None):
+def act_row(
+    celex: str,
+    in_force: bool | None = None,
+    consolidation: str | None = None,
+    title: str | None = None,
+):
     """One row as run_acts_by_topic_query hands it back, past the SPARQL envelope."""
-    return ActsQueryRow(celex=celex, in_force=in_force, consolidation=consolidation)
+    return ActsQueryRow(celex=celex, in_force=in_force, consolidation=consolidation, title=title)
 
 
 MRV_SPARQL = httpx.Response(
@@ -358,10 +367,15 @@ MRV_SPARQL = httpx.Response(
 
 
 def discovered_document(
-    celex: str = "32015R0757", topic: str = "mrv", candidates: tuple[str, ...] = ()
+    celex: str = "32015R0757",
+    topic: str = "mrv",
+    candidates: tuple[str, ...] = (),
+    title: str | None = None,
 ) -> DiscoveredDocument:
     """What discovery would hand fetch for one act, overridable per field."""
-    return DiscoveredDocument(topic=topic, source="eurlex", celex=celex, candidates=candidates)
+    return DiscoveredDocument(
+        topic=topic, source="eurlex", celex=celex, candidates=candidates, title=title
+    )
 
 
 async def chunk_versions(session: AsyncSession, celex: str | None = None) -> set[str | None]:
@@ -399,6 +413,7 @@ RETRIEVED_CHUNK: dict[str, Any] = {
     "id": 1,
     "celex": "32023R1805",
     "topic": "fueleu",
+    "act_title": "Regulation (EU) 2023/1805 on the use of renewable and low-carbon fuels",
     "citation": "Article 4(1)",
     "article": "4",
     "paragraph": "1",

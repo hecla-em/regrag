@@ -13,4 +13,4 @@ def parse_document(raw: RawDocument, html: bytes) -> ParsedDocument:
         sections = parse_eurlex_html(html.decode("utf-8"))
     except (ParseError, UnicodeDecodeError) as exc:
         raise DocumentFailed(Stage.PARSE, raw.celex, exc) from exc
-    return ParsedDocument(celex=raw.celex, topic=raw.topic, sections=sections)
+    return ParsedDocument(celex=raw.celex, topic=raw.topic, act_title=raw.title, sections=sections)

@@ -25,6 +25,19 @@ def test_parses_the_document_it_was_handed(make_document: Callable[..., RawDocum
     assert (parsed.celex, parsed.topic) == ("32023R1805", "fueleu")
 
 
+def test_parsed_document_carries_the_title_of_its_act(
+    make_document: Callable[..., RawDocument],
+) -> None:
+    raw = make_document(
+        IngestRun(status=IngestRunStatus.RUNNING),
+        title="Regulation (EU) 2023/1805 on renewable fuels",
+    )
+    assert (
+        parse_document(raw, HTML.encode("utf-8")).act_title
+        == "Regulation (EU) 2023/1805 on renewable fuels"
+    )
+
+
 def test_html_that_will_not_parse_fails_the_document_at_the_parse_stage(
     make_document: Callable[..., RawDocument],
 ) -> None:

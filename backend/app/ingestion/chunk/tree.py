@@ -41,6 +41,7 @@ def chunk_section_tree(
             **locator.model_dump(),
             celex=document.celex,
             topic=document.topic,
+            act_title=document.act_title,
             kind=section.kind,
             paragraph=section.number if section.kind is SectionKind.PARAGRAPH else None,
             text=piece,

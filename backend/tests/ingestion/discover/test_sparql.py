@@ -15,6 +15,8 @@ async def test_the_query_asks_for_the_base_act_and_json_results():
         query = request.url.params["query"]
         assert "resource/celex/32023R1805" in query
         assert "resource_legal_based_on_resource_legal" in query
+        assert "expression_title" in query
+        assert "resource/authority/language/ENG" in query
         assert request.url.params["format"] == "application/sparql-results+json"
         return httpx.Response(200, json=payload(binding("32023R1805", force="1")))
 
@@ -76,3 +78,16 @@ async def test_the_in_force_flag_is_read_as_a_bool():
         rows = await run_acts_by_topic_query(client, "32016R1928")
 
     assert [row.in_force for row in rows] == [True, False]
+
+
+async def test_the_title_is_read_with_its_spacing_normalised():
+    """CELLAR sets titles with non-breaking spaces; a stored title should read as plain text."""
+
+    def handler(request):
+        title = "Regulation (EU) 2023/1805 of 13\xa0September 2023"
+        return httpx.Response(200, json=payload(binding("32023R1805", title=title)))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        rows = await run_acts_by_topic_query(client, "32023R1805")
+
+    assert rows[0].title == "Regulation (EU) 2023/1805 of 13 September 2023"

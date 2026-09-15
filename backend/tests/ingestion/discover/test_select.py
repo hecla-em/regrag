@@ -41,6 +41,19 @@ def test_extract_candidate_acts_groups_interleaved_rows_by_celex():
     assert acts[1].consolidations == frozenset({"02023R2449-20250101"})
 
 
+def test_extract_candidate_acts_carries_the_title_every_row_repeats():
+    rows = [
+        act_row("32015R0757", in_force=True, consolidation="02015R0757-20240101", title="MRV"),
+        act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101", title="MRV"),
+    ]
+    assert extract_candidate_acts(rows)[0].title == "MRV"
+
+
+def test_select_documents_carries_the_title_to_the_document():
+    selected = select_documents("mrv", [act_row("32015R0757", in_force=True, title="MRV")])
+    assert selected[0].title == "MRV"
+
+
 def test_extract_candidate_acts_keeps_an_act_that_has_no_consolidations():
     acts = extract_candidate_acts([act_row("32023R2449", in_force=True)])
     assert acts[0].consolidations == frozenset()

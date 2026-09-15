@@ -80,6 +80,7 @@ class RetrievedChunk(FrozenModel):
     id: int
     celex: str
     topic: str
+    act_title: str | None = None
     citation: str
     article: str | None
     paragraph: str | None = None

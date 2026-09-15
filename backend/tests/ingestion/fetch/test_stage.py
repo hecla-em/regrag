@@ -52,6 +52,16 @@ def test_stored_version_is_reused_when_discovery_still_points_at_it(local_store,
     )
 
 
+def test_reuse_carries_the_title_discovery_found_this_run(local_store, store_document):
+    """A title is discovery's, not the download's, so a reused document still gets this run's."""
+    discovered = discovered_document(
+        "32023R1805", title="Regulation (EU) 2023/1805 on renewable fuels"
+    )
+    reused = _reuse_previous_version(local_store, discovered, stored(store_document), this_run())
+    assert reused is not None
+    assert reused[0].title == "Regulation (EU) 2023/1805 on renewable fuels"
+
+
 def test_reuse_carries_the_version_that_was_served_not_the_one_that_was_asked_for(
     local_store, store_document
 ):

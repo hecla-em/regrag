@@ -9,7 +9,9 @@ def paragraph(number: str | None, text: str) -> Section:
 
 
 def document(*sections: Section) -> ParsedDocument:
-    return ParsedDocument(celex="32023R1805", topic="fueleu", sections=sections)
+    return ParsedDocument(
+        celex="32023R1805", topic="fueleu", act_title="FuelEU Maritime", sections=sections
+    )
 
 
 def article(number: str, title: str, *children: Section) -> Section:
@@ -66,6 +68,11 @@ def test_chunk_carries_document_identity() -> None:
     doc = document(article("4", "Limits", paragraph("1", "First.")))
     chunk = chunk_document(doc)[0]
     assert (chunk.celex, chunk.topic) == ("32023R1805", "fueleu")
+
+
+def test_chunk_carries_the_title_of_its_act() -> None:
+    doc = document(article("4", "Limits", paragraph("1", "First.")))
+    assert chunk_document(doc)[0].act_title == "FuelEU Maritime"
 
 
 def test_a_non_paragraph_section_leaves_paragraph_unset() -> None:
