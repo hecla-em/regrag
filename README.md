@@ -1,6 +1,6 @@
 # RegRag
 
-[![CI](https://github.com/callumfm/regrag/actions/workflows/ci.yml/badge.svg)](https://github.com/callumfm/regrag/actions/workflows/ci.yml)
+[![CI](https://github.com/hecla-em/regrag/actions/workflows/ci.yml/badge.svg)](https://github.com/hecla-em/regrag/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A retrieval-augmented question answering system over EU maritime emissions law,
