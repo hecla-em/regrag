@@ -85,10 +85,9 @@ docker compose up --watch
 ```
 
 This builds the API image, migrates the database, and serves the API on the
-same port, syncing source edits into the container as you save. It is the
-build the deploy ships; running the API on the host with `uv run fastapi dev`
-stays the faster inner loop. The frontend runs on the host either way (`pnpm
-dev` in `frontend/`).
+same port, syncing source edits into the container as you save. Running the
+API on the host with `uv run fastapi dev` stays the faster inner loop. The
+frontend runs on the host either way (`pnpm dev` in `frontend/`).
 
 ## Commands
 

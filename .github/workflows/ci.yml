@@ -50,12 +50,6 @@ jobs:
       - run: uv run alembic upgrade head
       - run: uv run pytest
 
-  build-backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: docker build backend
-
   lint-frontend:
     runs-on: ubuntu-latest
     defaults:
