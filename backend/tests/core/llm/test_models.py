@@ -1,5 +1,7 @@
 """What a model call spends: how usages add, and what a run with none reads as."""
 
+import logging
+
 from langchain_core.messages.ai import UsageMetadata
 
 from app.core.llm.models import TokenUsage
@@ -43,3 +45,10 @@ def test_output_tokens_cost_more_than_input_tokens() -> None:
 
 def test_a_model_litellm_cannot_price_is_unmeasured_not_free() -> None:
     assert SMALL.cost_usd("anthropic/no-such-model") is None
+
+
+def test_an_unpriced_model_is_warned_about(caplog) -> None:
+    """A cap that sums unpriced rows never fires, so the gap has to be visible somewhere."""
+    with caplog.at_level(logging.WARNING, logger="app.core.llm.models"):
+        SMALL.cost_usd("anthropic/no-such-model")
+    assert any("no price for anthropic/no-such-model" in r.getMessage() for r in caplog.records)

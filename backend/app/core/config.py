@@ -164,7 +164,8 @@ class ChatConfig(BaseConfig):
     CHAT_THREAD_TURNS: the most answered turns a thread may hold, and so the history every
         follow-up call sees. The next question on a full thread is rejected.
     CHAT_DAILY_SPEND_CAP_USD: what the ledger may show spent over the last day before the
-        next question is refused; a rolling day, so midnight brings no fresh budget.
+        next question is refused; a rolling day, so midnight brings no fresh budget. Must be
+        positive: zero would refuse every question on an empty ledger, not switch the cap off.
     """
 
     CHAT_MODEL: str = "anthropic/claude-haiku-4-5"
@@ -174,7 +175,7 @@ class ChatConfig(BaseConfig):
     CHAT_SOURCES: int = Field(default=5, ge=1)
     CHAT_CONTEXT_CHUNKS: int = Field(default=15, ge=1)
     CHAT_THREAD_TURNS: int = Field(default=5, ge=1)
-    CHAT_DAILY_SPEND_CAP_USD: float = Field(default=5.0, ge=0.0)
+    CHAT_DAILY_SPEND_CAP_USD: float = Field(default=5.0, gt=0.0)
 
 
 class AssessConfig(BaseConfig):

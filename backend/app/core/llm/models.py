@@ -1,6 +1,7 @@
 """What a model call spends."""
 
 import functools
+import logging
 import operator
 from collections.abc import Iterable
 
@@ -8,6 +9,8 @@ import litellm
 from langchain_core.messages.ai import UsageMetadata
 
 from app.core.models import FrozenModel
+
+logger = logging.getLogger(__name__)
 
 
 class TokenUsage(FrozenModel):
@@ -23,13 +26,15 @@ class TokenUsage(FrozenModel):
         )
 
     def cost_usd(self, model: str) -> float | None:
-        """What the tokens cost at the model's listed prices, or None for a model litellm
-        cannot price — unmeasured rather than free, like a usage nobody reported."""
+        """What the tokens cost at the model's listed prices, or None for a model missing from
+        litellm's table, which it raises the base Exception for: unmeasured rather than free,
+        and warned about, since a cap summing unpriced rows never fires."""
         try:
             input_cost, output_cost = litellm.cost_per_token(
                 model=model, prompt_tokens=self.input_tokens, completion_tokens=self.output_tokens
             )
-        except Exception:  # litellm raises the base class for a model missing from its table
+        except Exception:
+            logger.warning("litellm has no price for %s; its usage is recorded unpriced", model)
             return None
         return input_cost + output_cost
 
