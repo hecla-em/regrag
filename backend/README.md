@@ -103,4 +103,4 @@ does and every flag it takes.
 
 `ingest` needs `VOYAGE_API_KEY`, `evals run` also needs `ANTHROPIC_API_KEY`, and
 re-running `ingest` is cheap — unchanged documents are neither downloaded nor
-re-embedded.
+re-embedded. In production `ingest` runs nightly from `.github/workflows/ingest.yml`.

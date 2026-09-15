@@ -8,6 +8,8 @@ uv run ingest fueleu      # one topic
 
 Re-running is cheap and safe: unchanged documents are neither downloaded nor re-embedded. `uv run ingest --help` prints every flag and the topics it knows.
 
+In production the same command runs nightly on GitHub Actions (`.github/workflows/ingest.yml`) against the PlanetScale database, with raw documents in R2. The workflow can also be dispatched by hand, optionally for one topic. A failed run fails the job, which is where it gets noticed.
+
 The following sections describe each stage of the ingest pipeline and the design decisions that were taken. Ingest is not a one-off — acts are amended and the pipeline itself is improved — so each stage has to re-run without redoing work that has not changed, embedding especially, since an external model charges per call.
 
 Discovery runs once against the whole corpus. Fetch, parse and chunk then run one document at a time, each committed before the next begins, so peak memory stays flat however far the corpus grows and a run that dies keeps the work it already did. Only a run that got through its whole topic stands for that topic: a run that died holds a prefix, and a run that failed a download holds a corpus with a hole in it. Either way its rows are reused by the next run but never taken for the topic's corpus. Pruning and embedding run once at the end, because both need to see the corpus whole.
