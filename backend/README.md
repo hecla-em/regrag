@@ -77,6 +77,18 @@ uv run fastapi dev
 The API is then on `http://localhost:8000`, with `/health` reporting database
 connectivity and `/docs` serving the OpenAPI schema.
 
+The same stack runs entirely in compose, which needs nothing on the host but
+Docker and `.env.dev`:
+
+```bash
+docker compose up --watch
+```
+
+This builds the API image, migrates the database, and serves the API on the
+same port, syncing source edits into the container as you save. Running the
+API on the host with `uv run fastapi dev` stays the faster inner loop. The
+frontend runs on the host either way (`pnpm dev` in `frontend/`).
+
 ## Commands
 
 ```bash

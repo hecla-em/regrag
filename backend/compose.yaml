@@ -1,5 +1,12 @@
 name: regrag
 
+x-api: &api
+  build: .
+  image: regrag-api
+  env_file: .env.dev
+  environment:
+    DB_HOST: db
+
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -16,6 +23,33 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  migrate:
+    <<: *api
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    command: ["fastapi", "run", "--reload", "app/main.py"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../data:/app/data
+    develop:
+      watch:
+        - path: .
+          action: sync
+          target: /app/backend
+          ignore:
+            - .venv
+        - path: ./pyproject.toml
+          action: rebuild
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
 volumes:
   db-data:
