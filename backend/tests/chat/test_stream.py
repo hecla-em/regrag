@@ -443,3 +443,53 @@ class TestThreads:
         assert state.outcome is ChatOutcome.ERROR
         assert state.steps == ()
         assert state.thread_id == THREAD_ID
+
+
+class TestSpendCap:
+    """The day's recorded spend is checked before anything runs."""
+
+    async def test_at_the_cap_the_question_is_refused_before_the_graph_runs_and_recorded(
+        self, monkeypatch, recorded_requests
+    ):
+        monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
+
+        async def spent_the_cap(session, since):
+            return 2.0
+
+        monkeypatch.setattr("app.chat.stream.spent_since", spent_the_cap)
+        model = fake_chat_model()
+        install_chat_model(monkeypatch, model)
+
+        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+
+        [error] = events
+        assert isinstance(error, ErrorEvent)
+        assert error.data.error == "SpendCapReachedError"
+        assert "paused" in error.data.message
+        assert model.received == []
+        [state] = recorded_requests
+        assert state.outcome is ChatOutcome.ERROR
+        assert state.steps == ()
+
+    async def test_under_the_cap_the_check_looks_back_one_day_and_lets_the_run_through(
+        self, two_results, monkeypatch, recorded_requests, caplog
+    ):
+        monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
+        asked: list = []
+
+        async def spent_some(session, since):
+            asked.append(since)
+            return 1.99
+
+        monkeypatch.setattr("app.chat.stream.spent_since", spent_some)
+        install_chat_model(monkeypatch, fake_chat_model())
+
+        with caplog.at_level(logging.INFO, logger=stream.logger.name):
+            events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+
+        assert isinstance(events[-1], DoneEvent)
+        [since] = asked
+        assert 0 < (stream.utc_now() - since).total_seconds() - 86400 < 5
+        [spend_line] = [r for r in caplog.records if "spend" in r.getMessage()]
+        assert spend_line.spent_usd == 1.99
+        assert spend_line.cap_usd == 2.0

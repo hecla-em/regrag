@@ -2,9 +2,10 @@
 thread history read back from those rows."""
 
 import logging
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.citations import strip_markers
@@ -42,10 +43,20 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         total_ms=state.total_ms,
         sources=len(state.sources),
         **(usage.model_dump() if usage else {}),
+        cost_usd=usage.cost_usd(config.CHAT_MODEL) if usage else None,
         error=state.error,
         steps=steps,
     )
     await create_record(session, request)
+
+
+async def spent_since(session: AsyncSession, since: datetime) -> float:
+    """What the requests recorded since that moment cost between them; unpriced rows add
+    nothing, so an empty or unmeasured ledger reads as zero."""
+    stmt = select(func.coalesce(func.sum(ChatRequest.cost_usd), 0.0)).where(
+        ChatRequest.created_at >= since
+    )
+    return float(await session.scalar(stmt) or 0.0)
 
 
 async def load_thread_history(session: AsyncSession, thread_id: UUID) -> tuple[ChatTurn, ...]:

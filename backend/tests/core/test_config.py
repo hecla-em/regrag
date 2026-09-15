@@ -184,6 +184,7 @@ def test_chat_defaults():
     assert chat.CHAT_SOURCES == 5
     assert chat.CHAT_CONTEXT_CHUNKS == 15
     assert chat.CHAT_THREAD_TURNS == 5
+    assert chat.CHAT_DAILY_SPEND_CAP_USD == 5.0
 
 
 def test_config_includes_chat_settings():

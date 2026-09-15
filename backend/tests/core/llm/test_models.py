@@ -24,3 +24,22 @@ def test_a_run_that_reported_nothing_is_unmeasured_not_free() -> None:
 def test_a_call_usage_is_read_from_the_message_metadata() -> None:
     reported = UsageMetadata(input_tokens=100, output_tokens=10, total_tokens=110)
     assert TokenUsage.from_metadata(reported) == SMALL
+
+
+def test_cost_is_the_tokens_at_the_models_listed_prices() -> None:
+    """The real seam: litellm's price table for the default chat model."""
+    million_in = TokenUsage(input_tokens=1_000_000, output_tokens=0)
+    cost = million_in.cost_usd("anthropic/claude-haiku-4-5")
+    assert cost is not None
+    assert 0.1 < cost < 10
+
+
+def test_output_tokens_cost_more_than_input_tokens() -> None:
+    in_only = TokenUsage(input_tokens=1000, output_tokens=0).cost_usd("anthropic/claude-haiku-4-5")
+    out_only = TokenUsage(input_tokens=0, output_tokens=1000).cost_usd("anthropic/claude-haiku-4-5")
+    assert in_only is not None and out_only is not None
+    assert out_only > in_only > 0
+
+
+def test_a_model_litellm_cannot_price_is_unmeasured_not_free() -> None:
+    assert SMALL.cost_usd("anthropic/no-such-model") is None

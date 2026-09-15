@@ -4,6 +4,7 @@ import functools
 import operator
 from collections.abc import Iterable
 
+import litellm
 from langchain_core.messages.ai import UsageMetadata
 
 from app.core.models import FrozenModel
@@ -20,6 +21,17 @@ class TokenUsage(FrozenModel):
             input_tokens=self.input_tokens + other.input_tokens,
             output_tokens=self.output_tokens + other.output_tokens,
         )
+
+    def cost_usd(self, model: str) -> float | None:
+        """What the tokens cost at the model's listed prices, or None for a model litellm
+        cannot price — unmeasured rather than free, like a usage nobody reported."""
+        try:
+            input_cost, output_cost = litellm.cost_per_token(
+                model=model, prompt_tokens=self.input_tokens, completion_tokens=self.output_tokens
+            )
+        except Exception:  # litellm raises the base class for a model missing from its table
+            return None
+        return input_cost + output_cost
 
     @classmethod
     def from_metadata(cls, usage: UsageMetadata) -> "TokenUsage":

@@ -28,6 +28,7 @@ class ChatRequest(BaseSchema):
     sources: Mapped[int]
     input_tokens: Mapped[int | None]
     output_tokens: Mapped[int | None]
+    cost_usd: Mapped[float | None]
     error: Mapped[str | None]
 
     steps: Mapped[list["ChatRequestStep"]] = relationship(

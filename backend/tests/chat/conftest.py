@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
 import openai
@@ -254,8 +255,12 @@ def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
     async def fake_create_chat_request(session: None, state: ChatState) -> None:
         states.append(state)
 
+    async def nothing_spent(session: None, since: datetime) -> float:
+        return 0.0
+
     monkeypatch.setattr("app.chat.stream.get_session", no_session)
     monkeypatch.setattr("app.chat.stream.create_chat_request", fake_create_chat_request)
+    monkeypatch.setattr("app.chat.stream.spent_since", nothing_spent)
     return states
 
 
