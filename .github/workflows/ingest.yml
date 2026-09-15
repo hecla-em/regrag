@@ -1,14 +1,11 @@
+# Nightly corpus ingest against the production database, raw documents in R2.
+# Secrets live in the repo's `prod` environment; `workflow_dispatch` runs it by hand.
 name: Ingest
 
 on:
   schedule:
     - cron: "0 3 * * *"
   workflow_dispatch:
-    inputs:
-      topics:
-        description: "Topics to ingest, space-separated (default: every seed topic)"
-        required: false
-        default: ""
 
 # One run at a time, and a late run waits rather than cancelling the one in progress:
 # the corpus is only taken for a topic by a run that got through the whole topic.
@@ -40,6 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
-      - run: uv sync --locked --no-dev
-      - run: uv run alembic upgrade head
-      - run: uv run ingest ${{ inputs.topics }}
+      - run: uv sync --locked
+      - run: uv run --no-sync alembic upgrade head
+      - run: uv run --no-sync ingest
