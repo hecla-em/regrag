@@ -5,7 +5,6 @@ import pytest
 from app.ingestion.exceptions import (
     CorpusShrankError,
     DiscoveryError,
-    DocumentStillRenderingError,
     EmptyDownloadError,
     IngestionError,
     MalformedDiscoveryError,
@@ -20,7 +19,6 @@ from app.ingestion.exceptions import (
         MalformedDiscoveryError,
         CorpusShrankError,
         NoFetchableVersionError,
-        DocumentStillRenderingError,
         EmptyDownloadError,
         ParseError,
     ],

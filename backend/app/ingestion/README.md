@@ -61,12 +61,14 @@ Discovery refuses a result set that has lost more than a fifth of the acts the p
 Fetch turns discovery's list into stored bytes, and avoids the download wherever it can.
 
 ### 2.1 Download
-Download takes the list from discovery and pulls each document off EUR-Lex.
+Download takes the list from discovery and pulls each document off CELLAR, the same Publications Office service discovery queries. EUR-Lex's own HTML endpoint sits behind a bot challenge that only a browser can pass.
 
-EUR-Lex serves documents at a fixed URL, so a CELEX id is enough to locate one.
+CELLAR serves documents at a fixed URL, so a CELEX id is enough to locate one; the request asks for the English XHTML rendering, which is the same markup EUR-Lex shows.
 
 ```
-https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX:32023R1805
+https://publications.europa.eu/resource/celex/32023R1805
+Accept: application/xhtml+xml
+Accept-Language: eng
 ```
 
 HTML is preferred over PDF because it carries the document's structure as markup — articles, paragraphs and tables are each marked up as such. A naive approach to chunking PDF text is to split every N characters with overlap, which cuts through those boundaries.
@@ -83,9 +85,9 @@ Documents are stored as objects, files on disk in dev, a Cloudflare R2 bucket in
 A new consolidation is therefore a new object rather than a replacement for the old one. This is deliberate: the database keeps one row per document per run, each recording the hash of the bytes that run read, and those bytes are verified against that hash on every later read. Overwriting would leave every earlier run pointing at bytes that no longer match.
 
 ### 2.2 Re-fetching
-Fetch compares the version discovery carries forward against the one it carried forward for the run that stored the document, so an unchanged document is not downloaded or written again. The comparison is on the version id, not the text — a new consolidation is a new id. It is on the version asked for rather than the one served, because an act whose consolidated text EUR-Lex will not serve resolves to the original act every time, and comparing that against the consolidated id it asked for would deny the match on every run.
+Fetch compares the version discovery carries forward against the one it carried forward for the run that stored the document, so an unchanged document is not downloaded or written again. The comparison is on the version id, not the text — a new consolidation is a new id. It is on the version asked for rather than the one served, because an act whose consolidated text CELLAR will not serve resolves to the original act every time, and comparing that against the consolidated id it asked for would deny the match on every run.
 
-Reusing a version means reading its stored bytes, which also proves they are still there. The row and the object are backed up separately, so a restore can leave them disagreeing; bytes that are missing, or that no longer hash to what the row recorded, are treated as bytes we do not have and the version is downloaded again. A store that cannot be read at all is a different thing, and fails the document rather than sending the whole corpus back to EUR-Lex.
+Reusing a version means reading its stored bytes, which also proves they are still there. The row and the object are backed up separately, so a restore can leave them disagreeing; bytes that are missing, or that no longer hash to what the row recorded, are treated as bytes we do not have and the version is downloaded again. A store that cannot be read at all is a different thing, and fails the document rather than sending the whole corpus back to CELLAR.
 
 ### 2.3 Where the bytes go
 `STORAGE_BACKEND` decides where a downloaded document is written. It defaults to `local`, putting files under `RAW_DATA_DIR` (`<repo>/data/raw`), so dev and tests need no network and no bucket. Set it to `r2` and fill in the `R2_*` settings to write to the Cloudflare bucket instead. Either way the row records the object key, and re-fetching reads the bytes back through the same interface (2.2).

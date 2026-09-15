@@ -317,13 +317,13 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
         calls: list[str] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.host == "publications.europa.eu":
+            if request.url.path.endswith("/sparql"):
                 query = request.url.params["query"]
                 for topic, base_celex in config.TOPIC_BASE_ACTS.items():
                     if base_celex in query:
                         return sparql[topic]
                 raise AssertionError(f"no base act in query: {query[:80]}")
-            celex = request.url.params["uri"].removeprefix("CELEX:")
+            celex = request.url.path.rsplit("/", 1)[-1]
             calls.append(celex)
             return docs[celex]
 

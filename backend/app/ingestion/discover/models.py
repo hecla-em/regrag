@@ -45,7 +45,7 @@ class DiscoveredDocument(FrozenModel):
     source: the corpus it came from; every act is currently EUR-Lex.
     celex: the act itself, which never changes.
     candidates: every consolidated text CELLAR claims for the act, newest first, empty if it was
-        never consolidated. Only candidates because only fetch learns which EUR-Lex serves: CELLAR
+        never consolidated. Only candidates because only fetch learns which CELLAR serves: it
         mints an id when the act is published, but no text is rendered until one is amended in.
     title: the act's official English title, what the chat names it by; None where CELLAR
         has none, which leaves the act named by its number alone.

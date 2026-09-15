@@ -32,7 +32,7 @@ def _reuse_previous_version(
 ) -> tuple[RawDocument, bytes] | None:
     """This run's row over the version the previous run stored, if the download would land there.
 
-    Discovery offering the same candidates is what settles that: the version EUR-Lex served
+    Discovery offering the same candidates is what settles that: the version CELLAR served
     for them is the one it will serve again, whether that was a candidate or the original act.
     """
     if previous is None or tuple(previous.candidates) != discovered.candidates:
@@ -58,7 +58,7 @@ async def _download_new_version(
     discovered: DiscoveredDocument,
     run: IngestRun,
 ) -> tuple[RawDocument, bytes]:
-    """Download the version EUR-Lex will serve, store its bytes, and stamp the fetch time."""
+    """Download the version CELLAR will serve, store its bytes, and stamp the fetch time."""
     resolved_celex, html = await download_fetchable_version(client, discovered)
     sha256, size_bytes = write_document(store, discovered.celex, resolved_celex, html)
     raw = RawDocument(
