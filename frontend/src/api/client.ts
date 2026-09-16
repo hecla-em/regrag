@@ -1,4 +1,5 @@
 import { createParser, type EventSourceMessage } from "eventsource-parser"
+import { clientId } from "@/lib/client-id"
 import type { ChatQuery, ChatStreamEvent, ErrorResponse } from "./types"
 
 export const API_URL: string =
@@ -50,7 +51,7 @@ export async function* streamChat(
 ): AsyncGenerator<ChatStreamEvent> {
 	const response = await apiFetch("/chat", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: { "content-type": "application/json", "X-Client-ID": clientId },
 		body: JSON.stringify(body),
 		signal,
 	})

@@ -1,7 +1,7 @@
 """Shared test fixtures."""
 
 import pkgutil
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Generator
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
@@ -10,12 +10,14 @@ from typing import Any
 
 import httpx
 import pytest
+import redis
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages.ai import UsageMetadata
+from redis.asyncio import Redis
 from sqlalchemy import URL, create_engine, delete, make_url, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -283,6 +285,33 @@ def app() -> FastAPI:
 @pytest.fixture
 def client(app: FastAPI) -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def no_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The limiter is off by default, so no test's questions count against another's; a
+    limiter test takes `rate_limited_client`, which counts in an emptied Redis."""
+    monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", False)
+
+
+@pytest.fixture
+def rate_limited_client(
+    app: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> Generator[TestClient, None, None]:
+    """A client whose calls the limiter counts, over the suite's own Redis index, emptied
+    first. Held in its context so every call shares one event loop, which the Redis
+    connections made on it need, and closed on that loop once the test is done."""
+    redis.Redis.from_url(config.REDIS_URL).flushdb()
+    fresh = Redis.from_url(config.REDIS_URL)
+    monkeypatch.setattr("app.core.ratelimit.redis_client", fresh)
+    monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 2)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_IP", 3)
+    monkeypatch.setattr(config, "RATE_LIMIT_WINDOW_SECONDS", 60)
+    with TestClient(app) as client:
+        yield client
+        assert client.portal is not None
+        client.portal.call(fresh.aclose)
 
 
 class FakeProvider:

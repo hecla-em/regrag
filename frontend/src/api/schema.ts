@@ -288,7 +288,9 @@ export interface operations {
     chat_chat_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
