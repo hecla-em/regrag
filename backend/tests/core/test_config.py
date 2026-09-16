@@ -184,6 +184,7 @@ def test_chat_defaults():
     assert chat.CHAT_SOURCES == 5
     assert chat.CHAT_CONTEXT_CHUNKS == 15
     assert chat.CHAT_THREAD_TURNS == 5
+    assert chat.CHAT_DAILY_SPEND_CAP_USD == 5.0
 
 
 def test_config_includes_chat_settings():
@@ -267,3 +268,9 @@ def test_the_eval_stamp_carries_the_decompose_settings():
 
     assert settings["DECOMPOSE_ENABLED"] is False
     assert settings["DECOMPOSE_MAX_PARTS"] == 3
+
+
+def test_the_spend_cap_cannot_be_zero():
+    """Zero would refuse every question on an empty ledger; there is no off switch, only a cap."""
+    with pytest.raises(ValidationError, match="CHAT_DAILY_SPEND_CAP_USD"):
+        ChatConfig(CHAT_DAILY_SPEND_CAP_USD=0)

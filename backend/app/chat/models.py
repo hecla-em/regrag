@@ -4,14 +4,14 @@ import operator
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
-from langchain_core.messages.ai import UsageMetadata
+from langchain_core.messages import AIMessage
 from pydantic import Field, computed_field
 
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
-from app.core.llm.models import TokenUsage
+from app.core.llm.models import Usage
 from app.core.models import AppModel, FrozenModel
 from app.retrieval.models import RetrievedChunk, SearchResult
 
@@ -26,8 +26,8 @@ class ChatQuery(AppModel):
 
 class ChatStepResult(FrozenModel):
     """One step of the path — a graph node, or one tool call a round ran: what it was, how
-    long it took, and what it spent if it called a model. The shape the ledger persists
-    per step, and the trace a run is read back from.
+    long it took, and what it spent and at which model if it called one. The shape the
+    ledger persists per step, and the trace a run is read back from.
 
     status: whether the step has finished. Only the stream announces a running one; every step
         the graph appends to the path has returned, so completed is the default.
@@ -38,16 +38,23 @@ class ChatStepResult(FrozenModel):
 
     step: ChatNode | ToolStep
     ms: int
-    usage: TokenUsage | None = None
+    usage: Usage | None = None
+    model: str | None = None
     status: ChatStepStatus = ChatStepStatus.COMPLETED
     subject: str | None = None
 
     @classmethod
-    def from_usage(
-        cls, step: ChatNode | ToolStep, ms: int, usage: UsageMetadata | None
-    ) -> "ChatStepResult":
-        """The result of a step that reported usage, or none."""
-        return cls(step=step, ms=ms, usage=TokenUsage.from_metadata(usage) if usage else None)
+    def from_reply(cls, step: ChatNode | ToolStep, ms: int, reply: AIMessage) -> "ChatStepResult":
+        """The result of a step that called a model: what the reply says it spent, priced at
+        the model litellm's wrapper stamps on it, unmeasured if the provider reported none."""
+        model = reply.response_metadata.get("model_name")
+        usage = reply.usage_metadata
+        return cls(
+            step=step,
+            ms=ms,
+            usage=Usage.from_metadata(usage, model) if usage else None,
+            model=model,
+        )
 
 
 class ChatTurn(FrozenModel):
@@ -129,10 +136,14 @@ class ChatState(AppModel):
         question as asked."""
         return self.standalone_question or self.question
 
-    def token_usage(self) -> TokenUsage | None:
+    def usage(self) -> Usage | None:
         """What the request spent, summed over the steps that reported usage, or None when
         none did."""
-        return TokenUsage.sum_reported(result.usage for result in self.steps)
+        return Usage.sum_reported(result.usage for result in self.steps)
+
+    def called_model(self) -> str | None:
+        """The model the run's steps called, or None when none asked one."""
+        return next((result.model for result in self.steps if result.model), None)
 
     def sync_from_snapshot(self, snapshot: dict[str, Any]) -> None:
         """Update this state with the graph's latest snapshot, so one object holds the run

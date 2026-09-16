@@ -5,6 +5,15 @@ from fastapi import status
 from app.core.exceptions import DomainError
 
 
+class SpendCapReachedError(DomainError):
+    """The last day's recorded spend has reached the cap; nothing runs until it ages out."""
+
+    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+
+    def __init__(self) -> None:
+        super().__init__("The service is paused for the day; ask again later")
+
+
 class ThreadFullError(DomainError):
     """The thread already holds as many answered turns as a thread may; the caller starts
     a new one."""

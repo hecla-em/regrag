@@ -3,6 +3,7 @@
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
 import openai
@@ -19,6 +20,7 @@ from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
 from tests.conftest import (
+    REPLY_METADATA,
     USAGE,
     install_chat_model,
     install_search,
@@ -35,7 +37,8 @@ class RecordingChatModel(GenericFakeChatModel):
     received: list[list[BaseMessage]] = Field(default_factory=list)
     usage: UsageMetadata | None = None
     """Reported as litellm does: on the message when invoked outright, and as a final
-    usage-only chunk after the answer's text when streamed."""
+    usage-only chunk after the answer's text when streamed. The model litellm's wrapper
+    stamps on the reply rides along with it."""
 
     def _generate(self, messages: list[BaseMessage], *args: Any, **kwargs: Any) -> ChatResult:
         self.received.append(list(messages))
@@ -43,6 +46,7 @@ class RecordingChatModel(GenericFakeChatModel):
         message = result.generations[0].message
         if self.usage and isinstance(message, AIMessage):
             message.usage_metadata = self.usage
+            message.response_metadata = REPLY_METADATA
         return result
 
     def _stream(
@@ -50,7 +54,11 @@ class RecordingChatModel(GenericFakeChatModel):
     ) -> Iterator[ChatGenerationChunk]:
         yield from super()._stream(messages, *args, **kwargs)
         if self.usage:
-            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage))
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(
+                    content="", usage_metadata=self.usage, response_metadata=REPLY_METADATA
+                )
+            )
 
 
 def fake_chat_model(answer: str = "Ships must comply [1].") -> RecordingChatModel:
@@ -254,8 +262,12 @@ def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
     async def fake_create_chat_request(session: None, state: ChatState) -> None:
         states.append(state)
 
+    async def nothing_spent(session: None, since: datetime) -> float:
+        return 0.0
+
     monkeypatch.setattr("app.chat.stream.get_session", no_session)
     monkeypatch.setattr("app.chat.stream.create_chat_request", fake_create_chat_request)
+    monkeypatch.setattr("app.chat.stream.spent_since", nothing_spent)
     return states
 
 

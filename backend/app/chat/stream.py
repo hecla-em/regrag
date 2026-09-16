@@ -3,6 +3,7 @@
 import logging
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
+from datetime import timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -12,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.chat.enums import ChatNode, ChatStepStatus
 from app.chat.events import (
     ChatEvent,
+    ChatStep,
     ChatThread,
     DoneEvent,
     ErrorEvent,
@@ -19,12 +21,12 @@ from app.chat.events import (
     StepEvent,
     TextEvent,
 )
-from app.chat.exceptions import ThreadFullError
+from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatQuery, ChatState, ChatStepResult
-from app.chat.service import create_chat_request, load_thread_history
+from app.chat.service import create_chat_request, load_thread_history, spent_since
 from app.chat.toolbox.service import build_call_step
-from app.core.clock import elapsed_ms
+from app.core.clock import elapsed_ms, utc_now
 from app.core.config import config
 from app.core.db.session import get_session
 from app.core.exceptions import DomainError, describe
@@ -70,10 +72,10 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
         if mode == "tasks":
             if "input" in payload:
                 for step in _starting_steps(payload["input"], ChatNode(payload["name"])):
-                    yield StepEvent(data=step)
+                    yield StepEvent(data=ChatStep.from_result(step))
             else:
                 for step in payload["result"].get("steps", ()):
-                    yield StepEvent(data=step)
+                    yield StepEvent(data=ChatStep.from_result(step))
             continue
         # The full state after each node
         if mode == "values":
@@ -97,6 +99,22 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
     yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
 
 
+async def check_spend_cap() -> None:
+    """Refuse the question once the last day's recorded spend has reached the cap, logging
+    where the day stands either way — the burn is read off these lines, not a dashboard."""
+    cap = config.CHAT_DAILY_SPEND_CAP_USD
+    async with get_session(auto_commit=False) as session:
+        spent = await spent_since(session, utc_now() - timedelta(days=1))
+    logger.info(
+        "chat spend %.4f of %.2f USD in the last day",
+        spent,
+        cap,
+        extra={"spent_usd": spent, "cap_usd": cap},
+    )
+    if spent >= cap:
+        raise SpendCapReachedError()
+
+
 async def open_thread(query: ChatQuery) -> ChatState:
     """The state a question starts from: on a fresh thread, one minted here and no history;
     on a continued one, its answered turns — or a refusal to add another once it is full."""
@@ -110,13 +128,15 @@ async def open_thread(query: ChatQuery) -> ChatState:
 
 
 async def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
-    """One question's events, ended by an error event if the thread is full or the run
-    raises; however it ends — done, refused, error, or the client leaving, which cancels
-    this task — it is recorded as one chat request, in its own session, shielded from that
-    cancellation. A failed write is logged, not raised: the answer already went out."""
+    """One question's events, ended by an error event if the day's spend is capped, the
+    thread is full or the run raises; however it ends — done, refused, error, or the client
+    leaving, which cancels this task — it is recorded as one chat request, in its own
+    session, shielded from that cancellation. A failed write is logged, not raised: the
+    answer already went out."""
     state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
     start = time.perf_counter()
     try:
+        await check_spend_cap()
         state = await open_thread(query)
         async for event in _stream_graph_events(state):
             yield event

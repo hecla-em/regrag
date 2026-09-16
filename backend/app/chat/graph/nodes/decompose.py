@@ -49,7 +49,7 @@ async def call_decompose_model(state: ChatState) -> dict[str, Any]:
     response = await decompose_model().ainvoke(messages)
     split = parse_model_answer(DecomposedQuestion, response.text, label=ChatNode.DECOMPOSE)
     queries = split.queries[: config.DECOMPOSE_MAX_PARTS]
-    return {"queries": queries if len(queries) > 1 else (), "usage": response.usage_metadata}
+    return {"queries": queries if len(queries) > 1 else (), "reply": response}
 
 
 @traced

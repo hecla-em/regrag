@@ -20,7 +20,6 @@ from app.chat.graph.nodes.decompose import (
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import ChatState
 from app.core.config import config
-from app.core.llm.models import TokenUsage
 from app.retrieval.models import SearchRequest
 from tests.chat.conftest import (
     QUESTION,
@@ -29,7 +28,7 @@ from tests.chat.conftest import (
     run_graph,
     split_message,
 )
-from tests.conftest import TOKEN_USAGE, junk_result, search_result
+from tests.conftest import REPORTED_USAGE, junk_result, search_result
 
 pytestmark = pytest.mark.anyio
 
@@ -68,7 +67,8 @@ async def test_the_decompose_client_sends_the_output_format_and_the_node_records
     assert calls[0]["stream"] is False
     assert update["queries"] == ("what is A", "what is B")
     [step] = update["steps"]
-    assert step.usage == TokenUsage(input_tokens=120, output_tokens=20)
+    assert step.usage is not None
+    assert (step.usage.input_tokens, step.usage.output_tokens) == (120, 20)
 
 
 class TestDecomposeInTheGraph:
@@ -189,7 +189,7 @@ class TestDecompose:
 
         [step] = update["steps"]
         assert step.step is ChatNode.DECOMPOSE
-        assert step.usage == TOKEN_USAGE
+        assert step.usage == REPORTED_USAGE
 
 
 def test_decompose_binds_the_output_format_on_a_blocking_call():

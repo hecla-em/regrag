@@ -8,12 +8,11 @@ import pytest
 from app.chat.enums import ChatNode, ChatOutcome
 from app.core.config import config
 from app.core.llm.errors import LLMError
-from app.core.llm.models import TokenUsage
 from app.evals import service
 from app.evals.dataset.enums import EvalTrait
 from app.evals.service import evaluate_all_cases, evaluate_case
 from tests.chat.conftest import fake_chat_model
-from tests.conftest import install_chat_model, install_search, search_result
+from tests.conftest import REPORTED_USAGE, install_chat_model, install_search, search_result
 from tests.evals.conftest import eval_case, eval_dataset
 
 pytestmark = pytest.mark.anyio
@@ -47,7 +46,7 @@ async def test_a_case_runs_through_the_graph_and_keeps_the_state_it_ended_in(
     assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE, ChatNode.SYNTHESIZE]
     assert result.state.outcome is ChatOutcome.DONE
     assert result.state.total_ms is not None
-    assert result.state.token_usage() == TokenUsage(input_tokens=1500, output_tokens=40)
+    assert result.state.usage() == REPORTED_USAGE
 
 
 async def test_a_case_the_graph_raises_on_is_recorded_rather_than_raised(

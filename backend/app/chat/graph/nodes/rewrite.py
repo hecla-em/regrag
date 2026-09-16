@@ -56,7 +56,7 @@ async def call_rewrite_model(state: ChatState) -> dict[str, Any]:
     ]
     response = await rewrite_model().ainvoke(messages)
     restated = parse_model_answer(StandaloneQuestion, response.text, label=ChatNode.REWRITE)
-    return {"standalone_question": restated.question, "usage": response.usage_metadata}
+    return {"standalone_question": restated.question, "reply": response}
 
 
 @traced
