@@ -45,6 +45,7 @@ async def test_finished_stream_records_timings_sources_and_usage(
     retrieve, synthesize = state.steps
     assert (retrieve.step, synthesize.step) == (ChatNode.RETRIEVE, ChatNode.SYNTHESIZE)
     assert (retrieve.usage, synthesize.usage) == (None, TOKEN_USAGE)
+    assert (retrieve.model, synthesize.model) == (None, config.CHAT_MODEL)
     assert len(state.sources) == 2
     assert state.total_ms is not None
     assert 0 <= sum(result.ms for result in state.steps) <= state.total_ms

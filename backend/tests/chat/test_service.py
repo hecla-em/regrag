@@ -33,7 +33,7 @@ def answered_state() -> ChatState:
         thread_id=THREAD_ID,
         steps=(
             ChatStepResult(step=ChatNode.RETRIEVE, ms=120),
-            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1300, USAGE),
+            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1300, USAGE, config.CHAT_MODEL),
         ),
         sources=tuple(retrieved_chunk(id=n) for n in range(6)),
         answer="Ships must report [1].",
@@ -84,6 +84,7 @@ async def test_recorded_row_reads_the_stats_and_the_request_context(
         (row.id, 1, "synthesize", 1300),
     ]
     assert [(n.input_tokens, n.output_tokens) for n in nodes] == [(None, None), (1500, 40)]
+    assert [n.model for n in nodes] == [None, config.CHAT_MODEL]
 
 
 async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
@@ -96,6 +97,7 @@ async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
     assert row.outcome is ChatOutcome.ERROR
     assert row.error == "embedding call failed"
     assert row.answer is None
+    assert row.model is None
     assert row.thread_id == failed.thread_id
     assert (row.input_tokens, row.output_tokens) == (None, None)
     assert row.sources == 0
@@ -116,9 +118,14 @@ async def test_log_line_carries_the_stats_but_not_the_content(db_session: AsyncS
     assert record.__dict__["sources"] == 6
     assert record.__dict__["cost_usd"] == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
     assert record.__dict__["steps"] == [
-        {"step": "retrieve", "ms": 120, "usage": None},
-        {"step": "synthesize", "ms": 1300, "usage": {"input_tokens": 1500, "output_tokens": 40}},
-        {"step": "tool_search", "ms": 80, "usage": None},
+        {"step": "retrieve", "ms": 120, "usage": None, "model": None},
+        {
+            "step": "synthesize",
+            "ms": 1300,
+            "usage": {"input_tokens": 1500, "output_tokens": 40},
+            "model": config.CHAT_MODEL,
+        },
+        {"step": "tool_search", "ms": 80, "usage": None, "model": None},
     ]
     assert "question" not in record.__dict__
     assert "answer" not in record.__dict__

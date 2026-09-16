@@ -168,16 +168,29 @@ class TestContextSettled:
         assert state.context_settled is True
 
 
-def test_cost_is_the_summed_usage_at_the_models_prices():
+def test_cost_is_each_steps_usage_at_the_model_that_step_called():
     state = ChatState(
         question="q",
         steps=(
             ChatStepResult(step=ChatNode.RETRIEVE, ms=1),
-            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE),
+            ChatStepResult.from_usage(ChatNode.ASSESS, 1, USAGE, config.CHAT_MODEL),
+            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE, config.CHAT_MODEL),
         ),
     )
-    assert state.cost_usd(config.CHAT_MODEL) == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
+    one_step = TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
+    assert one_step is not None
+    assert state.cost_usd() == 2 * one_step
+    assert state.called_model() == config.CHAT_MODEL
 
 
-def test_a_run_with_no_reported_usage_has_no_cost():
-    assert ChatState(question="q").cost_usd(config.CHAT_MODEL) is None
+def test_a_run_with_no_reported_usage_has_no_cost_and_named_no_model():
+    state = ChatState(question="q", steps=(ChatStepResult(step=ChatNode.RETRIEVE, ms=1),))
+    assert state.cost_usd() is None
+    assert state.called_model() is None
+
+
+def test_usage_without_a_model_is_unmeasured_not_priced_at_a_guess():
+    state = ChatState(
+        question="q", steps=(ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE),)
+    )
+    assert state.cost_usd() is None

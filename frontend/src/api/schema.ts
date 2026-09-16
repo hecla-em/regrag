@@ -86,8 +86,8 @@ export interface components {
         /**
          * ChatStepResult
          * @description One step of the path — a graph node, or one tool call a round ran: what it was, how
-         *     long it took, and what it spent if it called a model. The shape the ledger persists
-         *     per step, and the trace a run is read back from.
+         *     long it took, and what it spent and at which model if it called one. The shape the
+         *     ledger persists per step, and the trace a run is read back from.
          *
          *     status: whether the step has finished. Only the stream announces a running one; every step
          *         the graph appends to the path has returned, so completed is the default.
@@ -101,6 +101,8 @@ export interface components {
             /** Ms */
             ms: number;
             usage?: components["schemas"]["TokenUsage"] | null;
+            /** Model */
+            model?: string | null;
             /** @default completed */
             status: components["schemas"]["ChatStepStatus"];
             /** Subject */

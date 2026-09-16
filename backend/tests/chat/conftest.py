@@ -28,6 +28,9 @@ from tests.conftest import (
     search_result,
 )
 
+REPLY_METADATA = {"model_name": config.CHAT_MODEL, "model_provider": "litellm"}
+"""What langchain-litellm sets as a reply's response_metadata: the model it called."""
+
 
 class RecordingChatModel(GenericFakeChatModel):
     """Streams a canned answer with real message chunks, recording each prompt once:
@@ -36,7 +39,8 @@ class RecordingChatModel(GenericFakeChatModel):
     received: list[list[BaseMessage]] = Field(default_factory=list)
     usage: UsageMetadata | None = None
     """Reported as litellm does: on the message when invoked outright, and as a final
-    usage-only chunk after the answer's text when streamed."""
+    usage-only chunk after the answer's text when streamed. The model litellm's wrapper
+    stamps on the reply rides along with it."""
 
     def _generate(self, messages: list[BaseMessage], *args: Any, **kwargs: Any) -> ChatResult:
         self.received.append(list(messages))
@@ -44,6 +48,7 @@ class RecordingChatModel(GenericFakeChatModel):
         message = result.generations[0].message
         if self.usage and isinstance(message, AIMessage):
             message.usage_metadata = self.usage
+            message.response_metadata = REPLY_METADATA
         return result
 
     def _stream(
@@ -51,7 +56,11 @@ class RecordingChatModel(GenericFakeChatModel):
     ) -> Iterator[ChatGenerationChunk]:
         yield from super()._stream(messages, *args, **kwargs)
         if self.usage:
-            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage))
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(
+                    content="", usage_metadata=self.usage, response_metadata=REPLY_METADATA
+                )
+            )
 
 
 def fake_chat_model(answer: str = "Ships must comply [1].") -> RecordingChatModel:

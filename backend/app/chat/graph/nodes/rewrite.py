@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 
 from app.chat.enums import ChatNode
-from app.chat.graph.node import chat_model, traced
+from app.chat.graph.node import chat_model, reply_spend, traced
 from app.chat.models import ChatState, ChatTurn
 from app.core.llm.errors import LLMError, llm_retry, parse_model_answer, wrap_provider_errors
 from app.core.models import FrozenModel
@@ -56,7 +56,7 @@ async def call_rewrite_model(state: ChatState) -> dict[str, Any]:
     ]
     response = await rewrite_model().ainvoke(messages)
     restated = parse_model_answer(StandaloneQuestion, response.text, label=ChatNode.REWRITE)
-    return {"standalone_question": restated.question, "usage": response.usage_metadata}
+    return {"standalone_question": restated.question, **reply_spend(response)}
 
 
 @traced

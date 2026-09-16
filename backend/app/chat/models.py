@@ -26,8 +26,8 @@ class ChatQuery(AppModel):
 
 class ChatStepResult(FrozenModel):
     """One step of the path — a graph node, or one tool call a round ran: what it was, how
-    long it took, and what it spent if it called a model. The shape the ledger persists
-    per step, and the trace a run is read back from.
+    long it took, and what it spent and at which model if it called one. The shape the
+    ledger persists per step, and the trace a run is read back from.
 
     status: whether the step has finished. Only the stream announces a running one; every step
         the graph appends to the path has returned, so completed is the default.
@@ -39,15 +39,25 @@ class ChatStepResult(FrozenModel):
     step: ChatNode | ToolStep
     ms: int
     usage: TokenUsage | None = None
+    model: str | None = None
     status: ChatStepStatus = ChatStepStatus.COMPLETED
     subject: str | None = None
 
     @classmethod
     def from_usage(
-        cls, step: ChatNode | ToolStep, ms: int, usage: UsageMetadata | None
+        cls,
+        step: ChatNode | ToolStep,
+        ms: int,
+        usage: UsageMetadata | None,
+        model: str | None = None,
     ) -> "ChatStepResult":
-        """The result of a step that reported usage, or none."""
-        return cls(step=step, ms=ms, usage=TokenUsage.from_metadata(usage) if usage else None)
+        """The result of a step that reported usage, or none, and the model it reported for."""
+        return cls(
+            step=step,
+            ms=ms,
+            usage=TokenUsage.from_metadata(usage) if usage else None,
+            model=model,
+        )
 
 
 class ChatTurn(FrozenModel):
@@ -134,10 +144,20 @@ class ChatState(AppModel):
         none did."""
         return TokenUsage.sum_reported(result.usage for result in self.steps)
 
-    def cost_usd(self, model: str) -> float | None:
-        """That spend at the model's prices, or None when unmeasured or unpriced."""
-        usage = self.token_usage()
-        return usage.cost_usd(model) if usage else None
+    def cost_usd(self) -> float | None:
+        """That spend priced step by step at the model each step called, or None when no
+        step could be priced."""
+        priced = [
+            cost
+            for result in self.steps
+            if result.usage and result.model
+            if (cost := result.usage.cost_usd(result.model)) is not None
+        ]
+        return sum(priced) if priced else None
+
+    def called_model(self) -> str | None:
+        """The model the run's steps called, or None when none asked one."""
+        return next((result.model for result in self.steps if result.model), None)
 
     def sync_from_snapshot(self, snapshot: dict[str, Any]) -> None:
         """Update this state with the graph's latest snapshot, so one object holds the run

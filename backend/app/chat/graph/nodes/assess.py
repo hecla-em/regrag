@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from pydantic import ValidationError
 
-from app.chat.graph.node import chat_model, traced
+from app.chat.graph.node import chat_model, reply_spend, traced
 from app.chat.models import ChatState, ChatStepResult
 from app.chat.prompts import format_context, system_prompt, thread_messages
 from app.chat.toolbox.models import ToolCall
@@ -113,12 +113,12 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
     refusals = [call for call in asked if is_refusal(call)]
     fetches = [call for call in asked if not is_refusal(call)]
     if refusals and not fetches:
-        return {"pending_calls": (refusals[0],), "usage": response.usage_metadata}
+        return {"pending_calls": (refusals[0],), **reply_spend(response)}
     if refusals:
         logger.info("assess hedged its refusal with a fetch, so the fetch runs")
     useful = [call for call in fetches if not already_in_context(call, state.sources)]
     calls = tuple(useful[: config.ASSESS_MAX_CALLS])
-    return {"pending_calls": calls, "usage": response.usage_metadata}
+    return {"pending_calls": calls, **reply_spend(response)}
 
 
 @traced
