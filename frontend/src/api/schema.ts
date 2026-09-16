@@ -92,12 +92,13 @@ export interface components {
             step: components["schemas"]["ChatNode"] | components["schemas"]["ToolStep"];
             /** Ms */
             ms: number;
-            usage: components["schemas"]["ChatUsage"] | null;
+            usage?: components["schemas"]["ChatUsage"] | null;
             /** Model */
-            model: string | null;
+            model?: string | null;
+            /** @default completed */
             status: components["schemas"]["ChatStepStatus"];
             /** Subject */
-            subject: string | null;
+            subject?: string | null;
         };
         /**
          * ChatStepStatus

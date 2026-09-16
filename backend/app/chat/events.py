@@ -82,10 +82,10 @@ class ChatStep(FrozenModel):
 
     step: ChatNode | ToolStep
     ms: int
-    usage: ChatUsage | None
-    model: str | None
-    status: ChatStepStatus
-    subject: str | None
+    usage: ChatUsage | None = None
+    model: str | None = None
+    status: ChatStepStatus = ChatStepStatus.COMPLETED
+    subject: str | None = None
 
     @classmethod
     def from_result(cls, result: ChatStepResult) -> "ChatStep":
