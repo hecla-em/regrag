@@ -16,3 +16,16 @@ def test_lifespan_disposes_engine(monkeypatch) -> None:
     with TestClient(app):
         pass
     assert calls == [True]
+
+
+def test_lifespan_closes_the_redis_client(monkeypatch) -> None:
+    calls: list[bool] = []
+
+    class FakeRedis:
+        async def aclose(self) -> None:
+            calls.append(True)
+
+    monkeypatch.setattr("app.main.redis_client", FakeRedis())
+    with TestClient(app):
+        pass
+    assert calls == [True]

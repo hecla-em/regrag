@@ -52,11 +52,24 @@ class BaseConfig(BaseSettings):
 
 
 class AppConfig(BaseConfig):
-    """Application configuration."""
+    """Application configuration.
+
+    RATE_LIMIT_ENABLED: the chat limiter's off switch; tests switch it off.
+    RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
+        of a few and then roughly one every 12s at the default.
+    RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it
+        sends, so rotating ids buys nothing.
+    RATE_LIMIT_WINDOW_SECONDS: the sliding window both limits count over.
+    """
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_CLIENT: int = Field(default=5, ge=1)
+    RATE_LIMIT_PER_IP: int = Field(default=20, ge=1)
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
 class StorageBackend(StrEnum):
@@ -126,6 +139,17 @@ class PostgresConfig(BaseConfig):
                 "options": f"-c statement_timeout={self.DB_COMMAND_TIMEOUT * 1000}",
             },
         }
+
+
+class RedisConfig(BaseConfig):
+    """The Redis the rate limiter counts in; the compose service by default.
+
+    REDIS_TIMEOUT: seconds to wait to connect or for a reply. A limiter check that waits
+        longer than this lets the call through rather than hold it.
+    """
+
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_TIMEOUT: float = Field(default=1.0, gt=0.0)
 
 
 EMBED_DIMENSIONS = 1024
@@ -309,6 +333,7 @@ class JudgeConfig(BaseConfig):
 class Config(
     AppConfig,
     PostgresConfig,
+    RedisConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -329,6 +354,7 @@ config = Config()
 _CONFIG_SECTIONS = (
     AppConfig,
     PostgresConfig,
+    RedisConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

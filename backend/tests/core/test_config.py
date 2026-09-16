@@ -16,6 +16,7 @@ from app.core.config import (
     IngestConfig,
     JudgeConfig,
     ProviderConfig,
+    RedisConfig,
     RetrievalConfig,
     StorageBackend,
     StorageConfig,
@@ -29,6 +30,19 @@ from tests.conftest import r2_config
 
 def test_storage_defaults_to_the_local_backend():
     assert StorageConfig().STORAGE_BACKEND is StorageBackend.LOCAL
+
+
+def test_redis_defaults_to_the_compose_instance(monkeypatch):
+    """The suite points REDIS_URL at its own index, so the default is read with that unset."""
+    monkeypatch.delenv("REDIS_URL")
+    assert RedisConfig().REDIS_URL == "redis://localhost:6379/0"
+
+
+def test_rate_limits_default_on():
+    combined = Config()
+
+    assert combined.RATE_LIMIT_ENABLED is True
+    assert combined.RATE_LIMIT_PER_CLIENT < combined.RATE_LIMIT_PER_IP
 
 
 def test_the_r2_endpoint_is_built_from_the_account_id(monkeypatch):

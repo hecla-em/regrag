@@ -4,5 +4,7 @@ import os
 
 os.environ["ENVIRONMENT"] = "test"
 os.environ["DB_NAME"] = "regrag_test"
+os.environ["REDIS_URL"] = "redis://localhost:6379/1"
 """Set here rather than in .env.example, which is also the template for .env.dev: naming the
-test database there would point a fresh dev checkout at the one the suite truncates."""
+test database and Redis index there would point a fresh dev checkout at the ones the suite
+truncates."""

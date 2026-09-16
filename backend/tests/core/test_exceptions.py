@@ -10,7 +10,7 @@ from httpx import Response
 from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 
-from app.core.exceptions import NotFoundError, describe
+from app.core.exceptions import NotFoundError, RateLimitedError, describe
 
 
 class _Payload(BaseModel):
@@ -31,6 +31,11 @@ router = APIRouter()
 @router.get("/boom-domain")
 def boom_domain() -> None:
     raise NotFoundError("Regulation", "fueleu")
+
+
+@router.get("/boom-rate-limited")
+def boom_rate_limited() -> None:
+    raise RateLimitedError(retry_after=7)
 
 
 @router.get("/boom-http")
@@ -83,6 +88,14 @@ def assert_error_shape(response: Response, status_code: int, error: str) -> dict
 def test_domain_error(client: TestClient) -> None:
     body = assert_error_shape(client.get("/boom-domain"), 404, "NotFoundError")
     assert body["message"] == "Regulation 'fueleu' not found"
+
+
+def test_rate_limited_error_says_when_to_retry(client: TestClient) -> None:
+    """A DomainError may carry headers, which the handler forwards like HTTPException's."""
+    response = client.get("/boom-rate-limited")
+    body = assert_error_shape(response, 429, "RateLimitedError")
+    assert response.headers["Retry-After"] == "7"
+    assert body["message"] == "Too many questions; try again in 7 seconds"
 
 
 def test_http_exception_preserves_headers(client: TestClient) -> None:

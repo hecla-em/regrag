@@ -29,6 +29,14 @@ async def request_id_middleware(request: Request, call_next):
         request_id_var.reset(token)
 
 
+def client_ip(request: Request) -> str | None:
+    """The address the request came from: behind Fly's proxy the connection is the proxy's,
+    and the header carries the client's."""
+    if forwarded := request.headers.get("Fly-Client-IP"):
+        return forwarded
+    return request.client.host if request.client else None
+
+
 def _log_access(request: Request, status_code: int, duration_ms: int) -> None:
     """The one access-log line per request."""
     logger.info(
@@ -43,7 +51,7 @@ def _log_access(request: Request, status_code: int, duration_ms: int) -> None:
             "route": getattr(request.scope.get("route"), "path", None),
             "status": status_code,
             "duration_ms": duration_ms,
-            "client_ip": request.client.host if request.client else None,
+            "client_ip": client_ip(request),
         },
     )
 

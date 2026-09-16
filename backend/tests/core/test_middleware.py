@@ -1,5 +1,6 @@
 """Tests for the request middleware: request IDs, access log, gzip."""
 
+import logging
 import uuid
 from collections.abc import Iterator
 
@@ -38,6 +39,28 @@ def test_access_log_line(client: TestClient, caplog: pytest.LogCaptureFixture) -
     client.get("/health")
     [line] = access_lines(caplog)
     assert "GET /health 200" in line
+
+
+def access_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """The access-log records the request middleware emitted, with their extras."""
+    return [r for r in caplog.records if r.name == middleware.logger.name]
+
+
+def test_access_log_records_the_connecting_address(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    client.get("/health")
+    [record] = access_records(caplog)
+    assert record.__dict__["client_ip"] == "testclient"
+
+
+def test_access_log_prefers_the_address_fly_forwards(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Behind Fly's proxy the connecting address is the proxy; the header names the client."""
+    client.get("/health", headers={"Fly-Client-IP": "203.0.113.9"})
+    [record] = access_records(caplog)
+    assert record.__dict__["client_ip"] == "203.0.113.9"
 
 
 def test_access_log_skips_cors_preflight(
