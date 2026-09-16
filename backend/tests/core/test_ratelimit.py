@@ -96,6 +96,14 @@ def test_without_an_id_the_client_allowance_is_the_address(client: TestClient) -
     assert ask(client, ip="203.0.113.10").status_code == 200
 
 
+def test_an_oversized_id_is_rejected_rather_than_stored(client: TestClient) -> None:
+    """A key carries the id verbatim, so its length is the one thing a caller could inflate."""
+    response = ask(client, "x" * 65)
+
+    assert response.status_code == 422
+    assert ask(client, "x" * 64).status_code == 200
+
+
 def test_off_it_refuses_nothing(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", False)
     for _ in range(5):

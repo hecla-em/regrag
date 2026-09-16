@@ -42,10 +42,13 @@ checked before any is written, so a refused call counts against none of them, an
 reply is the longest wait among the keys that refused, or zero."""
 
 
-async def rate_limit(request: Request, x_client_id: Annotated[str | None, Header()] = None) -> None:
+async def rate_limit(
+    request: Request, x_client_id: Annotated[str | None, Header(max_length=64)] = None
+) -> None:
     """Refuse the call once its client id, or its address across ids, has used the window's
-    allowance. A call without an id counts its client allowance against the address. Redis
-    unreachable lets the call through: the spend cap is the backstop."""
+    allowance. A call without an id counts its client allowance against the address; one
+    longer than a UUID is rejected, since the id is the key. Redis unreachable lets the call
+    through: the spend cap is the backstop."""
     if not config.RATE_LIMIT_ENABLED:
         return
     ip = client_ip(request) or "unknown"
