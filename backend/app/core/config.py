@@ -161,18 +161,6 @@ class RateLimitConfig(BaseConfig):
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
-class ChatCacheConfig(BaseConfig):
-    """The answer cache, which serves a repeated first question without running the graph.
-
-    CHAT_CACHE_ENABLED: the cache's off switch; tests switch it off.
-    CHAT_CACHE_TTL_SECONDS: how long an answer is kept. A new corpus version already
-        retires every answer, so this only bounds how long a stale key holds memory.
-    """
-
-    CHAT_CACHE_ENABLED: bool = True
-    CHAT_CACHE_TTL_SECONDS: int = Field(default=7 * 24 * 3600, ge=1)
-
-
 EMBED_DIMENSIONS = 1024
 """Width of the document_chunks.embedding column: not a setting, changing it needs a migration."""
 
@@ -211,6 +199,10 @@ class ChatConfig(BaseConfig):
     CHAT_DAILY_SPEND_CAP_USD: what the ledger may show spent over the last day before the
         next question is refused; a rolling day, so midnight brings no fresh budget. Must be
         positive: zero would refuse every question on an empty ledger, not switch the cap off.
+    CHAT_CACHE_ENABLED: the answer cache's off switch, which serves a repeated first question
+        without running the graph; tests switch it off.
+    CHAT_CACHE_TTL_SECONDS: how long a cached answer is kept. A deploy or a finished ingest
+        already retires every answer, so this only bounds how long a dead key holds memory.
     """
 
     CHAT_MODEL: str = "anthropic/claude-haiku-4-5"
@@ -221,6 +213,8 @@ class ChatConfig(BaseConfig):
     CHAT_CONTEXT_CHUNKS: int = Field(default=15, ge=1)
     CHAT_THREAD_TURNS: int = Field(default=5, ge=1)
     CHAT_DAILY_SPEND_CAP_USD: float = Field(default=5.0, gt=0.0)
+    CHAT_CACHE_ENABLED: bool = True
+    CHAT_CACHE_TTL_SECONDS: int = Field(default=7 * 24 * 3600, ge=1)
 
 
 class AssessConfig(BaseConfig):
@@ -360,7 +354,6 @@ class Config(
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
-    ChatCacheConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -383,7 +376,6 @@ _CONFIG_SECTIONS = (
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
-    ChatCacheConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

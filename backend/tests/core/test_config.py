@@ -10,7 +10,6 @@ from app.core.config import (
     AppConfig,
     AssessConfig,
     BaseConfig,
-    ChatCacheConfig,
     ChatConfig,
     Config,
     EmbeddingConfig,
@@ -62,7 +61,7 @@ def test_the_build_is_the_image_fly_runs_or_local(monkeypatch):
 def test_the_answer_cache_defaults_on(monkeypatch):
     monkeypatch.delenv("CHAT_CACHE_ENABLED")
 
-    assert ChatCacheConfig().CHAT_CACHE_ENABLED is True
+    assert ChatConfig().CHAT_CACHE_ENABLED is True
 
 
 def test_the_r2_endpoint_is_built_from_the_account_id(monkeypatch):
