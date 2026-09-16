@@ -175,6 +175,7 @@ export interface components {
              */
             version: string;
             database: components["schemas"]["ServiceStatus"];
+            redis: components["schemas"]["ServiceStatus"];
             /** @description Overall status: ok only while every ServiceStatus field reports ok. */
             readonly status: components["schemas"]["HealthStatus"];
         };

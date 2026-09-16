@@ -32,6 +32,7 @@ from app.core.clock import utc_now
 from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
 from app.core.db.session import async_session_factory
 from app.core.llm.models import TokenUsage
+from app.core.redis import redis_client
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
@@ -283,8 +284,14 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-def client(app: FastAPI) -> TestClient:
-    return TestClient(app)
+def client(app: FastAPI) -> Generator[TestClient, None, None]:
+    """Held in its context so a test's requests share one event loop: a pooled Redis
+    connection only works on the loop that opened it, so the pool is emptied on that loop
+    before the next test opens its own."""
+    with TestClient(app) as client:
+        yield client
+        assert client.portal is not None
+        client.portal.call(redis_client.connection_pool.disconnect)
 
 
 @pytest.fixture(autouse=True)

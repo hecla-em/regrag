@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app import __version__
 from app.core.db.session import SessionDep
 from app.core.models import AppModel
+from app.core.redis import redis_client
 
 
 class ServiceStatus(StrEnum):
@@ -24,6 +25,7 @@ class HealthStatus(StrEnum):
 class HealthResponse(AppModel):
     version: str = __version__
     database: ServiceStatus
+    redis: ServiceStatus
 
     @computed_field
     @property
@@ -49,4 +51,9 @@ async def get_health(db: SessionDep) -> HealthResponse:
         database = ServiceStatus.OK
     except Exception:
         database = ServiceStatus.ERROR
-    return HealthResponse(database=database)
+    try:
+        await redis_client.ping()
+        redis = ServiceStatus.OK
+    except Exception:
+        redis = ServiceStatus.ERROR
+    return HealthResponse(database=database, redis=redis)
