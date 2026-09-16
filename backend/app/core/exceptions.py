@@ -50,7 +50,6 @@ class RateLimitedError(DomainError):
             f"Too many questions; try again in {retry_after} seconds",
             headers={"Retry-After": str(retry_after)},
         )
-        self.retry_after = retry_after
 
 
 def describe(exc: Exception) -> tuple[str, str]:

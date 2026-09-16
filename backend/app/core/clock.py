@@ -14,6 +14,11 @@ def utc_today() -> date:
     return utc_now().date()
 
 
+def now_ms() -> int:
+    """Whole milliseconds since the epoch."""
+    return int(time.time() * 1000)
+
+
 def elapsed_ms(start: float) -> int:
     """Whole milliseconds since a perf_counter reading."""
     return int((time.perf_counter() - start) * 1000)

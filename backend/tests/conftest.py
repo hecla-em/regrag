@@ -10,7 +10,6 @@ from typing import Any
 
 import httpx
 import pytest
-import redis
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
@@ -48,7 +47,7 @@ from app.ingestion.fetch.storage import write_document
 from app.ingestion.parse.html.document import parse_eurlex_html
 from app.ingestion.parse.models import ParsedDocument
 from app.ingestion.schemas import IngestRun
-from app.main import configure_app
+from app.main import configure_app, lifespan
 from app.retrieval.models import RetrievedChunk, SearchResult
 
 RETRIED = (
@@ -278,47 +277,34 @@ def make_chunk_row() -> Callable[..., DocumentChunk]:
 @pytest.fixture
 def app() -> FastAPI:
     """A throwaway app wired like production, so tests never mutate the real one."""
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     configure_app(app)
     return app
 
 
 @pytest.fixture
 def client(app: FastAPI) -> Generator[TestClient, None, None]:
-    """Held in its context so a test's requests share one event loop: a pooled Redis
-    connection only works on the loop that opened it, so the pool is emptied on that loop
-    before the next test opens its own."""
+    """Held in its context so the lifespan runs: a test's requests then share one event loop,
+    and the Redis pool and engine are drained on it before the next test opens its own."""
     with TestClient(app) as client:
         yield client
-        assert client.portal is not None
-        client.portal.call(redis_client.connection_pool.disconnect)
-
-
-@pytest.fixture(autouse=True)
-def no_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The limiter is off by default, so no test's questions count against another's; a
-    limiter test takes `rate_limited_client`, which counts in an emptied Redis."""
-    monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", False)
 
 
 @pytest.fixture
-def rate_limited_client(
-    app: FastAPI, monkeypatch: pytest.MonkeyPatch
-) -> Generator[TestClient, None, None]:
-    """A client whose calls the limiter counts, over the suite's own Redis index, emptied
-    first. Held in its context so every call shares one event loop, which the Redis
-    connections made on it need, and closed on that loop once the test is done."""
-    redis.Redis.from_url(config.REDIS_URL).flushdb()
-    fresh = Redis.from_url(config.REDIS_URL)
-    monkeypatch.setattr("app.core.ratelimit.redis_client", fresh)
+def rate_limited_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """The limiter on with small limits, counting in the suite's Redis index, emptied first."""
+    assert client.portal is not None
+    client.portal.call(redis_client.flushdb)
     monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 2)
     monkeypatch.setattr(config, "RATE_LIMIT_PER_IP", 3)
     monkeypatch.setattr(config, "RATE_LIMIT_WINDOW_SECONDS", 60)
-    with TestClient(app) as client:
-        yield client
-        assert client.portal is not None
-        client.portal.call(fresh.aclose)
+    return client
+
+
+def unreachable_redis() -> Redis:
+    """A client pointed at a closed port, for the checks that must survive Redis being gone."""
+    return Redis.from_url("redis://localhost:9/0", socket_connect_timeout=0.2)
 
 
 class FakeProvider:

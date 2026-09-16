@@ -39,7 +39,10 @@ def test_redis_defaults_to_the_compose_instance(monkeypatch):
     assert RedisConfig().REDIS_URL == "redis://localhost:6379/0"
 
 
-def test_rate_limits_default_on_with_the_address_ceiling_above_the_client_allowance():
+def test_rate_limits_default_on_with_the_address_ceiling_above_the_client_allowance(
+    monkeypatch,
+):
+    monkeypatch.delenv("RATE_LIMIT_ENABLED")
     limits = RateLimitConfig()
 
     assert limits.RATE_LIMIT_ENABLED is True

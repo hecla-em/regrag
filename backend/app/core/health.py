@@ -1,6 +1,9 @@
 """Health endpoint and its response model."""
 
+import asyncio
+from collections.abc import Awaitable
 from enum import StrEnum
+from typing import Any
 
 from fastapi import APIRouter
 from pydantic import computed_field
@@ -9,7 +12,7 @@ from sqlalchemy import text
 from app import __version__
 from app.core.db.session import SessionDep
 from app.core.models import AppModel
-from app.core.redis import redis_client
+from app.core.redis import RedisDep
 
 
 class ServiceStatus(StrEnum):
@@ -44,16 +47,19 @@ class HealthResponse(AppModel):
 router = APIRouter(tags=["health"])
 
 
+async def probe_service(ping: Awaitable[Any]) -> ServiceStatus:
+    """OK if the ping returns, ERROR whatever way it fails."""
+    try:
+        await ping
+        return ServiceStatus.OK
+    except Exception:
+        return ServiceStatus.ERROR
+
+
 @router.get("/health")
-async def get_health(db: SessionDep) -> HealthResponse:
-    try:
-        await db.execute(text("SELECT 1"))
-        database = ServiceStatus.OK
-    except Exception:
-        database = ServiceStatus.ERROR
-    try:
-        await redis_client.ping()
-        redis = ServiceStatus.OK
-    except Exception:
-        redis = ServiceStatus.ERROR
-    return HealthResponse(database=database, redis=redis)
+async def get_health(db: SessionDep, redis: RedisDep) -> HealthResponse:
+    database, redis_status = await asyncio.gather(
+        probe_service(db.execute(text("SELECT 1"))),
+        probe_service(redis.ping()),
+    )
+    return HealthResponse(database=database, redis=redis_status)

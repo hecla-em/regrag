@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
 import { streamChat } from "@/api/client"
 import { chatReducer, isTurnRunning } from "@/lib/chat-turns"
-
-let turnsCreated = 0
-
-/** crypto.randomUUID needs a secure context, which a plain-HTTP host is not. */
-function createTurnId(): string {
-	turnsCreated += 1
-	return globalThis.crypto?.randomUUID?.() ?? `turn-${turnsCreated}`
-}
+import { randomId } from "@/lib/ids"
 
 export function useChatStream() {
 	const [turns, dispatch] = useReducer(chatReducer, [])
@@ -19,7 +12,7 @@ export function useChatStream() {
 		abort.current?.abort()
 		const controller = new AbortController()
 		abort.current = controller
-		dispatch({ type: "ask", id: createTurnId(), question })
+		dispatch({ type: "ask", id: randomId(), question })
 		try {
 			const query = { question, thread_id: threadId.current }
 			for await (const event of streamChat(query, controller.signal)) {

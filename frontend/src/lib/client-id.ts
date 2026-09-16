@@ -1,35 +1,21 @@
+import { randomId } from "@/lib/ids"
+
 const CLIENT_ID_KEY = "regrag:client-id"
 
-/** crypto.randomUUID needs a secure context, which a plain-HTTP host is not; random bytes
- * do not. */
-function mintId(): string {
-	if (crypto.randomUUID) return crypto.randomUUID()
-	const bytes = crypto.getRandomValues(new Uint8Array(16))
-	return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-		"",
-	)
-}
+type ClientIdStore = Pick<Storage, "getItem" | "setItem">
 
-/** The id this browser sends on every question, minted once and kept in storage;
- * without storage (private mode, blocked site data) each call mints its own. */
-export function readClientId(storage: Storage | null): string {
+/** The id this browser sends on every question, minted once and kept in storage; when
+ * storage is not there (private mode, blocked site data) each call mints its own. */
+export function readClientId(
+	storage: () => ClientIdStore = () => localStorage,
+): string {
 	try {
-		const held = storage?.getItem(CLIENT_ID_KEY)
+		const held = storage().getItem(CLIENT_ID_KEY)
 		if (held) return held
-		const minted = mintId()
-		storage?.setItem(CLIENT_ID_KEY, minted)
+		const minted = randomId()
+		storage().setItem(CLIENT_ID_KEY, minted)
 		return minted
 	} catch {
-		return mintId()
+		return randomId()
 	}
 }
-
-function browserStorage(): Storage | null {
-	try {
-		return globalThis.localStorage ?? null
-	} catch {
-		return null
-	}
-}
-
-export const clientId: string = readClientId(browserStorage())
