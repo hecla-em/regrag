@@ -23,8 +23,9 @@ class DomainError(Exception):
 
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
 
-    def __init__(self, message: str):
+    def __init__(self, message: str, headers: Mapping[str, str] | None = None):
         self.message = message
+        self.headers = headers
         super().__init__(message)
 
 
@@ -37,6 +38,18 @@ class NotFoundError(DomainError):
         super().__init__(f"{resource} '{identifier}' not found")
         self.resource = resource
         self.identifier = identifier
+
+
+class RateLimitedError(DomainError):
+    """The caller has asked as often as the window allows. The header says how long to wait."""
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+
+    def __init__(self, retry_after: int):
+        super().__init__(
+            f"Too many questions. Try again in {retry_after} seconds",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 def describe(exc: Exception) -> tuple[str, str]:
@@ -120,7 +133,7 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     """Map any DomainError subclass to a JSON response using its status_code."""
     name, message = describe(exc)
     logger.warning("%s on %s %s: %s", name, request.method, request.url.path, message)
-    return error_response(exc.status_code, error=name, message=message)
+    return error_response(exc.status_code, error=name, message=message, headers=exc.headers)
 
 
 async def integrity_error_handler(request: Request, exc: IntegrityError) -> JSONResponse:

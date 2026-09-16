@@ -7,6 +7,7 @@ from uuid import UUID
 import httpx
 
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
+from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import THINKING, fake_chat_model, reasoning_chat_model
 from tests.conftest import install_chat_model, install_search
@@ -127,6 +128,38 @@ def test_unexpected_failure_emits_a_generic_error_event(client, monkeypatch):
     assert payload["error"] == "InternalServerError"
     assert payload["message"] == "An unexpected error occurred"
     assert "secret internals" not in json.dumps(payload)
+
+
+def test_a_question_over_the_limit_is_refused_before_the_graph_runs(
+    rate_limited_client, two_results, answer_model, monkeypatch
+):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
+    client = rate_limited_client
+    headers = {"X-Client-ID": "reader"}
+    with client.stream("POST", "/chat", json={"question": "q"}, headers=headers) as first:
+        assert first.status_code == 200
+        read_events(first)
+
+    second = client.post("/chat", json={"question": "q"}, headers=headers)
+
+    assert second.status_code == 429
+    assert second.json()["error"] == "RateLimitedError"
+    assert len(answer_model.received) == 1
+
+
+def test_a_malformed_question_costs_no_slot(
+    rate_limited_client, two_results, answer_model, monkeypatch
+):
+    """Route dependencies run before the body parses. The limiter must not, or a client's
+    own 422s would lock it out."""
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
+    headers = {"X-Client-ID": "reader"}
+    assert (
+        rate_limited_client.post("/chat", json={"question": ""}, headers=headers).status_code == 422
+    )
+
+    with rate_limited_client.stream("POST", "/chat", json={"question": "q"}, headers=headers) as ok:
+        assert ok.status_code == 200
 
 
 def test_empty_question_is_rejected(client):

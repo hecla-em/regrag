@@ -5,12 +5,27 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core.db.session import get_db
+from app.core.redis import get_redis
+from tests.conftest import unreachable_redis
 
 
 def test_health_returns_ok(client: TestClient) -> None:
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "version": "0.1.0", "database": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "version": "0.1.0",
+        "database": "ok",
+        "redis": "ok",
+    }
+
+
+def test_health_degraded_when_redis_unreachable(app: FastAPI, client: TestClient) -> None:
+    app.dependency_overrides[get_redis] = unreachable_redis
+    body = client.get("/health").json()
+    assert body["status"] == "degraded"
+    assert body["redis"] == "error"
+    assert body["database"] == "ok"
 
 
 def test_health_degraded_when_db_unreachable(app: FastAPI, client: TestClient) -> None:

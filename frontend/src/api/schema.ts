@@ -179,6 +179,7 @@ export interface components {
              */
             version: string;
             database: components["schemas"]["ServiceStatus"];
+            redis: components["schemas"]["ServiceStatus"];
             /** @description Overall status: ok only while every ServiceStatus field reports ok. */
             readonly status: components["schemas"]["HealthStatus"];
         };
@@ -282,7 +283,9 @@ export interface operations {
     chat_chat_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

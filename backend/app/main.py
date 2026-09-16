@@ -13,6 +13,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.health import router as health_router
 from app.core.logger import setup_logging
 from app.core.middleware import register_middleware
+from app.core.redis import redis_client
 
 setup_logging()
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         yield
     finally:
         await async_engine.dispose()
+        await redis_client.aclose()
 
 
 def configure_app(app: FastAPI) -> None:

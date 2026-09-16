@@ -1,7 +1,7 @@
 """Shared test fixtures."""
 
 import pkgutil
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Generator
 from contextlib import asynccontextmanager
 from importlib import import_module
 from pathlib import Path
@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata
+from redis.asyncio import Redis
 from sqlalchemy import URL, create_engine, delete, make_url, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -31,6 +32,7 @@ from app.core.clock import utc_now
 from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
 from app.core.db.session import async_session_factory
 from app.core.llm.models import Usage
+from app.core.redis import redis_client
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
@@ -46,7 +48,7 @@ from app.ingestion.fetch.storage import write_document
 from app.ingestion.parse.html.document import parse_eurlex_html
 from app.ingestion.parse.models import ParsedDocument
 from app.ingestion.schemas import IngestRun
-from app.main import configure_app
+from app.main import configure_app, lifespan
 from app.retrieval.models import RetrievedChunk, SearchResult
 
 RETRIED = (
@@ -276,14 +278,34 @@ def make_chunk_row() -> Callable[..., DocumentChunk]:
 @pytest.fixture
 def app() -> FastAPI:
     """A throwaway app wired like production, so tests never mutate the real one."""
-    app = FastAPI()
+    app = FastAPI(lifespan=lifespan)
     configure_app(app)
     return app
 
 
 @pytest.fixture
-def client(app: FastAPI) -> TestClient:
-    return TestClient(app)
+def client(app: FastAPI) -> Generator[TestClient, None, None]:
+    """Held in its context so the lifespan runs: a test's requests then share one event loop,
+    and the Redis pool and engine are drained on it before the next test opens its own."""
+    with TestClient(app) as client:
+        yield client
+
+
+@pytest.fixture
+def rate_limited_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """The limiter on with small limits, counting in the suite's Redis index, emptied first."""
+    assert client.portal is not None
+    client.portal.call(redis_client.flushdb)
+    monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 2)
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_IP", 3)
+    monkeypatch.setattr(config, "RATE_LIMIT_WINDOW_SECONDS", 60)
+    return client
+
+
+def unreachable_redis() -> Redis:
+    """A client pointed at a closed port, for the checks that must survive Redis being gone."""
+    return Redis.from_url("redis://localhost:9/0", socket_connect_timeout=0.2)
 
 
 class FakeProvider:

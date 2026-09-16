@@ -66,16 +66,16 @@ pre-commit install          # from the repo root
 cp .env.example .env.dev    # then set VOYAGE_API_KEY and ANTHROPIC_API_KEY
 ```
 
-Start the database, migrate and run the API:
+Start the database and Redis, migrate and run the API:
 
 ```bash
-docker compose up -d db
+docker compose up -d db redis
 uv run alembic upgrade head
 uv run fastapi dev
 ```
 
 The API is then on `http://localhost:8000`, with `/health` reporting database
-connectivity and `/docs` serving the OpenAPI schema.
+and Redis connectivity and `/docs` serving the OpenAPI schema.
 
 The same stack runs entirely in compose, which needs nothing on the host but
 Docker and `.env.dev`:

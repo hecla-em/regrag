@@ -128,6 +128,34 @@ class PostgresConfig(BaseConfig):
         }
 
 
+class RedisConfig(BaseConfig):
+    """The Redis the rate limiter counts in, the compose service by default.
+
+    REDIS_TIMEOUT: seconds to wait to connect or for a reply. A limiter check that waits
+        longer than this lets the call through rather than hold it.
+    """
+
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_TIMEOUT: float = Field(default=1.0, gt=0.0)
+
+
+class RateLimitConfig(BaseConfig):
+    """The chat rate limiter: an allowance per client id, and a ceiling per address behind it.
+
+    RATE_LIMIT_ENABLED: the limiter's off switch. Tests switch it off.
+    RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
+        of a few and then roughly one every 12s at the default.
+    RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it
+        sends, so rotating ids buys nothing.
+    RATE_LIMIT_WINDOW_SECONDS: the sliding window both limits count over.
+    """
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_CLIENT: int = Field(default=5, ge=1)
+    RATE_LIMIT_PER_IP: int = Field(default=20, ge=1)
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
+
+
 EMBED_DIMENSIONS = 1024
 """Width of the document_chunks.embedding column: not a setting, changing it needs a migration."""
 
@@ -313,6 +341,8 @@ class JudgeConfig(BaseConfig):
 class Config(
     AppConfig,
     PostgresConfig,
+    RedisConfig,
+    RateLimitConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -333,6 +363,8 @@ config = Config()
 _CONFIG_SECTIONS = (
     AppConfig,
     PostgresConfig,
+    RedisConfig,
+    RateLimitConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

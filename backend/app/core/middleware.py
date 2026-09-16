@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.clock import elapsed_ms
-from app.core.config import config
+from app.core.config import Environment, config
 from app.core.exceptions import describe, error_response
 from app.core.logger import request_id_var
 
@@ -29,6 +29,14 @@ async def request_id_middleware(request: Request, call_next):
         request_id_var.reset(token)
 
 
+def client_ip(request: Request) -> str | None:
+    """The address the request came from. In prod the connection is Fly's proxy and the
+    header carries the client's. Anywhere else the header is whatever the caller wrote."""
+    if config.ENVIRONMENT is Environment.PROD and (fly := request.headers.get("Fly-Client-IP")):
+        return fly
+    return request.client.host if request.client else None
+
+
 def _log_access(request: Request, status_code: int, duration_ms: int) -> None:
     """The one access-log line per request."""
     logger.info(
@@ -43,7 +51,7 @@ def _log_access(request: Request, status_code: int, duration_ms: int) -> None:
             "route": getattr(request.scope.get("route"), "path", None),
             "status": status_code,
             "duration_ms": duration_ms,
-            "client_ip": request.client.host if request.client else None,
+            "client_ip": client_ip(request),
         },
     )
 

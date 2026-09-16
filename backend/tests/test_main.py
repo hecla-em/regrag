@@ -1,18 +1,24 @@
 """Tests for application lifespan."""
 
+from types import SimpleNamespace
+
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
-def test_lifespan_disposes_engine(monkeypatch) -> None:
-    calls: list[bool] = []
+@pytest.mark.parametrize(
+    ("target", "method"),
+    [("app.main.async_engine", "dispose"), ("app.main.redis_client", "aclose")],
+)
+def test_lifespan_closes_its_clients(monkeypatch, target: str, method: str) -> None:
+    calls: list[str] = []
 
-    class FakeEngine:
-        async def dispose(self) -> None:
-            calls.append(True)
+    async def record() -> None:
+        calls.append(method)
 
-    monkeypatch.setattr("app.main.async_engine", FakeEngine())
+    monkeypatch.setattr(target, SimpleNamespace(**{method: record}))
     with TestClient(app):
         pass
-    assert calls == [True]
+    assert calls == [method]
