@@ -5,7 +5,7 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.chat.graph.node import chat_model, reply_spend, traced
+from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState
 from app.chat.prompts import format_context, system_prompt, thread_messages
 from app.core.llm.errors import llm_retry, wrap_provider_errors
@@ -46,4 +46,4 @@ async def synthesize(state: ChatState) -> dict[str, Any]:
         HumanMessage(build_user_message(state.question, state.sources)),
     ]
     response = await chat_model().ainvoke(messages)
-    return {"answer": response.text, **reply_spend(response)}
+    return {"answer": response.text, "reply": response}

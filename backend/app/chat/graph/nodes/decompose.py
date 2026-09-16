@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 
 from app.chat.enums import ChatNode
-from app.chat.graph.node import chat_model, reply_spend, traced
+from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState
 from app.core.config import config
 from app.core.llm.errors import LLMError, llm_retry, parse_model_answer, wrap_provider_errors
@@ -49,7 +49,7 @@ async def call_decompose_model(state: ChatState) -> dict[str, Any]:
     response = await decompose_model().ainvoke(messages)
     split = parse_model_answer(DecomposedQuestion, response.text, label=ChatNode.DECOMPOSE)
     queries = split.queries[: config.DECOMPOSE_MAX_PARTS]
-    return {"queries": queries if len(queries) > 1 else (), **reply_spend(response)}
+    return {"queries": queries if len(queries) > 1 else (), "reply": response}
 
 
 @traced

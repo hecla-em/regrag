@@ -20,6 +20,7 @@ from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
 from tests.conftest import (
+    REPLY_METADATA,
     USAGE,
     install_chat_model,
     install_search,
@@ -27,9 +28,6 @@ from tests.conftest import (
     provider_error,
     search_result,
 )
-
-REPLY_METADATA = {"model_name": config.CHAT_MODEL, "model_provider": "litellm"}
-"""What langchain-litellm sets as a reply's response_metadata: the model it called."""
 
 
 class RecordingChatModel(GenericFakeChatModel):

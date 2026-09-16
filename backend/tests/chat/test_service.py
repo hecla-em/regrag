@@ -19,7 +19,7 @@ from app.chat.toolbox.service import build_call_step
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.logger import request_id_var
-from tests.conftest import REPORTED_USAGE, USAGE, retrieved_chunk
+from tests.conftest import REPORTED_USAGE, reply_message, retrieved_chunk
 
 pytestmark = pytest.mark.anyio
 
@@ -33,7 +33,7 @@ def answered_state() -> ChatState:
         thread_id=THREAD_ID,
         steps=(
             ChatStepResult(step=ChatNode.RETRIEVE, ms=120),
-            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1300, USAGE, config.CHAT_MODEL),
+            ChatStepResult.from_reply(ChatNode.SYNTHESIZE, 1300, reply_message()),
         ),
         sources=tuple(retrieved_chunk(id=n) for n in range(6)),
         answer="Ships must report [1].",

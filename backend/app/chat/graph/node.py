@@ -6,7 +6,6 @@ import time
 from collections.abc import Awaitable
 from typing import Any, Protocol
 
-from langchain_core.messages import AIMessage
 from langchain_litellm import ChatLiteLLM
 
 from app.chat.enums import ChatNode
@@ -17,9 +16,9 @@ from app.core.llm.keys import api_key_for
 
 
 class NodeFn(Protocol):
-    """A node: the state so far in, the fields it sets out — plus what its reply spent, if
-    it called a model, which its step carries rather than the state. Named for the ChatNode
-    it is."""
+    """A node: the state so far in, the fields it sets out — plus `reply`, the message if it
+    called a model, whose spend its step carries rather than the state. Named for the
+    ChatNode it is."""
 
     __name__: str
 
@@ -35,18 +34,16 @@ def traced(run: NodeFn) -> NodeFn:
     async def traced_run(state: ChatState) -> dict[str, Any]:
         start = time.perf_counter()
         update = await run(state)
-        usage = update.pop("usage", None)
-        model = update.pop("model", None)
-        step = ChatStepResult.from_usage(node, elapsed_ms(start), usage, model)
+        ms = elapsed_ms(start)
+        reply = update.pop("reply", None)
+        step = (
+            ChatStepResult.from_reply(node, ms, reply)
+            if reply is not None
+            else ChatStepResult(step=node, ms=ms)
+        )
         return update | {"steps": (step,)}
 
     return traced_run
-
-
-def reply_spend(reply: AIMessage) -> dict[str, Any]:
-    """What a node's reply spent, as the node returns it: the usage the provider reported
-    and the model litellm called, which its wrapper stamps on the reply."""
-    return {"usage": reply.usage_metadata, "model": reply.response_metadata.get("model_name")}
 
 
 def chat_model(*, streaming: bool = True) -> ChatLiteLLM:

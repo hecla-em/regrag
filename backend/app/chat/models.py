@@ -4,7 +4,7 @@ import operator
 from typing import Annotated, Any
 from uuid import UUID, uuid4
 
-from langchain_core.messages.ai import UsageMetadata
+from langchain_core.messages import AIMessage
 from pydantic import Field, computed_field
 
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
@@ -44,14 +44,11 @@ class ChatStepResult(FrozenModel):
     subject: str | None = None
 
     @classmethod
-    def from_usage(
-        cls,
-        step: ChatNode | ToolStep,
-        ms: int,
-        usage: UsageMetadata | None,
-        model: str | None = None,
-    ) -> "ChatStepResult":
-        """The result of a step that reported usage, or none, priced at the model it named."""
+    def from_reply(cls, step: ChatNode | ToolStep, ms: int, reply: AIMessage) -> "ChatStepResult":
+        """The result of a step that called a model: what the reply says it spent, priced at
+        the model litellm's wrapper stamps on it, unmeasured if the provider reported none."""
+        model = reply.response_metadata.get("model_name")
+        usage = reply.usage_metadata
         return cls(
             step=step,
             ms=ms,
