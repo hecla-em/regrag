@@ -75,7 +75,7 @@ A thread holds at most `CHAT_THREAD_TURNS` answered turns; the next question on 
 
 ## The answer cache
 
-A first question, one sent without a `thread_id`, is looked up in Redis before anything else runs. A hit streams `sources`, the whole answer as one `text` frame, and `done` with a newly minted thread, and sends no `step` frames, since no step ran. It is served even once the day's spend is capped, because it costs nothing. A miss runs the graph as usual, and an answered run is kept for the next asker. Refusals, errors and abandoned runs are not kept, and neither is a follow-up, whose answer depends on the turns before it.
+`cache_stream` is the route's entry point: a first question, one sent without a `thread_id`, is looked up in Redis before anything else runs, and either the hit is replayed or the graph runs, each through `record_run`, which times and records any run the same way. A hit streams `sources`, the whole answer as one `text` frame, and `done` with a newly minted thread, and sends no `step` frames, since no step ran. It is served even once the day's spend is capped, because it costs nothing. A miss runs the graph as usual, and an answered run is kept for the next asker. Refusals, errors and abandoned runs are not kept, and neither is a follow-up, whose answer depends on the turns before it.
 
 The key is `chat:answer:{build}:{ingest_run}:{sha256(question)}`, with the question normalized only for how it was typed: Unicode width, case, runs of whitespace, and trailing `?`, `!` or `.`. Every word stays, since a dropped one can flip what the law says.
 

@@ -254,7 +254,7 @@ def no_tool_session(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
-    """Capture the state stream_chat_events hands to create_chat_request, and give it no session
+    """Capture the state record_run hands to create_chat_request, and give it no session
     to hand over: the write is covered in test_service, so no streaming test needs the
     database."""
     states: list[ChatState] = []
@@ -326,10 +326,15 @@ def install_versioned_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Turn the cache on under a fixed key prefix, so no test needs a database for its keys."""
     monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
 
+    @asynccontextmanager
+    async def no_session(**kwargs: Any) -> AsyncIterator[None]:
+        yield None
+
     async def versioned_key(session: None, question: str) -> str:
         return f"chat:answer:v1:{normalize_question(question)}"
 
-    monkeypatch.setattr("app.chat.stream.answer_key", versioned_key)
+    monkeypatch.setattr("app.chat.cache.get_session", no_session)
+    monkeypatch.setattr("app.chat.cache.answer_key", versioned_key)
 
 
 @pytest.fixture

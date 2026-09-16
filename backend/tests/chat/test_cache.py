@@ -1,21 +1,31 @@
-"""The answer cache: what a question normalizes to, what moves its key, and what happens
-when Redis or a stored entry cannot be read."""
+"""The answer cache: what a question normalizes to, what moves its key, what happens when
+Redis or a stored entry cannot be read, and the stream a hit replays in place of a run."""
 
 import logging
+from uuid import UUID
 
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat import cache
-from app.chat.cache import answer_key, lookup_answer, normalize_question, store_answer
-from app.chat.models import CachedAnswer
+from app.chat.cache import answer_key, cache_stream, lookup_answer, normalize_question, store_answer
+from app.chat.enums import ChatOutcome
+from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, TextEvent
+from app.chat.models import CachedAnswer, ChatQuery, ChatTurn
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.db.crud import create_record
+from app.core.llm.errors import LLMError
 from app.ingestion.enums import IngestRunStatus
 from app.ingestion.schemas import IngestRun
-from tests.conftest import retrieved_chunk, unreachable_redis
+from tests.chat.conftest import (
+    FUELEU_KEY,
+    fake_chat_model,
+    install_versioned_key,
+    restated_message,
+)
+from tests.conftest import install_chat_model, install_search, retrieved_chunk, unreachable_redis
 
 pytestmark = pytest.mark.anyio
 
@@ -140,3 +150,127 @@ async def test_redis_away_is_a_logged_miss_and_a_logged_skip(
         "answer not cached",
     ]
     await redis.aclose()
+
+
+@pytest.fixture
+def cache_on(monkeypatch, answer_cache):
+    """The answer cache on, over an emptied Redis; the returned client is the one the stream
+    is handed."""
+    install_versioned_key(monkeypatch)
+    return answer_cache
+
+
+async def collect_events(query: ChatQuery, redis: Redis) -> list[ChatEvent]:
+    """Every event one question's stream sends, run to the end."""
+    return [event async for event in cache_stream(query, redis)]
+
+
+FUELEU = ChatQuery(question="What is FuelEU?")
+CACHED_ANSWER = CachedAnswer(answer="From the cache [1].", sources=(retrieved_chunk(),))
+THREAD_ID = UUID("11111111-2222-3333-4444-555555555555")
+
+
+class TestCacheStream:
+    """A repeated first question is answered from Redis, with no graph run behind it."""
+
+    async def test_a_repeated_question_replays_the_answer_without_a_model_call(
+        self, cache_on, two_results, answer_model, recorded_requests
+    ):
+        first = await collect_events(FUELEU, cache_on)
+        second = await collect_events(ChatQuery(question="  what is FUELEU "), cache_on)
+
+        assert len(answer_model.received) == 1
+        assert [event.event for event in second] == ["sources", "text", "done"]
+        assert second[0] == next(e for e in first if isinstance(e, SourcesEvent))
+        assert second[1] == TextEvent(data="Answered [1].")
+        answered, cached = recorded_requests
+        assert (answered.outcome, cached.outcome) == (ChatOutcome.DONE, ChatOutcome.CACHED)
+        assert cached.question == "  what is FUELEU "
+        assert (cached.steps, cached.usage(), len(cached.sources)) == ((), None, 2)
+        assert cached.total_ms is not None
+        assert second[-1] == DoneEvent(data={"thread_id": cached.thread_id})
+        assert cached.thread_id != answered.thread_id
+
+    async def test_a_hit_is_served_past_the_spend_cap(self, cache_on, answer_model, monkeypatch):
+        """An answer that costs nothing to serve is not what the cap guards."""
+        await store_answer(cache_on, FUELEU_KEY, CACHED_ANSWER)
+
+        async def spent_the_cap(session, since):
+            return config.CHAT_DAILY_SPEND_CAP_USD
+
+        monkeypatch.setattr("app.chat.stream.spent_since", spent_the_cap)
+
+        events = await collect_events(FUELEU, cache_on)
+
+        assert [event.event for event in events] == ["sources", "text", "done"]
+
+    async def test_a_follow_up_neither_reads_nor_writes_the_cache(
+        self, cache_on, two_results, recorded_requests, monkeypatch, rewrite_turns
+    ):
+        """A follow-up's answer depends on the thread before it, which the key does not hold."""
+        await store_answer(cache_on, FUELEU_KEY, CACHED_ANSWER)
+        rewrite_turns(restated_message("What is FuelEU, after the earlier question?"))
+
+        async def one_turn(session, thread_id):
+            return (ChatTurn(question="Earlier?", answer="Before."),)
+
+        monkeypatch.setattr("app.chat.stream.load_thread_history", one_turn)
+        install_chat_model(monkeypatch, fake_chat_model("Fresh [1]."))
+
+        follow_up = ChatQuery(question=FUELEU.question, thread_id=THREAD_ID)
+        events = await collect_events(follow_up, cache_on)
+
+        assert "".join(e.data for e in events if isinstance(e, TextEvent)) == "Fresh [1]."
+        assert await cache_on.dbsize() == 1
+        [state] = recorded_requests
+        assert (state.outcome, state.thread_id) == (ChatOutcome.DONE, THREAD_ID)
+
+    async def test_a_refusal_is_not_kept(self, cache_on, one_junk_result, answer_model):
+        await collect_events(FUELEU, cache_on)
+
+        assert await cache_on.dbsize() == 0
+
+    async def test_a_failed_run_is_not_kept(self, cache_on, monkeypatch):
+        async def failing_search(session, request):
+            raise LLMError("embedding call failed")
+
+        install_search(monkeypatch, failing_search)
+
+        events = await collect_events(FUELEU, cache_on)
+
+        assert isinstance(events[-1], ErrorEvent)
+        assert await cache_on.dbsize() == 0
+
+    async def test_before_any_corpus_the_graph_runs_and_nothing_is_kept(
+        self, cache_on, two_results, answer_model, monkeypatch
+    ):
+        async def no_corpus(session, question):
+            return None
+
+        monkeypatch.setattr("app.chat.cache.answer_key", no_corpus)
+
+        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU, cache_on)
+
+        assert len(answer_model.received) == 2
+        assert await cache_on.dbsize() == 0
+
+    async def test_with_the_cache_off_the_graph_runs_and_nothing_is_kept(
+        self, cache_on, two_results, answer_model, monkeypatch
+    ):
+        monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", False)
+
+        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU, cache_on)
+
+        assert len(answer_model.received) == 2
+        assert await cache_on.dbsize() == 0
+
+    async def test_redis_away_runs_the_graph(self, cache_on, two_results, answer_model):
+        redis = unreachable_redis()
+
+        events = await collect_events(FUELEU, redis)
+
+        assert isinstance(events[-1], DoneEvent)
+        assert len(answer_model.received) == 1
+        await redis.aclose()

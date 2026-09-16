@@ -6,9 +6,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
+from app.chat.cache import cache_stream
 from app.chat.events import ChatEvent
 from app.chat.models import ChatQuery
-from app.chat.stream import stream_chat_events
 from app.core.ratelimit import ClientIdHeader, rate_limit
 from app.core.redis import RedisDep
 
@@ -36,5 +36,5 @@ async def rate_limit_question(
 async def chat(query: ChatQuery, redis: RedisDep) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
     thread id; or error. A repeated first question replays sources, the answer and done."""
-    async for event in stream_chat_events(query, redis):
+    async for event in cache_stream(query, redis):
         yield ServerSentEvent(event=event.event, data=event.data)
