@@ -39,7 +39,7 @@ class ChatRequest(BaseSchema):
 
 class ChatRequestStep(BaseSchema):
     """One step of a request's path: which node or tool call, in what order, how long it
-    took, and the tokens it used and the model it used them at if it called one."""
+    took, and if it called a model: the tokens, what they cost, and the model they went to."""
 
     __tablename__ = "chat_request_steps"
 
@@ -52,4 +52,5 @@ class ChatRequestStep(BaseSchema):
     ms: Mapped[int]
     input_tokens: Mapped[int | None]
     output_tokens: Mapped[int | None]
+    cost_usd: Mapped[float | None]
     model: Mapped[str | None]

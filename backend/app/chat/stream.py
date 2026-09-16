@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.chat.enums import ChatNode, ChatStepStatus
 from app.chat.events import (
     ChatEvent,
+    ChatStep,
     ChatThread,
     DoneEvent,
     ErrorEvent,
@@ -71,10 +72,10 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
         if mode == "tasks":
             if "input" in payload:
                 for step in _starting_steps(payload["input"], ChatNode(payload["name"])):
-                    yield StepEvent(data=step)
+                    yield StepEvent(data=ChatStep.from_result(step))
             else:
                 for step in payload["result"].get("steps", ()):
-                    yield StepEvent(data=step)
+                    yield StepEvent(data=ChatStep.from_result(step))
             continue
         # The full state after each node
         if mode == "values":

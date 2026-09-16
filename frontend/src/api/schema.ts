@@ -84,29 +84,20 @@ export interface components {
             text: string;
         };
         /**
-         * ChatStepResult
-         * @description One step of the path — a graph node, or one tool call a round ran: what it was, how
-         *     long it took, and what it spent and at which model if it called one. The shape the
-         *     ledger persists per step, and the trace a run is read back from.
-         *
-         *     status: whether the step has finished. Only the stream announces a running one; every step
-         *         the graph appends to the path has returned, so completed is the default.
-         *     ms: how long the step took, which a running one has not spent yet and nothing reads.
-         *     subject: what the step was about where the step alone does not say — the query a search
-         *         ran, the division a follow fetched. Carried to the client, not to the ledger.
+         * ChatStep
+         * @description One step as the step event reports it: the result, less the money.
          */
-        ChatStepResult: {
+        ChatStep: {
             /** Step */
             step: components["schemas"]["ChatNode"] | components["schemas"]["ToolStep"];
             /** Ms */
             ms: number;
-            usage?: components["schemas"]["TokenUsage"] | null;
+            usage: components["schemas"]["ChatUsage"] | null;
             /** Model */
-            model?: string | null;
-            /** @default completed */
+            model: string | null;
             status: components["schemas"]["ChatStepStatus"];
             /** Subject */
-            subject?: string | null;
+            subject: string | null;
         };
         /**
          * ChatStepStatus
@@ -124,6 +115,16 @@ export interface components {
              * Format: uuid
              */
             thread_id: string;
+        };
+        /**
+         * ChatUsage
+         * @description A step's usage as the wire carries it: the tokens, not what they cost.
+         */
+        ChatUsage: {
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
         };
         /**
          * DoneEvent
@@ -213,7 +214,7 @@ export interface components {
              * @enum {string}
              */
             event: "step";
-            data: components["schemas"]["ChatStepResult"];
+            data: components["schemas"]["ChatStep"];
         };
         /**
          * TextEvent
@@ -227,16 +228,6 @@ export interface components {
             event: "text";
             /** Data */
             data: string;
-        };
-        /**
-         * TokenUsage
-         * @description The tokens one model call spent, or several calls spent between them.
-         */
-        TokenUsage: {
-            /** Input Tokens */
-            input_tokens: number;
-            /** Output Tokens */
-            output_tokens: number;
         };
         /**
          * ToolStep

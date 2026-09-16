@@ -4,7 +4,7 @@ from typing import Any
 
 from app.chat.enums import ChatOutcome
 from app.chat.models import ChatState
-from app.core.llm.models import TokenUsage
+from app.core.llm.models import Usage
 from app.core.models import FrozenModel
 from app.evals.dataset.models import CaseSelection, EvalCase
 from app.evals.judge.models import CaseJudgement
@@ -103,7 +103,7 @@ class EvalMetrics(FrozenModel):
     citations: CitationMetrics
     judge: JudgeMetrics
     latency: LatencyMetrics
-    usage: TokenUsage
+    usage: Usage
 
 
 class EvalRun(FrozenModel):

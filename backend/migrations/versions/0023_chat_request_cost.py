@@ -24,10 +24,12 @@ def upgrade() -> None:
     records none rather than the configured one."""
     op.add_column("chat_requests", sa.Column("cost_usd", sa.Float(), nullable=True))
     op.alter_column("chat_requests", "model", nullable=True)
+    op.add_column("chat_request_steps", sa.Column("cost_usd", sa.Float(), nullable=True))
     op.add_column("chat_request_steps", sa.Column("model", sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     op.drop_column("chat_request_steps", "model")
+    op.drop_column("chat_request_steps", "cost_usd")
     op.alter_column("chat_requests", "model", nullable=False)
     op.drop_column("chat_requests", "cost_usd")

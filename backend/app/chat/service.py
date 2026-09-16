@@ -21,9 +21,8 @@ logger = logging.getLogger(__name__)
 
 async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
     """The run as recorded: one stats line, and a chat_requests row with a row per step."""
-    usage = state.token_usage()
-    cost_usd = state.cost_usd()
-    fields = state.log_fields() | {"cost_usd": cost_usd}
+    usage = state.usage()
+    fields = state.log_fields() | {"cost_usd": usage.cost_usd if usage else None}
     logger.info("chat %(outcome)s in %(total_ms)sms", fields, extra=fields)
     steps = [
         ChatRequestStep(
@@ -45,7 +44,6 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         total_ms=state.total_ms,
         sources=len(state.sources),
         **(usage.model_dump() if usage else {}),
-        cost_usd=cost_usd,
         error=state.error,
         steps=steps,
     )

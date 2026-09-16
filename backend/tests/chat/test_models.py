@@ -5,7 +5,7 @@ from app.chat.models import ChatState, ChatStepResult, ChatTurn, Refusal
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
-from tests.conftest import TOKEN_USAGE, USAGE, search_result
+from tests.conftest import REPORTED_USAGE, USAGE, search_result
 
 
 def test_sync_from_snapshot_folds_the_snapshot_on_and_leaves_the_consumer_fields_alone():
@@ -177,15 +177,17 @@ def test_cost_is_each_steps_usage_at_the_model_that_step_called():
             ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE, config.CHAT_MODEL),
         ),
     )
-    one_step = TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
+    one_step = REPORTED_USAGE.cost_usd
     assert one_step is not None
-    assert state.cost_usd() == 2 * one_step
+    usage = state.usage()
+    assert usage is not None
+    assert usage.cost_usd == 2 * one_step
     assert state.called_model() == config.CHAT_MODEL
 
 
 def test_a_run_with_no_reported_usage_has_no_cost_and_named_no_model():
     state = ChatState(question="q", steps=(ChatStepResult(step=ChatNode.RETRIEVE, ms=1),))
-    assert state.cost_usd() is None
+    assert state.usage() is None
     assert state.called_model() is None
 
 
@@ -193,4 +195,6 @@ def test_usage_without_a_model_is_unmeasured_not_priced_at_a_guess():
     state = ChatState(
         question="q", steps=(ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE),)
     )
-    assert state.cost_usd() is None
+    usage = state.usage()
+    assert usage is not None
+    assert usage.cost_usd is None

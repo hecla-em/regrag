@@ -11,7 +11,7 @@ from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason,
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
-from app.core.llm.models import TokenUsage
+from app.core.llm.models import Usage
 from app.core.models import AppModel, FrozenModel
 from app.retrieval.models import RetrievedChunk, SearchResult
 
@@ -38,7 +38,7 @@ class ChatStepResult(FrozenModel):
 
     step: ChatNode | ToolStep
     ms: int
-    usage: TokenUsage | None = None
+    usage: Usage | None = None
     model: str | None = None
     status: ChatStepStatus = ChatStepStatus.COMPLETED
     subject: str | None = None
@@ -51,11 +51,11 @@ class ChatStepResult(FrozenModel):
         usage: UsageMetadata | None,
         model: str | None = None,
     ) -> "ChatStepResult":
-        """The result of a step that reported usage, or none, and the model it reported for."""
+        """The result of a step that reported usage, or none, priced at the model it named."""
         return cls(
             step=step,
             ms=ms,
-            usage=TokenUsage.from_metadata(usage) if usage else None,
+            usage=Usage.from_metadata(usage, model) if usage else None,
             model=model,
         )
 
@@ -139,21 +139,10 @@ class ChatState(AppModel):
         question as asked."""
         return self.standalone_question or self.question
 
-    def token_usage(self) -> TokenUsage | None:
+    def usage(self) -> Usage | None:
         """What the request spent, summed over the steps that reported usage, or None when
         none did."""
-        return TokenUsage.sum_reported(result.usage for result in self.steps)
-
-    def cost_usd(self) -> float | None:
-        """That spend priced step by step at the model each step called, or None when no
-        step could be priced."""
-        priced = [
-            cost
-            for result in self.steps
-            if result.usage and result.model
-            if (cost := result.usage.cost_usd(result.model)) is not None
-        ]
-        return sum(priced) if priced else None
+        return Usage.sum_reported(result.usage for result in self.steps)
 
     def called_model(self) -> str | None:
         """The model the run's steps called, or None when none asked one."""

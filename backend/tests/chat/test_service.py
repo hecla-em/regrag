@@ -19,7 +19,7 @@ from app.chat.toolbox.service import build_call_step
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.logger import request_id_var
-from tests.conftest import TOKEN_USAGE, USAGE, retrieved_chunk
+from tests.conftest import REPORTED_USAGE, USAGE, retrieved_chunk
 
 pytestmark = pytest.mark.anyio
 
@@ -85,6 +85,7 @@ async def test_recorded_row_reads_the_stats_and_the_request_context(
     ]
     assert [(n.input_tokens, n.output_tokens) for n in nodes] == [(None, None), (1500, 40)]
     assert [n.model for n in nodes] == [None, config.CHAT_MODEL]
+    assert [n.cost_usd for n in nodes] == [None, REPORTED_USAGE.cost_usd]
 
 
 async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
@@ -116,13 +117,17 @@ async def test_log_line_carries_the_stats_but_not_the_content(db_session: AsyncS
     assert record.getMessage() == "chat done in 1500ms"
     assert record.__dict__["outcome"] == "done"
     assert record.__dict__["sources"] == 6
-    assert record.__dict__["cost_usd"] == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
+    assert record.__dict__["cost_usd"] == REPORTED_USAGE.cost_usd
     assert record.__dict__["steps"] == [
         {"step": "retrieve", "ms": 120, "usage": None, "model": None},
         {
             "step": "synthesize",
             "ms": 1300,
-            "usage": {"input_tokens": 1500, "output_tokens": 40},
+            "usage": {
+                "input_tokens": 1500,
+                "output_tokens": 40,
+                "cost_usd": REPORTED_USAGE.cost_usd,
+            },
             "model": config.CHAT_MODEL,
         },
         {"step": "tool_search", "ms": 80, "usage": None, "model": None},
@@ -250,7 +255,7 @@ async def test_recorded_row_prices_its_tokens_at_the_models_rates(db_session: As
     await create_chat_request(db_session, answered_state())
 
     [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.cost_usd == TOKEN_USAGE.cost_usd(config.CHAT_MODEL) is not None
+    assert row.cost_usd == REPORTED_USAGE.cost_usd is not None
 
 
 async def test_a_run_with_no_usage_records_no_cost(db_session: AsyncSession):

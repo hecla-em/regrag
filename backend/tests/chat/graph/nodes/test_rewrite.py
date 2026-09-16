@@ -25,7 +25,7 @@ from tests.chat.conftest import (
     run_graph,
     split_message,
 )
-from tests.conftest import TOKEN_USAGE, search_result
+from tests.conftest import REPORTED_USAGE, search_result
 
 pytestmark = pytest.mark.anyio
 
@@ -91,7 +91,7 @@ class TestRewriteInTheGraph:
 
         assert update["standalone_question"] == RESTATED
         [step] = update["steps"]
-        assert (step.step, step.usage) == (ChatNode.REWRITE, TOKEN_USAGE)
+        assert (step.step, step.usage) == (ChatNode.REWRITE, REPORTED_USAGE)
 
     async def test_an_answer_off_the_schema_searches_the_question_as_asked(
         self, rewrite_turns, caplog

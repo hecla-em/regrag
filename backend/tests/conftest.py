@@ -29,7 +29,7 @@ from app.chat.graph.nodes.synthesize import synthesize
 from app.core.clock import utc_now
 from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
 from app.core.db.session import async_session_factory
-from app.core.llm.models import TokenUsage
+from app.core.llm.models import Usage
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
@@ -433,7 +433,7 @@ def retrieved_chunk(**overrides: Any) -> RetrievedChunk:
 
 USAGE = UsageMetadata(input_tokens=1500, output_tokens=40, total_tokens=1540)
 """What a faked model reports spending, as langchain carries it."""
-TOKEN_USAGE = TokenUsage.from_metadata(USAGE)
+REPORTED_USAGE = Usage.from_metadata(USAGE, config.CHAT_MODEL)
 """USAGE as a step records it."""
 
 PROVIDER_REQUEST = httpx.Request("POST", "https://api.provider.example")
