@@ -5,7 +5,7 @@ from app.chat.models import ChatState, ChatStepResult, ChatTurn, Refusal
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
-from tests.conftest import search_result
+from tests.conftest import TOKEN_USAGE, USAGE, search_result
 
 
 def test_sync_from_snapshot_folds_the_snapshot_on_and_leaves_the_consumer_fields_alone():
@@ -166,3 +166,18 @@ class TestContextSettled:
             ),
         )
         assert state.context_settled is True
+
+
+def test_cost_is_the_summed_usage_at_the_models_prices():
+    state = ChatState(
+        question="q",
+        steps=(
+            ChatStepResult(step=ChatNode.RETRIEVE, ms=1),
+            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1, USAGE),
+        ),
+    )
+    assert state.cost_usd(config.CHAT_MODEL) == TOKEN_USAGE.cost_usd(config.CHAT_MODEL)
+
+
+def test_a_run_with_no_reported_usage_has_no_cost():
+    assert ChatState(question="q").cost_usd(config.CHAT_MODEL) is None

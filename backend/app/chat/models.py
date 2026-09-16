@@ -134,6 +134,11 @@ class ChatState(AppModel):
         none did."""
         return TokenUsage.sum_reported(result.usage for result in self.steps)
 
+    def cost_usd(self, model: str) -> float | None:
+        """That spend at the model's prices, or None when unmeasured or unpriced."""
+        usage = self.token_usage()
+        return usage.cost_usd(model) if usage else None
+
     def sync_from_snapshot(self, snapshot: dict[str, Any]) -> None:
         """Update this state with the graph's latest snapshot, so one object holds the run
         the ledger records. total_ms and error survive it: no node writes them, so no
