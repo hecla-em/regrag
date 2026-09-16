@@ -4,7 +4,7 @@ const CLIENT_ID_KEY = "regrag:client-id"
 
 type ClientIdStore = Pick<Storage, "getItem" | "setItem">
 
-/** The id this browser sends on every question, minted once and kept in storage; when
+/** The id this browser sends on every question, minted once and kept in storage. When
  * storage is not there (private mode, blocked site data) each call mints its own. */
 export function readClientId(
 	storage: () => ClientIdStore = () => localStorage,

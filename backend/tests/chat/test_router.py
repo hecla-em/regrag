@@ -150,7 +150,7 @@ def test_a_question_over_the_limit_is_refused_before_the_graph_runs(
 def test_a_malformed_question_costs_no_slot(
     rate_limited_client, two_results, answer_model, monkeypatch
 ):
-    """Route dependencies run before the body parses; the limiter must not, or a client's
+    """Route dependencies run before the body parses. The limiter must not, or a client's
     own 422s would lock it out."""
     monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
     headers = {"X-Client-ID": "reader"}

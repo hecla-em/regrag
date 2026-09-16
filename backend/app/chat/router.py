@@ -19,7 +19,7 @@ CHAT_RESPONSES: dict[int | str, dict[str, Any]] = {200: {"model": ChatEvent}}
 yielded ServerSentEvent, and the response class files it under text/event-stream."""
 
 
-async def take_question_slot(
+async def rate_limit_question(
     query: ChatQuery, request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None
 ) -> None:
     """Rate limit once the question has parsed, so a malformed one costs no slot: FastAPI
@@ -31,7 +31,7 @@ async def take_question_slot(
     "/chat",
     response_class=EventSourceResponse,
     responses=CHAT_RESPONSES,
-    dependencies=[Depends(take_question_slot)],
+    dependencies=[Depends(rate_limit_question)],
 )
 async def chat(query: ChatQuery) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the

@@ -129,7 +129,7 @@ class PostgresConfig(BaseConfig):
 
 
 class RedisConfig(BaseConfig):
-    """The Redis the rate limiter counts in; the compose service by default.
+    """The Redis the rate limiter counts in, the compose service by default.
 
     REDIS_TIMEOUT: seconds to wait to connect or for a reply. A limiter check that waits
         longer than this lets the call through rather than hold it.
@@ -142,7 +142,7 @@ class RedisConfig(BaseConfig):
 class RateLimitConfig(BaseConfig):
     """The chat rate limiter: an allowance per client id, and a ceiling per address behind it.
 
-    RATE_LIMIT_ENABLED: the limiter's off switch; tests switch it off.
+    RATE_LIMIT_ENABLED: the limiter's off switch. Tests switch it off.
     RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
         of a few and then roughly one every 12s at the default.
     RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it

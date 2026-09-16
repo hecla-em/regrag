@@ -41,12 +41,12 @@ checked before any is written, so a refused call counts against none of them, an
 reply is the longest wait among the keys that refused, or zero."""
 
 ClientIdHeader = Annotated[str | None, Header(max_length=64)]
-"""The id a browser sends on every question; bounded because it is stored verbatim as a key."""
+"""The id a browser sends on every question, bounded because it is stored verbatim as a key."""
 
 
 async def rate_limit(request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None) -> None:
     """Refuse the call once its client id, or its address across ids, has used the window's
-    allowance; a call without an id is counted as its address, in a namespace no id can
+    allowance. A call without an id is counted as its address, in a namespace no id can
     name. Redis unreachable lets the call through: the spend cap is the backstop."""
     if not config.RATE_LIMIT_ENABLED:
         return

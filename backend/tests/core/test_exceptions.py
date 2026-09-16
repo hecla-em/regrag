@@ -95,7 +95,7 @@ def test_rate_limited_error_says_when_to_retry(client: TestClient) -> None:
     response = client.get("/boom-rate-limited")
     body = assert_error_shape(response, 429, "RateLimitedError")
     assert response.headers["Retry-After"] == "7"
-    assert body["message"] == "Too many questions; try again in 7 seconds"
+    assert body["message"] == "Too many questions. Try again in 7 seconds"
 
 
 def test_http_exception_preserves_headers(client: TestClient) -> None:

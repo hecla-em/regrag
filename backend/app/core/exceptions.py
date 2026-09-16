@@ -41,13 +41,13 @@ class NotFoundError(DomainError):
 
 
 class RateLimitedError(DomainError):
-    """The caller has asked as often as the window allows; the header says how long to wait."""
+    """The caller has asked as often as the window allows. The header says how long to wait."""
 
     status_code = status.HTTP_429_TOO_MANY_REQUESTS
 
     def __init__(self, retry_after: int):
         super().__init__(
-            f"Too many questions; try again in {retry_after} seconds",
+            f"Too many questions. Try again in {retry_after} seconds",
             headers={"Retry-After": str(retry_after)},
         )
 

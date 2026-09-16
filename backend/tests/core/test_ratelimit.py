@@ -91,7 +91,7 @@ def test_ids_on_one_address_share_its_ceiling(rate_limited_client: TestClient) -
 
 
 def test_a_refused_call_counts_against_neither_key(rate_limited_client: TestClient) -> None:
-    """Client a is refused its third question; that refusal must not eat the address's
+    """Client a is refused its third question. That refusal must not eat the address's
     allowance, or b would be turned away on an address that has only asked twice."""
     ask(rate_limited_client, "a")
     ask(rate_limited_client, "a")
@@ -140,7 +140,7 @@ def test_off_it_refuses_nothing(
 def test_redis_down_lets_the_call_through(
     app: FastAPI, rate_limited_client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """The spend cap is the backstop; a Redis blip must not take the product down, nor fill
+    """The spend cap is the backstop. A Redis blip must not take the product down, nor fill
     the log with a traceback per question."""
     app.dependency_overrides[get_redis] = unreachable_redis
 

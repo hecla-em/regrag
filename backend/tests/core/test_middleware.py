@@ -52,7 +52,7 @@ def test_access_log_records_the_connecting_address(
 def test_access_log_prefers_the_address_fly_forwards_in_prod(
     client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Behind Fly's proxy the connecting address is the proxy; the header names the client."""
+    """Behind Fly's proxy the connecting address is the proxy. The header names the client."""
     monkeypatch.setattr(config, "ENVIRONMENT", Environment.PROD)
     client.get("/health", headers={"Fly-Client-IP": "203.0.113.9"})
     [record] = access_records(caplog)
