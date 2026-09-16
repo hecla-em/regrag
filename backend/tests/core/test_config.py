@@ -9,6 +9,7 @@ from app.core.config import (
     EVAL_CONFIG_SECTIONS,
     AssessConfig,
     BaseConfig,
+    ChatCacheConfig,
     ChatConfig,
     Config,
     EmbeddingConfig,
@@ -47,6 +48,12 @@ def test_rate_limits_default_on_with_the_address_ceiling_above_the_client_allowa
 
     assert limits.RATE_LIMIT_ENABLED is True
     assert limits.RATE_LIMIT_PER_CLIENT < limits.RATE_LIMIT_PER_IP
+
+
+def test_the_answer_cache_defaults_on(monkeypatch):
+    monkeypatch.delenv("CHAT_CACHE_ENABLED")
+
+    assert ChatCacheConfig().CHAT_CACHE_ENABLED is True
 
 
 def test_the_r2_endpoint_is_built_from_the_account_id(monkeypatch):

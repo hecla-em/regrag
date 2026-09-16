@@ -73,10 +73,18 @@ Markers run `1..n` in context order and match the numbering the prompt gave the 
 
 A thread holds at most `CHAT_THREAD_TURNS` answered turns; the next question on a full one ends in an `error` frame naming `ThreadFullError`, and the client starts a new thread by sending no `thread_id`.
 
+## The answer cache
+
+A first question, one sent without a `thread_id`, is looked up in Redis before anything else runs. A hit streams `sources`, the whole answer as one `text` frame, and `done` with a newly minted thread, and sends no `step` frames, since no step ran. It is served even once the day's spend is capped, because it costs nothing. A miss runs the graph as usual, and an answered run is kept for the next asker. Refusals, errors and abandoned runs are not kept, and neither is a follow-up, whose answer depends on the turns before it.
+
+The key is `chat:answer:{corpus_version}:{sha256(question)}`, with the question normalized only for how it was typed: Unicode width, case, runs of whitespace, and trailing `?`, `!` or `.`. Every word stays, since a dropped one can flip what the law says. The corpus version is what invalidates the cache: an ingest that changes the corpus mints a new version, so no old key matches again, and the old entries lapse on `CHAT_CACHE_TTL_SECONDS`. An ingest that changes nothing keeps its version, and the cache stays warm. Nothing flushes Redis, so the nightly ingest needs no access to it.
+
+Redis being unreachable is a miss, logged, and the graph runs. `CHAT_CACHE_ENABLED=false` turns the cache off.
+
 ## The ledger
 
-Every request is recorded however it ended — answered, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step it ran through, holding the question, the outcome, and the timings and tokens each step spent. A step is a graph node, or one tool call an assess round ran, named `tool_search` / `tool_follow_reference` so one column holds both. It is what a spend cap sums over and what a slow path is diagnosed from.
+Every request is recorded however it ended — answered, served from the cache, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step it ran through, holding the question, the outcome, and the timings and tokens each step spent. A step is a graph node, or one tool call an assess round ran, named `tool_search` / `tool_follow_reference` so one column holds both. It is what a spend cap sums over and what a slow path is diagnosed from.
 
 This is deliberately the tracing, in place of a tracing library: the request row has to exist for the spend cap anyway, and the per-step timings come with it. It is a flat span list ordered by `position`, not a tree — a tool step's parent is the assess step before it — which is enough while the graph nests only one level deep.
 
-The row also holds the thread the request belongs to and the answer it gave. That is what a follow-up reads back: the thread's answered rows, oldest first, are its history, so the ledger is the conversation store and nothing else needs to be.
+The row also holds the thread the request belongs to and the answer it gave. That is what a follow-up reads back: the thread's answered rows, cached ones included, oldest first, are its history, so the ledger is the conversation store and nothing else needs to be.

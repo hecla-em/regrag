@@ -8,9 +8,11 @@ from typing import Any
 from uuid import uuid4
 
 import anyio
+from redis.asyncio import Redis
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.chat.enums import ChatNode, ChatStepStatus
+from app.chat.cache import answer_key, lookup_answer, store_answer
+from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus
 from app.chat.events import (
     ChatEvent,
     ChatStep,
@@ -23,7 +25,7 @@ from app.chat.events import (
 )
 from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatQuery, ChatState, ChatStepResult
+from app.chat.models import CachedAnswer, ChatQuery, ChatState, ChatStepResult
 from app.chat.service import create_chat_request, load_thread_history, spent_since
 from app.chat.toolbox.service import build_call_step
 from app.core.clock import elapsed_ms, utc_now
@@ -99,6 +101,25 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
     yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
 
 
+def _cached_answer_events(state: ChatState) -> list[ChatEvent]:
+    """A cached answer as the stream sends it: its sources, the whole answer as one text
+    frame, and the thread it was recorded under. No steps, since none ran."""
+    return [
+        SourcesEvent.from_results(state.sources),
+        TextEvent(data=state.answer),
+        DoneEvent(data=ChatThread(thread_id=state.thread_id)),
+    ]
+
+
+async def find_answer_key(query: ChatQuery) -> str | None:
+    """The cache key for a first question, or None when the cache is off or the question
+    continues a thread, whose answer depends on the turns before it."""
+    if not config.CHAT_CACHE_ENABLED or query.thread_id is not None:
+        return None
+    async with get_session(auto_commit=False) as session:
+        return await answer_key(session, query.question)
+
+
 async def check_spend_cap() -> None:
     """Refuse the question once the last day's recorded spend has reached the cap, logging
     where the day stands either way — the burn is read off these lines, not a dashboard."""
@@ -127,15 +148,24 @@ async def open_thread(query: ChatQuery) -> ChatState:
     return ChatState(question=query.question, thread_id=query.thread_id, history=history)
 
 
-async def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
-    """One question's events, ended by an error event if the day's spend is capped, the
-    thread is full or the run raises; however it ends — done, refused, error, or the client
-    leaving, which cancels this task — it is recorded as one chat request, in its own
-    session, shielded from that cancellation. A failed write is logged, not raised: the
-    answer already went out."""
+async def stream_chat_events(query: ChatQuery, redis: Redis) -> AsyncGenerator[ChatEvent, None]:
+    """One question's events: a first question already answered in this corpus replays from
+    the cache, ahead of the spend cap since it costs nothing; otherwise the graph runs,
+    ended by an error event if the day's spend is capped, the thread is full or the run
+    raises. However it ends — done, cached, refused, error, or the client leaving, which
+    cancels this task — it is recorded as one chat request, in its own session, shielded
+    from that cancellation, and an answered first question is kept for the next asker. A
+    failed write is logged, not raised: the answer already went out."""
     state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
     start = time.perf_counter()
+    cache_key: str | None = None
     try:
+        cache_key = await find_answer_key(query)
+        if cache_key and (cached := await lookup_answer(redis, cache_key)):
+            state = ChatState.from_cached_answer(query.question, cached)
+            for event in _cached_answer_events(state):
+                yield event
+            return
         await check_spend_cap()
         state = await open_thread(query)
         async for event in _stream_graph_events(state):
@@ -146,6 +176,9 @@ async def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None
     finally:
         state.total_ms = elapsed_ms(start)
         with anyio.CancelScope(shield=True):
+            if cache_key and state.outcome is ChatOutcome.DONE and state.answer:
+                answer = CachedAnswer(answer=state.answer, sources=state.sources)
+                await store_answer(redis, cache_key, answer)
             try:
                 async with get_session(auto_commit=False) as session:
                     await create_chat_request(session, state)

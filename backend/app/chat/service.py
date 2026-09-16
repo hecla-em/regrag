@@ -64,7 +64,7 @@ async def load_thread_history(session: AsyncSession, thread_id: UUID) -> tuple[C
         select(ChatRequest.question, ChatRequest.answer)
         .where(
             ChatRequest.thread_id == thread_id,
-            ChatRequest.outcome == ChatOutcome.DONE,
+            ChatRequest.outcome.in_((ChatOutcome.DONE, ChatOutcome.CACHED)),
             ChatRequest.answer.is_not(None),
         )
         .order_by(ChatRequest.created_at.desc(), ChatRequest.id.desc())

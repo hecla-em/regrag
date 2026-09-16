@@ -33,8 +33,8 @@ async def rate_limit_question(
     responses=CHAT_RESPONSES,
     dependencies=[Depends(rate_limit_question)],
 )
-async def chat(query: ChatQuery) -> AsyncIterator[ServerSentEvent]:
+async def chat(query: ChatQuery, redis: RedisDep) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
-    thread id; or error."""
-    async for event in stream_chat_events(query):
+    thread id; or error. A repeated first question replays sources, the answer and done."""
+    async for event in stream_chat_events(query, redis):
         yield ServerSentEvent(event=event.event, data=event.data)

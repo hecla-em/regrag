@@ -13,6 +13,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from pydantic import Field
+from redis.asyncio import Redis
 
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatState
@@ -312,3 +313,12 @@ def hits_for(monkeypatch: pytest.MonkeyPatch, **per_query: tuple) -> list[Search
 
     install_search(monkeypatch, fake_search)
     return requests
+
+
+@pytest.fixture
+async def answer_cache() -> AsyncIterator[Redis]:
+    """A client over the suite's Redis index, emptied first and closed on the test's own loop."""
+    redis = Redis.from_url(config.REDIS_URL)
+    await redis.flushdb()
+    yield redis
+    await redis.aclose()

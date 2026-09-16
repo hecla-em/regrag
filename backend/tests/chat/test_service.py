@@ -197,6 +197,21 @@ async def test_a_threads_history_is_its_answered_turns_oldest_first_without_mark
     )
 
 
+async def test_a_cached_first_turn_is_history_a_follow_up_reads(db_session: AsyncSession):
+    """A cache hit mints its own thread, so a follow-up on it must see the answer it got."""
+    thread = uuid4()
+    first = ChatState(question="What is FuelEU?", thread_id=thread, answer="A regulation.[1]")
+    first.cached = True
+    first.total_ms = 3
+    await create_chat_request(db_session, first)
+
+    [row] = (await db_session.scalars(select(ChatRequest))).all()
+    assert (row.outcome, row.model, row.cost_usd) == (ChatOutcome.CACHED, None, None)
+    assert await load_thread_history(db_session, thread) == (
+        ChatTurn(question="What is FuelEU?", answer="A regulation."),
+    )
+
+
 async def test_an_answered_row_without_an_answer_is_left_out_of_the_history(
     db_session: AsyncSession,
 ):

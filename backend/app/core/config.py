@@ -156,6 +156,18 @@ class RateLimitConfig(BaseConfig):
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
+class ChatCacheConfig(BaseConfig):
+    """The answer cache, which serves a repeated first question without running the graph.
+
+    CHAT_CACHE_ENABLED: the cache's off switch; tests switch it off.
+    CHAT_CACHE_TTL_SECONDS: how long an answer is kept. A new corpus version already
+        retires every answer, so this only bounds how long a stale key holds memory.
+    """
+
+    CHAT_CACHE_ENABLED: bool = True
+    CHAT_CACHE_TTL_SECONDS: int = Field(default=7 * 24 * 3600, ge=1)
+
+
 EMBED_DIMENSIONS = 1024
 """Width of the document_chunks.embedding column: not a setting, changing it needs a migration."""
 
@@ -343,6 +355,7 @@ class Config(
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    ChatCacheConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -365,6 +378,7 @@ _CONFIG_SECTIONS = (
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    ChatCacheConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

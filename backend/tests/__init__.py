@@ -10,3 +10,5 @@ test database and Redis index there would point a fresh dev checkout at the ones
 truncates."""
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 """Off suite-wide so no test's questions count against another's. Limiter tests turn it on."""
+os.environ["CHAT_CACHE_ENABLED"] = "false"
+"""Off suite-wide so no test's answer is served to another. Cache tests turn it on."""

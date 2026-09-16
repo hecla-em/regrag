@@ -6,9 +6,11 @@ from uuid import UUID
 
 import httpx
 
+from app.chat.cache import normalize_question
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.core.config import config
 from app.core.llm.errors import LLMError
+from app.core.redis import redis_client
 from tests.chat.conftest import THINKING, fake_chat_model, reasoning_chat_model
 from tests.conftest import install_chat_model, install_search
 
@@ -228,3 +230,25 @@ def test_a_supplied_thread_is_echoed_back_on_done(client, two_results, answer_mo
 def test_a_malformed_thread_id_is_rejected(client):
     response = client.post("/chat", json={"question": "q", "thread_id": "not-a-uuid"})
     assert response.status_code == 422
+
+
+def test_a_repeated_question_is_answered_from_the_cache(
+    client, two_results, answer_model, monkeypatch
+):
+    """Over the app's own Redis, as the route's dependency hands it to the stream."""
+    assert client.portal is not None
+    client.portal.call(redis_client.flushdb)
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+
+    async def versioned_key(session, question):
+        return f"chat:answer:v1:{normalize_question(question)}"
+
+    monkeypatch.setattr("app.chat.stream.answer_key", versioned_key)
+
+    for _ in range(2):
+        with client.stream("POST", "/chat", json={"question": "What is FuelEU?"}) as response:
+            events = read_events(response)
+
+    assert [name for name, _ in events] == ["sources", "text", "done"]
+    assert first_payload(events, "text") == "Answered [1]."
+    assert len(answer_model.received) == 1

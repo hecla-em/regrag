@@ -33,7 +33,7 @@ export interface paths {
         /**
          * Chat
          * @description Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
-         *     thread id; or error.
+         *     thread id; or error. A repeated first question replays sources, the answer and done.
          */
         post: operations["chat_chat_post"];
         delete?: never;
