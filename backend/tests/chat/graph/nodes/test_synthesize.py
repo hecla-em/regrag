@@ -21,7 +21,7 @@ from tests.chat.conftest import (
     run_graph,
 )
 from tests.conftest import (
-    TOKEN_USAGE,
+    REPORTED_USAGE,
     install_chat_model,
     install_search,
     retrieved_chunk,
@@ -132,7 +132,7 @@ async def test_the_chat_client_asks_litellm_for_usage_and_the_node_records_it(
 
     assert calls[0]["stream_options"] == {"include_usage": True}
     [_retrieve, synthesize] = state.steps
-    assert synthesize.usage == TOKEN_USAGE
+    assert synthesize.usage == REPORTED_USAGE
 
 
 async def test_the_chat_client_answers_with_the_text_of_a_reasoning_response(

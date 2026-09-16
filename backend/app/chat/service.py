@@ -2,9 +2,10 @@
 thread history read back from those rows."""
 
 import logging
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.citations import strip_markers
@@ -20,14 +21,15 @@ logger = logging.getLogger(__name__)
 
 async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
     """The run as recorded: one stats line, and a chat_requests row with a row per step."""
-    fields = state.log_fields()
+    usage = state.usage()
+    fields = state.log_fields() | {"cost_usd": usage.cost_usd if usage else None}
     logger.info("chat %(outcome)s in %(total_ms)sms", fields, extra=fields)
-    usage = state.token_usage()
     steps = [
         ChatRequestStep(
             position=idx,
             step=result.step.value,
             ms=result.ms,
+            model=result.model,
             **(result.usage.model_dump() if result.usage else {}),
         )
         for idx, result in enumerate(state.steps)
@@ -38,7 +40,7 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         thread_id=state.thread_id,
         answer=state.answer or None,
         outcome=state.outcome,
-        model=config.CHAT_MODEL,
+        model=state.called_model(),
         total_ms=state.total_ms,
         sources=len(state.sources),
         **(usage.model_dump() if usage else {}),
@@ -46,6 +48,13 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         steps=steps,
     )
     await create_record(session, request)
+
+
+async def spent_since(session: AsyncSession, since: datetime) -> float:
+    """What the requests recorded since that moment cost between them; unpriced rows add
+    nothing, and a sum over none is NULL, so an empty or unmeasured ledger reads as zero."""
+    stmt = select(func.sum(ChatRequest.cost_usd)).where(ChatRequest.created_at >= since)
+    return (await session.execute(stmt)).scalar_one() or 0.0
 
 
 async def load_thread_history(session: AsyncSession, thread_id: UUID) -> tuple[ChatTurn, ...]:

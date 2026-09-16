@@ -2,7 +2,6 @@
 
 from app.chat.enums import ChatNode
 from app.chat.models import ChatStepResult
-from app.core.llm.models import TokenUsage
 from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement, CorrectnessVerdict
 from app.evals.metrics import (
@@ -30,7 +29,7 @@ from app.evals.metrics import (
     score_reference_recall,
 )
 from app.retrieval.models import ReferenceTarget
-from tests.conftest import retrieved_chunk, search_result
+from tests.conftest import REPORTED_USAGE, retrieved_chunk, search_result
 from tests.evals.conftest import (
     assess_refused_result,
     eval_case,
@@ -279,10 +278,10 @@ def test_node_ms_is_averaged_over_the_cases_that_ran_the_node() -> None:
     assert compute_mean_step_ms(results) == {"retrieve": 90, "synthesize": 900, "refuse": 0}
 
 
-def test_tokens_are_summed_over_the_run() -> None:
+def test_tokens_and_cost_are_summed_over_the_run() -> None:
     results = (eval_result(), eval_result(), refused_result())
 
-    assert compute_usage(results) == TokenUsage(input_tokens=3000, output_tokens=80)
+    assert compute_usage(results) == REPORTED_USAGE + REPORTED_USAGE
 
 
 def test_compute_metrics_assembles_every_block_of_the_run() -> None:

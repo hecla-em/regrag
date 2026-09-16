@@ -46,4 +46,4 @@ async def synthesize(state: ChatState) -> dict[str, Any]:
         HumanMessage(build_user_message(state.question, state.sources)),
     ]
     response = await chat_model().ainvoke(messages)
-    return {"answer": response.text, "usage": response.usage_metadata}
+    return {"answer": response.text, "reply": response}

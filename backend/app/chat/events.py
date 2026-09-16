@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
-from app.chat.enums import ChatEventName
+from app.chat.enums import ChatEventName, ChatNode, ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.core.models import ErrorResponse, FrozenModel
 from app.ingestion import celex
@@ -70,11 +70,44 @@ class SourcesEvent(ChatEventBase):
         )
 
 
+class ChatUsage(FrozenModel):
+    """A step's usage as the wire carries it: the tokens, not what they cost."""
+
+    input_tokens: int
+    output_tokens: int
+
+
+class ChatStep(FrozenModel):
+    """One step as the step event reports it: the result, less the money."""
+
+    step: ChatNode | ToolStep
+    ms: int
+    usage: ChatUsage | None = None
+    model: str | None = None
+    status: ChatStepStatus = ChatStepStatus.COMPLETED
+    subject: str | None = None
+
+    @classmethod
+    def from_result(cls, result: ChatStepResult) -> "ChatStep":
+        """The event payload for one step result."""
+        usage = result.usage
+        return cls(
+            step=result.step,
+            ms=result.ms,
+            usage=ChatUsage(input_tokens=usage.input_tokens, output_tokens=usage.output_tokens)
+            if usage
+            else None,
+            model=result.model,
+            status=result.status,
+            subject=result.subject,
+        )
+
+
 class StepEvent(ChatEventBase):
     """One step of the path, sent as it starts and again as it finishes."""
 
     event: Literal[ChatEventName.STEP] = ChatEventName.STEP
-    data: ChatStepResult
+    data: ChatStep
 
 
 class TextEvent(ChatEventBase):

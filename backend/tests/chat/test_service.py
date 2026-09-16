@@ -1,6 +1,7 @@
 """Chat request recording: the row, its node rows, and the log line."""
 
 import logging
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -9,15 +10,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat import service
 from app.chat.enums import ChatNode, ChatOutcome
-from app.chat.exceptions import ThreadFullError
+from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.models import ChatState, ChatStepResult, ChatTurn
 from app.chat.schemas import ChatRequest, ChatRequestStep
-from app.chat.service import create_chat_request, load_thread_history
+from app.chat.service import create_chat_request, load_thread_history, spent_since
 from app.chat.toolbox.models import ToolCall
 from app.chat.toolbox.service import build_call_step
+from app.core.clock import utc_now
 from app.core.config import config
 from app.core.logger import request_id_var
-from tests.conftest import USAGE, retrieved_chunk
+from tests.conftest import REPORTED_USAGE, reply_message, retrieved_chunk
 
 pytestmark = pytest.mark.anyio
 
@@ -31,7 +33,7 @@ def answered_state() -> ChatState:
         thread_id=THREAD_ID,
         steps=(
             ChatStepResult(step=ChatNode.RETRIEVE, ms=120),
-            ChatStepResult.from_usage(ChatNode.SYNTHESIZE, 1300, USAGE),
+            ChatStepResult.from_reply(ChatNode.SYNTHESIZE, 1300, reply_message()),
         ),
         sources=tuple(retrieved_chunk(id=n) for n in range(6)),
         answer="Ships must report [1].",
@@ -82,6 +84,8 @@ async def test_recorded_row_reads_the_stats_and_the_request_context(
         (row.id, 1, "synthesize", 1300),
     ]
     assert [(n.input_tokens, n.output_tokens) for n in nodes] == [(None, None), (1500, 40)]
+    assert [n.model for n in nodes] == [None, config.CHAT_MODEL]
+    assert [n.cost_usd for n in nodes] == [None, REPORTED_USAGE.cost_usd]
 
 
 async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
@@ -94,6 +98,7 @@ async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
     assert row.outcome is ChatOutcome.ERROR
     assert row.error == "embedding call failed"
     assert row.answer is None
+    assert row.model is None
     assert row.thread_id == failed.thread_id
     assert (row.input_tokens, row.output_tokens) == (None, None)
     assert row.sources == 0
@@ -112,10 +117,20 @@ async def test_log_line_carries_the_stats_but_not_the_content(db_session: AsyncS
     assert record.getMessage() == "chat done in 1500ms"
     assert record.__dict__["outcome"] == "done"
     assert record.__dict__["sources"] == 6
+    assert record.__dict__["cost_usd"] == REPORTED_USAGE.cost_usd
     assert record.__dict__["steps"] == [
-        {"step": "retrieve", "ms": 120, "usage": None},
-        {"step": "synthesize", "ms": 1300, "usage": {"input_tokens": 1500, "output_tokens": 40}},
-        {"step": "tool_search", "ms": 80, "usage": None},
+        {"step": "retrieve", "ms": 120, "usage": None, "model": None},
+        {
+            "step": "synthesize",
+            "ms": 1300,
+            "usage": {
+                "input_tokens": 1500,
+                "output_tokens": 40,
+                "cost_usd": REPORTED_USAGE.cost_usd,
+            },
+            "model": config.CHAT_MODEL,
+        },
+        {"step": "tool_search", "ms": 80, "usage": None, "model": None},
     ]
     assert "question" not in record.__dict__
     assert "answer" not in record.__dict__
@@ -216,3 +231,53 @@ def test_a_full_thread_names_its_cap():
         "This thread has reached its 5 turns; start a new thread to keep asking"
     )
     assert ThreadFullError(5).status_code == 409
+
+
+def test_a_reached_spend_cap_is_a_pause_not_a_fault():
+    assert SpendCapReachedError().message == "The service is paused for the day; ask again later"
+    assert SpendCapReachedError().status_code == 503
+
+
+def ledger_row(cost_usd: float | None, hours_ago: float) -> ChatRequest:
+    """A recorded request of a given cost, created that many hours ago."""
+    return ChatRequest(
+        question="q",
+        outcome=ChatOutcome.DONE,
+        model=config.CHAT_MODEL,
+        total_ms=1,
+        sources=0,
+        cost_usd=cost_usd,
+        created_at=utc_now() - timedelta(hours=hours_ago),
+    )
+
+
+async def test_recorded_row_prices_its_tokens_at_the_models_rates(db_session: AsyncSession):
+    await create_chat_request(db_session, answered_state())
+
+    [row] = (await db_session.scalars(select(ChatRequest))).all()
+    assert row.cost_usd == REPORTED_USAGE.cost_usd is not None
+
+
+async def test_a_run_with_no_usage_records_no_cost(db_session: AsyncSession):
+    await create_chat_request(db_session, ChatState(question="q", total_ms=40, error="boom"))
+
+    [row] = (await db_session.scalars(select(ChatRequest))).all()
+    assert row.cost_usd is None
+
+
+async def test_spent_since_sums_the_priced_rows_inside_the_window(db_session: AsyncSession):
+    db_session.add_all(
+        [
+            ledger_row(0.5, hours_ago=1),
+            ledger_row(0.25, hours_ago=23),
+            ledger_row(None, hours_ago=2),
+            ledger_row(4.0, hours_ago=25),
+        ]
+    )
+    await db_session.flush()
+
+    assert await spent_since(db_session, utc_now() - timedelta(days=1)) == pytest.approx(0.75)
+
+
+async def test_spent_since_is_zero_on_an_empty_ledger(db_session: AsyncSession):
+    assert await spent_since(db_session, utc_now() - timedelta(days=1)) == 0.0

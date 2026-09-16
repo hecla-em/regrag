@@ -15,6 +15,7 @@ from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata
 from redis.asyncio import Redis
 from sqlalchemy import URL, create_engine, delete, make_url, select, text
@@ -30,7 +31,7 @@ from app.chat.graph.nodes.synthesize import synthesize
 from app.core.clock import utc_now
 from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
 from app.core.db.session import async_session_factory
-from app.core.llm.models import TokenUsage
+from app.core.llm.models import Usage
 from app.core.redis import redis_client
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
@@ -455,8 +456,18 @@ def retrieved_chunk(**overrides: Any) -> RetrievedChunk:
 
 USAGE = UsageMetadata(input_tokens=1500, output_tokens=40, total_tokens=1540)
 """What a faked model reports spending, as langchain carries it."""
-TOKEN_USAGE = TokenUsage.from_metadata(USAGE)
-"""USAGE as a step records it."""
+REPLY_METADATA = {"model_name": config.CHAT_MODEL, "model_provider": "litellm"}
+"""What langchain-litellm sets as a reply's response_metadata: the model it called."""
+REPORTED_USAGE = Usage.from_metadata(USAGE, config.CHAT_MODEL)
+"""USAGE as a step records it, priced at the chat model."""
+
+
+def reply_message(usage: UsageMetadata = USAGE, model: str | None = config.CHAT_MODEL) -> AIMessage:
+    """A model's reply as litellm hands it back: the usage it reported, stamped with the
+    model it called — or with nothing, for a reply that named no model."""
+    metadata = {"model_name": model, "model_provider": "litellm"} if model else {}
+    return AIMessage(content="", usage_metadata=usage, response_metadata=metadata)
+
 
 PROVIDER_REQUEST = httpx.Request("POST", "https://api.provider.example")
 

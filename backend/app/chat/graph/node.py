@@ -16,8 +16,9 @@ from app.core.llm.keys import api_key_for
 
 
 class NodeFn(Protocol):
-    """A node: the state so far in, the fields it sets out — plus `usage`, if it called a
-    model, which its step carries rather than the state. Named for the ChatNode it is."""
+    """A node: the state so far in, the fields it sets out — plus `reply`, the message if it
+    called a model, whose spend its step carries rather than the state. Named for the
+    ChatNode it is."""
 
     __name__: str
 
@@ -33,8 +34,13 @@ def traced(run: NodeFn) -> NodeFn:
     async def traced_run(state: ChatState) -> dict[str, Any]:
         start = time.perf_counter()
         update = await run(state)
-        usage = update.pop("usage", None)
-        step = ChatStepResult.from_usage(node, elapsed_ms(start), usage)
+        ms = elapsed_ms(start)
+        reply = update.pop("reply", None)
+        step = (
+            ChatStepResult.from_reply(node, ms, reply)
+            if reply is not None
+            else ChatStepResult(step=node, ms=ms)
+        )
         return update | {"steps": (step,)}
 
     return traced_run

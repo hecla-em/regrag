@@ -35,7 +35,7 @@ async def test_retrieve_graph_drives_the_retrieve_node_alone(found_context: None
     assert result.state.hits == (search_result(),)
     assert result.state.sources == (search_result(),)
     assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE]
-    assert result.state.token_usage() is None
+    assert result.state.usage() is None
     assert result.state.total_ms is not None
 
 
