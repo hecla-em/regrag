@@ -77,9 +77,14 @@ A thread holds at most `CHAT_THREAD_TURNS` answered turns; the next question on 
 
 A first question, one sent without a `thread_id`, is looked up in Redis before anything else runs. A hit streams `sources`, the whole answer as one `text` frame, and `done` with a newly minted thread, and sends no `step` frames, since no step ran. It is served even once the day's spend is capped, because it costs nothing. A miss runs the graph as usual, and an answered run is kept for the next asker. Refusals, errors and abandoned runs are not kept, and neither is a follow-up, whose answer depends on the turns before it.
 
-The key is `chat:answer:{corpus_version}:{sha256(question)}`, with the question normalized only for how it was typed: Unicode width, case, runs of whitespace, and trailing `?`, `!` or `.`. Every word stays, since a dropped one can flip what the law says. The corpus version is what invalidates the cache: an ingest that changes the corpus mints a new version, so no old key matches again, and the old entries lapse on `CHAT_CACHE_TTL_SECONDS`. An ingest that changes nothing keeps its version, and the cache stays warm. Nothing flushes Redis, so the nightly ingest needs no access to it.
+The key is `chat:answer:{build}:{ingest_run}:{sha256(question)}`, with the question normalized only for how it was typed: Unicode width, case, runs of whitespace, and trailing `?`, `!` or `.`. Every word stays, since a dropped one can flip what the law says.
 
-Redis being unreachable is a miss, logged, and the graph runs. `CHAT_CACHE_ENABLED=false` turns the cache off.
+The other two parts are what invalidate the cache, so nothing flushes Redis and the nightly ingest needs no access to it. Old entries lapse on `CHAT_CACHE_TTL_SECONDS`.
+
+- **`ingest_run`** is the latest finished ingest run, whatever its status. A failed run still committed every document it got through, and every run re-chunks every document, so each finished run retires the answers before it. A run still going leaves the key alone, so answers written mid-run die when it finishes. The cost is that the cache lasts at most a day on the nightly schedule.
+- **`build`** is `BUILD_ID`, read from the image reference Fly sets per release, so a deploy that changes the chunker, the prompts or the model retires every answer too. Off Fly it is `local`.
+
+Redis being unreachable, or an entry that no longer parses, is a logged miss, and the graph runs. `CHAT_CACHE_ENABLED=false` turns the cache off.
 
 ## The ledger
 

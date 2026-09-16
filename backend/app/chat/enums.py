@@ -63,3 +63,7 @@ class RefusalReason(StrEnum):
 
     NOTHING_RETRIEVED = "nothing_retrieved"
     INSUFFICIENT_CONTEXT = "insufficient_context"
+
+
+ANSWERED_OUTCOMES = frozenset({ChatOutcome.DONE, ChatOutcome.CACHED})
+"""The outcomes that left an answer on the thread: what a follow-up's history reads."""

@@ -9,20 +9,23 @@ import anyio
 import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.outputs import ChatGenerationChunk
+from redis.asyncio import Redis
 from sqlalchemy.exc import OperationalError
 
 from app.chat import stream
-from app.chat.cache import normalize_question, store_answer
+from app.chat.cache import store_answer
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
-from app.chat.events import DoneEvent, ErrorEvent, SourcesEvent, StepEvent, TextEvent
+from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, StepEvent, TextEvent
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import CachedAnswer, ChatQuery, ChatTurn, Refusal
 from app.chat.stream import stream_chat_events
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
+    FUELEU_KEY,
     RecordingChatModel,
     fake_chat_model,
+    install_versioned_key,
     restated_message,
     tool_call_message,
 )
@@ -40,6 +43,11 @@ pytestmark = pytest.mark.anyio
 
 NO_REDIS = unreachable_redis()
 """The answer cache is off unless a test turns it on, so these streams never reach Redis."""
+
+
+async def collect_events(query: ChatQuery, redis: Redis = NO_REDIS) -> list[ChatEvent]:
+    """Every event one question's stream sends, run to the end."""
+    return [event async for event in stream_chat_events(query, redis)]
 
 
 async def test_finished_stream_records_timings_sources_and_usage(
@@ -91,7 +99,7 @@ async def test_unexpected_failure_is_recorded_by_its_type_and_sent_as_the_generi
 
     install_search(monkeypatch, exploding_search)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert isinstance(events[-1], ErrorEvent)
     assert events[-1].data.message == "An unexpected error occurred"
@@ -126,7 +134,7 @@ async def test_failed_write_is_logged_not_raised(two_results, monkeypatch, caplo
 
     monkeypatch.setattr("app.chat.stream.create_chat_request", broken_create_chat_request)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert isinstance(events[-1], DoneEvent)
     [error] = [
@@ -203,7 +211,7 @@ async def test_a_refusal_assess_asked_for_sends_the_context_it_read_then_the_ref
     model = fake_chat_model()
     install_chat_model(monkeypatch, model)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert step_frames(events)[4:] == [
         (ToolStep.REFUSE, ChatStepStatus.RUNNING, "nothing bears on it"),
@@ -236,7 +244,7 @@ async def test_each_step_is_announced_as_it_starts_and_again_once_it_finishes(
 ):
     """A trail that only reported finished work would name a step at the moment it stopped
     being true; the running frame is what the reader is actually waiting on."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert step_frames(events) == [
         (ChatNode.RETRIEVE, ChatStepStatus.RUNNING, None),
@@ -247,7 +255,7 @@ async def test_each_step_is_announced_as_it_starts_and_again_once_it_finishes(
 
 
 async def test_retrieve_is_running_before_the_sources_it_finds_arrive(two_results, answer_model):
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     first_step = next(i for i, e in enumerate(events) if isinstance(e, StepEvent))
     sources = next(i for i, e in enumerate(events) if isinstance(e, SourcesEvent))
@@ -261,7 +269,7 @@ async def test_retrieve_is_reported_finished_before_the_sources_it_found_arrive(
     """The finished frame comes from the node's task result, the sources from the state
     snapshot after it. Were that order to flip, the sources would land while the trail still
     said retrieve was running."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     finished = next(
         i
@@ -277,7 +285,7 @@ async def test_a_running_step_reports_no_timing_and_the_ledger_never_sees_one(
     two_results, answer_model, recorded_requests
 ):
     """Timing belongs to work that has happened; the path the ledger keeps is finished work."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+    events = await collect_events(ChatQuery(question="q"))
 
     steps = [event.data for event in events if isinstance(event, StepEvent)]
     running = [step for step in steps if step.status is ChatStepStatus.RUNNING]
@@ -334,7 +342,7 @@ class TestLoopStreaming:
     async def test_sources_arrive_once_with_the_merged_context(
         self, loop_on, one_result, one_assess_round, answer_model
     ):
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+        events = await collect_events(ChatQuery(question="q"))
 
         sources_events = [e for e in events if isinstance(e, SourcesEvent)]
         assert len(sources_events) == 1
@@ -348,7 +356,7 @@ class TestLoopStreaming:
     ):
         install_chat_model(monkeypatch, fake_chat_model("The answer [1]."))
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+        events = await collect_events(ChatQuery(question="q"))
 
         text = "".join(e.data for e in events if isinstance(e, TextEvent))
         assert text == "The answer [1]."
@@ -358,7 +366,7 @@ class TestLoopStreaming:
     ):
         """The round announces one step per call assess asked for, each carrying the query,
         so the reader sees what is being searched for while it is being searched for."""
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+        events = await collect_events(ChatQuery(question="q"))
 
         running, completed = ChatStepStatus.RUNNING, ChatStepStatus.COMPLETED
         assert step_frames(events) == [
@@ -397,7 +405,7 @@ class TestThreads:
         fake_load, asked = history_of()
         monkeypatch.setattr("app.chat.stream.load_thread_history", fake_load)
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+        events = await collect_events(ChatQuery(question="q"))
 
         done = events[-1]
         assert isinstance(done, DoneEvent)
@@ -423,7 +431,7 @@ class TestThreads:
         install_search(monkeypatch, fake_search)
 
         query = ChatQuery(question="What penalties does it impose?", thread_id=THREAD_ID)
-        events = [event async for event in stream_chat_events(query, NO_REDIS)]
+        events = await collect_events(query)
 
         assert asked == [THREAD_ID]
         assert [s for s, _, _ in step_frames(events)][:2] == [ChatNode.REWRITE, ChatNode.REWRITE]
@@ -444,7 +452,7 @@ class TestThreads:
         install_chat_model(monkeypatch, model)
 
         query = ChatQuery(question="one more?", thread_id=THREAD_ID)
-        events = [event async for event in stream_chat_events(query, NO_REDIS)]
+        events = await collect_events(query)
 
         [error] = events
         assert isinstance(error, ErrorEvent)
@@ -474,7 +482,7 @@ class TestSpendCap:
         model = fake_chat_model()
         install_chat_model(monkeypatch, model)
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)]
+        events = await collect_events(ChatQuery(question="q"))
 
         [error] = events
         assert isinstance(error, ErrorEvent)
@@ -497,9 +505,7 @@ class TestSpendCap:
         install_chat_model(monkeypatch, fake_chat_model())
 
         with caplog.at_level(logging.INFO, logger=stream.logger.name):
-            events = [
-                event async for event in stream_chat_events(ChatQuery(question="q"), NO_REDIS)
-            ]
+            events = await collect_events(ChatQuery(question="q"))
 
         assert isinstance(events[-1], DoneEvent)
         [spend_line] = [r for r in caplog.records if "spend" in r.getMessage()]
@@ -508,21 +514,14 @@ class TestSpendCap:
 
 @pytest.fixture
 def cache_on(monkeypatch, answer_cache):
-    """The answer cache on, over an emptied Redis, under a corpus version the test does not
-    need a database for; the returned client is the one the stream is handed."""
-    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
-
-    async def versioned_key(session, question):
-        return f"chat:answer:v1:{normalize_question(question)}"
-
-    monkeypatch.setattr("app.chat.stream.answer_key", versioned_key)
+    """The answer cache on, over an emptied Redis; the returned client is the one the stream
+    is handed."""
+    install_versioned_key(monkeypatch)
     return answer_cache
 
 
-async def ask(redis, question="What is FuelEU?", **fields):
-    return [
-        event async for event in stream_chat_events(ChatQuery(question=question, **fields), redis)
-    ]
+FUELEU = ChatQuery(question="What is FuelEU?")
+CACHED_ANSWER = CachedAnswer(answer="From the cache [1].", sources=(retrieved_chunk(),))
 
 
 class TestAnswerCache:
@@ -531,8 +530,8 @@ class TestAnswerCache:
     async def test_a_repeated_question_replays_the_answer_without_a_model_call(
         self, cache_on, two_results, answer_model, recorded_requests
     ):
-        first = await ask(cache_on)
-        second = await ask(cache_on, "  what is FUELEU ")
+        first = await collect_events(FUELEU, cache_on)
+        second = await collect_events(ChatQuery(question="  what is FUELEU "), cache_on)
 
         assert len(answer_model.received) == 1
         assert [event.event for event in second] == ["sources", "text", "done"]
@@ -546,18 +545,16 @@ class TestAnswerCache:
         assert second[-1] == DoneEvent(data={"thread_id": cached.thread_id})
         assert cached.thread_id != answered.thread_id
 
-    async def test_a_hit_is_served_past_the_spend_cap(
-        self, cache_on, answer_model, recorded_requests, monkeypatch
-    ):
+    async def test_a_hit_is_served_past_the_spend_cap(self, cache_on, answer_model, monkeypatch):
         """An answer that costs nothing to serve is not what the cap guards."""
-        await store_answer(cache_on, "chat:answer:v1:what is fueleu", cached_answer())
+        await store_answer(cache_on, FUELEU_KEY, CACHED_ANSWER)
 
         async def spent_the_cap(session, since):
             return config.CHAT_DAILY_SPEND_CAP_USD
 
         monkeypatch.setattr("app.chat.stream.spent_since", spent_the_cap)
 
-        events = await ask(cache_on)
+        events = await collect_events(FUELEU, cache_on)
 
         assert [event.event for event in events] == ["sources", "text", "done"]
 
@@ -565,12 +562,13 @@ class TestAnswerCache:
         self, cache_on, two_results, recorded_requests, monkeypatch
     ):
         """A follow-up's answer depends on the thread before it, which the key does not hold."""
-        await store_answer(cache_on, "chat:answer:v1:what is fueleu", cached_answer())
+        await store_answer(cache_on, FUELEU_KEY, CACHED_ANSWER)
         fake_load, _ = history_of()
         monkeypatch.setattr("app.chat.stream.load_thread_history", fake_load)
         install_chat_model(monkeypatch, fake_chat_model("Fresh [1]."))
 
-        events = await ask(cache_on, thread_id=THREAD_ID)
+        follow_up = ChatQuery(question=FUELEU.question, thread_id=THREAD_ID)
+        events = await collect_events(follow_up, cache_on)
 
         assert "".join(e.data for e in events if isinstance(e, TextEvent)) == "Fresh [1]."
         assert await cache_on.dbsize() == 1
@@ -578,7 +576,7 @@ class TestAnswerCache:
         assert state.outcome is ChatOutcome.DONE
 
     async def test_a_refusal_is_not_kept(self, cache_on, one_junk_result, answer_model):
-        await ask(cache_on)
+        await collect_events(FUELEU, cache_on)
 
         assert await cache_on.dbsize() == 0
 
@@ -588,7 +586,7 @@ class TestAnswerCache:
 
         install_search(monkeypatch, failing_search)
 
-        events = await ask(cache_on)
+        events = await collect_events(FUELEU, cache_on)
 
         assert isinstance(events[-1], ErrorEvent)
         assert await cache_on.dbsize() == 0
@@ -601,8 +599,8 @@ class TestAnswerCache:
 
         monkeypatch.setattr("app.chat.stream.answer_key", no_corpus)
 
-        await ask(cache_on)
-        await ask(cache_on)
+        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU, cache_on)
 
         assert len(answer_model.received) == 2
         assert await cache_on.dbsize() == 0
@@ -610,12 +608,8 @@ class TestAnswerCache:
     async def test_redis_away_runs_the_graph(self, cache_on, two_results, answer_model):
         redis = unreachable_redis()
 
-        events = await ask(redis)
+        events = await collect_events(FUELEU, redis)
 
         assert isinstance(events[-1], DoneEvent)
         assert len(answer_model.received) == 1
         await redis.aclose()
-
-
-def cached_answer() -> CachedAnswer:
-    return CachedAnswer(answer="From the cache [1].", sources=(retrieved_chunk(),))

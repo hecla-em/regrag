@@ -101,16 +101,6 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
     yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
 
 
-def _cached_answer_events(state: ChatState) -> list[ChatEvent]:
-    """A cached answer as the stream sends it: its sources, the whole answer as one text
-    frame, and the thread it was recorded under. No steps, since none ran."""
-    return [
-        SourcesEvent.from_results(state.sources),
-        TextEvent(data=state.answer),
-        DoneEvent(data=ChatThread(thread_id=state.thread_id)),
-    ]
-
-
 async def find_answer_key(query: ChatQuery) -> str | None:
     """The cache key for a first question, or None when the cache is off or the question
     continues a thread, whose answer depends on the turns before it."""
@@ -162,9 +152,13 @@ async def stream_chat_events(query: ChatQuery, redis: Redis) -> AsyncGenerator[C
     try:
         cache_key = await find_answer_key(query)
         if cache_key and (cached := await lookup_answer(redis, cache_key)):
-            state = ChatState.from_cached_answer(query.question, cached)
-            for event in _cached_answer_events(state):
-                yield event
+            # Replayed whole, with no steps since none ran
+            state = ChatState(
+                question=query.question, answer=cached.answer, sources=cached.sources, cached=True
+            )
+            yield SourcesEvent.from_results(state.sources)
+            yield TextEvent(data=state.answer)
+            yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
             return
         await check_spend_cap()
         state = await open_thread(query)

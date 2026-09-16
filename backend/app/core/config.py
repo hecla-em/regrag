@@ -52,11 +52,16 @@ class BaseConfig(BaseSettings):
 
 
 class AppConfig(BaseConfig):
-    """Application configuration."""
+    """Application configuration.
+
+    BUILD_ID: which release is running, read from the image reference Fly sets on every
+        machine, so it changes with each deploy and is shared by a release's machines.
+    """
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
 
 
 class StorageBackend(StrEnum):

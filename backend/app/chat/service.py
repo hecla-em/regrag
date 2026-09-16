@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.citations import strip_markers
-from app.chat.enums import ChatOutcome
+from app.chat.enums import ANSWERED_OUTCOMES
 from app.chat.models import ChatState, ChatTurn
 from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.core.config import config
@@ -64,7 +64,7 @@ async def load_thread_history(session: AsyncSession, thread_id: UUID) -> tuple[C
         select(ChatRequest.question, ChatRequest.answer)
         .where(
             ChatRequest.thread_id == thread_id,
-            ChatRequest.outcome.in_((ChatOutcome.DONE, ChatOutcome.CACHED)),
+            ChatRequest.outcome.in_(ANSWERED_OUTCOMES),
             ChatRequest.answer.is_not(None),
         )
         .order_by(ChatRequest.created_at.desc(), ChatRequest.id.desc())

@@ -35,6 +35,18 @@ async def get_latest_corpus_version(session: AsyncSession) -> str | None:
     return await session.scalar(stmt)
 
 
+async def get_latest_finished_run_id(session: AsyncSession) -> int | None:
+    """The most recent run that has finished, whatever its status: every one that ran
+    committed what it got through."""
+    stmt = (
+        select(IngestRun.id)
+        .where(IngestRun.completed_at.is_not(None))
+        .order_by(IngestRun.id.desc())
+        .limit(1)
+    )
+    return await session.scalar(stmt)
+
+
 def corpus_fingerprint(documents: Iterable[RawDocument]) -> str:
     """Content hash of the corpus; an identical corpus fingerprints identically."""
     content = sorted((doc.celex, doc.resolved_celex, doc.sha256) for doc in documents)

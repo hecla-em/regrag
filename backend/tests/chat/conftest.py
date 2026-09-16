@@ -8,6 +8,7 @@ from typing import Any
 
 import openai
 import pytest
+from fastapi.testclient import TestClient
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -15,10 +16,12 @@ from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from pydantic import Field
 from redis.asyncio import Redis
 
+from app.chat.cache import normalize_question
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatState
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
+from app.core.redis import redis_client
 from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
 from tests.conftest import (
     REPLY_METADATA,
@@ -315,10 +318,38 @@ def hits_for(monkeypatch: pytest.MonkeyPatch, **per_query: tuple) -> list[Search
     return requests
 
 
+FUELEU_KEY = "chat:answer:v1:what is fueleu"
+"""Where install_versioned_key files "What is FuelEU?"."""
+
+
+def install_versioned_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Turn the cache on under a fixed key prefix, so no test needs a database for its keys."""
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+
+    async def versioned_key(session: None, question: str) -> str:
+        return f"chat:answer:v1:{normalize_question(question)}"
+
+    monkeypatch.setattr("app.chat.stream.answer_key", versioned_key)
+
+
 @pytest.fixture
 async def answer_cache() -> AsyncIterator[Redis]:
-    """A client over the suite's Redis index, emptied first and closed on the test's own loop."""
-    redis = Redis.from_url(config.REDIS_URL)
+    """An emptied Redis index opened on the test's own loop, which the app's shared client,
+    bound to the TestClient's loop, cannot serve."""
+    redis = Redis.from_url(
+        config.REDIS_URL,
+        socket_connect_timeout=config.REDIS_TIMEOUT,
+        socket_timeout=config.REDIS_TIMEOUT,
+    )
     await redis.flushdb()
     yield redis
     await redis.aclose()
+
+
+@pytest.fixture
+def cached_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """The answer cache on, in the suite's Redis index, emptied first."""
+    assert client.portal is not None
+    client.portal.call(redis_client.flushdb)
+    install_versioned_key(monkeypatch)
+    return client

@@ -155,11 +155,6 @@ class ChatState(AppModel):
         """The model the run's steps called, or None when none asked one."""
         return next((result.model for result in self.steps if result.model), None)
 
-    @classmethod
-    def from_cached_answer(cls, question: str, cached: CachedAnswer) -> "ChatState":
-        """A fresh thread whose question was answered from the cache."""
-        return cls(question=question, answer=cached.answer, sources=cached.sources, cached=True)
-
     def sync_from_snapshot(self, snapshot: dict[str, Any]) -> None:
         """Update this state with the graph's latest snapshot, so one object holds the run
         the ledger records. total_ms and error survive it: no node writes them, so no
