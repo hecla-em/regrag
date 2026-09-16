@@ -16,6 +16,7 @@ from app.core.config import (
     IngestConfig,
     JudgeConfig,
     ProviderConfig,
+    RateLimitConfig,
     RedisConfig,
     RetrievalConfig,
     StorageBackend,
@@ -38,11 +39,11 @@ def test_redis_defaults_to_the_compose_instance(monkeypatch):
     assert RedisConfig().REDIS_URL == "redis://localhost:6379/0"
 
 
-def test_rate_limits_default_on():
-    combined = Config()
+def test_rate_limits_default_on_with_the_address_ceiling_above_the_client_allowance():
+    limits = RateLimitConfig()
 
-    assert combined.RATE_LIMIT_ENABLED is True
-    assert combined.RATE_LIMIT_PER_CLIENT < combined.RATE_LIMIT_PER_IP
+    assert limits.RATE_LIMIT_ENABLED is True
+    assert limits.RATE_LIMIT_PER_CLIENT < limits.RATE_LIMIT_PER_IP
 
 
 def test_the_r2_endpoint_is_built_from_the_account_id(monkeypatch):

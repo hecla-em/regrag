@@ -52,24 +52,11 @@ class BaseConfig(BaseSettings):
 
 
 class AppConfig(BaseConfig):
-    """Application configuration.
-
-    RATE_LIMIT_ENABLED: the chat limiter's off switch; tests switch it off.
-    RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
-        of a few and then roughly one every 12s at the default.
-    RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it
-        sends, so rotating ids buys nothing.
-    RATE_LIMIT_WINDOW_SECONDS: the sliding window both limits count over.
-    """
+    """Application configuration."""
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
-
-    RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_PER_CLIENT: int = Field(default=5, ge=1)
-    RATE_LIMIT_PER_IP: int = Field(default=20, ge=1)
-    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
 class StorageBackend(StrEnum):
@@ -150,6 +137,23 @@ class RedisConfig(BaseConfig):
 
     REDIS_URL: str = "redis://localhost:6379/0"
     REDIS_TIMEOUT: float = Field(default=1.0, gt=0.0)
+
+
+class RateLimitConfig(BaseConfig):
+    """The chat rate limiter: an allowance per client id, and a ceiling per address behind it.
+
+    RATE_LIMIT_ENABLED: the limiter's off switch; tests switch it off.
+    RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
+        of a few and then roughly one every 12s at the default.
+    RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it
+        sends, so rotating ids buys nothing.
+    RATE_LIMIT_WINDOW_SECONDS: the sliding window both limits count over.
+    """
+
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_CLIENT: int = Field(default=5, ge=1)
+    RATE_LIMIT_PER_IP: int = Field(default=20, ge=1)
+    RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
 EMBED_DIMENSIONS = 1024
@@ -334,6 +338,7 @@ class Config(
     AppConfig,
     PostgresConfig,
     RedisConfig,
+    RateLimitConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -355,6 +360,7 @@ _CONFIG_SECTIONS = (
     AppConfig,
     PostgresConfig,
     RedisConfig,
+    RateLimitConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
