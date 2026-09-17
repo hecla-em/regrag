@@ -40,23 +40,22 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d regrag"
-          --health-interval 5s
+          --health-interval 1s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 30
       redis:
         image: redis:8-alpine
         ports:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
-          --health-interval 5s
+          --health-interval 1s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 30
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
-      - run: uv sync --locked
-      - run: uv run alembic upgrade head
+      - run: uv sync --locked --compile-bytecode
       - run: uv run pytest
 
   lint-frontend:
