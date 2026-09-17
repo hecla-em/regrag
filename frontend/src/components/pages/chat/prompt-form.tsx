@@ -45,7 +45,7 @@ export function PromptForm({
 	return (
 		<form
 			onSubmit={submitQuestion}
-			className="flex items-center gap-2 rounded-full border py-2 pr-2 pl-6"
+			className="flex items-center gap-2 rounded-[20px] border bg-card py-2 pr-2 pl-4 shadow-lg shadow-black/35"
 		>
 			<Textarea
 				value={question}
@@ -67,7 +67,7 @@ export function PromptForm({
 				<Button
 					type="button"
 					size="icon-lg"
-					className="rounded-full"
+					className="rounded-xl"
 					aria-label="Stop"
 					onClick={onStop}
 				>
@@ -77,7 +77,7 @@ export function PromptForm({
 				<Button
 					type="submit"
 					size="icon-lg"
-					className="rounded-full"
+					className="rounded-xl"
 					aria-label="Send"
 					onMouseDown={(event) => event.preventDefault()}
 				>

@@ -5,6 +5,7 @@ import {
 	PanelLeftOpenIcon,
 	SquarePenIcon,
 } from "lucide-react"
+import { useEffect, useRef } from "react"
 import { Eyebrow } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import { Button } from "@/components/ui/button"
@@ -46,6 +47,23 @@ export function Sidebar({
 	onCollapsedChange?: (collapsed: boolean) => void
 	className?: string
 }) {
+	const collapseButton = useRef<HTMLButtonElement>(null)
+	const expandButton = useRef<HTMLButtonElement>(null)
+	const isToggling = useRef(false)
+
+	useEffect(() => {
+		if (!isToggling.current) return
+		isToggling.current = false
+		const next = collapsed ? expandButton : collapseButton
+		next.current?.focus()
+	}, [collapsed])
+
+	/** The pressed toggle turns inert, so focus moves to the one that replaces it. */
+	function toggleCollapsed(next: boolean) {
+		isToggling.current = true
+		onCollapsedChange?.(next)
+	}
+
 	return (
 		<nav
 			aria-label="Chats"
@@ -67,9 +85,10 @@ export function Sidebar({
 							<Button
 								variant="ghost"
 								size="icon-sm"
+								ref={collapseButton}
 								aria-label="Collapse sidebar"
 								inert={collapsed}
-								onClick={() => onCollapsedChange(true)}
+								onClick={() => toggleCollapsed(true)}
 								className={cn(
 									"absolute top-1.5 right-2 text-muted-foreground",
 									COPY,
@@ -80,9 +99,10 @@ export function Sidebar({
 							<Button
 								variant="ghost"
 								size="icon-sm"
+								ref={expandButton}
 								aria-label="Expand sidebar"
 								inert={!collapsed}
-								onClick={() => onCollapsedChange(false)}
+								onClick={() => toggleCollapsed(false)}
 								className="pointer-events-none absolute top-1.5 left-3 text-muted-foreground opacity-0 transition-opacity group-data-collapsed/sidebar:pointer-events-auto group-data-collapsed/sidebar:opacity-100"
 							>
 								<PanelLeftOpenIcon />
