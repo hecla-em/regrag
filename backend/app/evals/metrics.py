@@ -4,7 +4,7 @@ and the run's measures, each a plain function over its results."""
 from collections.abc import Sequence
 
 from app.chat.citations import find_cited_markers, find_cited_sources
-from app.chat.enums import ChatOutcome, RefusalReason
+from app.chat.enums import ChatNode, ChatOutcome, RefusalReason
 from app.core.llm.models import Usage
 from app.evals.dataset.enums import EvalKind
 from app.evals.judge.models import CaseJudgement
@@ -190,9 +190,18 @@ def _assess_refused(result: EvalCaseResult) -> bool:
     return _refused_for(result, RefusalReason.INSUFFICIENT_CONTEXT)
 
 
+def retrieved_out_of_corpus(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
+    """The out-of-corpus cases that searched: one answered without retrieval met no gate."""
+    return [
+        r
+        for r in scored_out_of_corpus(results)
+        if any(step.step is ChatNode.RETRIEVE for step in r.state.steps)
+    ]
+
+
 def compute_gate_refusal_rate(results: Sequence[EvalCaseResult]) -> float | None:
     """Share of out-of-corpus cases the pre-model gate refused."""
-    return mean_or_none([_gate_refused(r) for r in scored_out_of_corpus(results)])
+    return mean_or_none([_gate_refused(r) for r in retrieved_out_of_corpus(results)])
 
 
 def count_false_refusals(results: Sequence[EvalCaseResult]) -> int:
@@ -219,7 +228,7 @@ def compute_gate_metrics(results: Sequence[EvalCaseResult]) -> GateMetrics:
 
 def compute_assess_refusal_rate(results: Sequence[EvalCaseResult]) -> float | None:
     """Share of out-of-corpus cases assess refused."""
-    return mean_or_none([_assess_refused(r) for r in scored_out_of_corpus(results)])
+    return mean_or_none([_assess_refused(r) for r in retrieved_out_of_corpus(results)])
 
 
 def count_assess_false_refusals(results: Sequence[EvalCaseResult]) -> int:

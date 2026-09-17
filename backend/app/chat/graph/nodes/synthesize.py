@@ -52,7 +52,8 @@ def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
 @llm_retry
 @wrap_provider_errors("chat call")
 async def synthesize(state: ChatState) -> dict[str, Any]:
-    """One streamed model call answering from the context with [n] citations.
+    """One streamed model call answering from the context with [n] citations, or from
+    memory under the baseline prompt when there are no sources.
 
     A transient provider failure is retried like embed and rerank; one that strikes
     mid-stream restarts the answer, so its tokens reach the client twice.

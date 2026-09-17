@@ -19,11 +19,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Whether a run retrieved; every run stored before the column did."""
+    """Whether a run retrieved. Every run stored before the column did."""
     op.add_column(
         "eval_runs",
         sa.Column("retrieval", sa.Boolean(), server_default=sa.true(), nullable=False),
     )
+    op.alter_column("eval_runs", "retrieval", server_default=None)
 
 
 def downgrade() -> None:
