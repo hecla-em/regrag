@@ -94,7 +94,8 @@ frontend runs on the host either way (`pnpm dev` in `frontend/`).
 ```bash
 uv run ingest                  # build the corpus; `ingest fueleu` for one topic
 uv run retrieve "query"        # search it from the terminal
-uv run evals run               # score the chat graph against the golden dataset
+uv run evals run               # score the chat graph against the golden dataset, and store the run
+uv run evals compare 41 42     # print two stored runs side by side
 uv run evals tune              # sweep retrieval settings against the same cases
 ```
 

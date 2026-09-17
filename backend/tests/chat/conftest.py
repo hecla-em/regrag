@@ -3,7 +3,6 @@
 import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
-from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Any
 
@@ -32,6 +31,7 @@ from tests.conftest import (
     install_chat_model,
     install_search,
     junk_result,
+    no_session,
     provider_error,
     search_result,
 )
@@ -248,10 +248,6 @@ def no_tool_session(monkeypatch: pytest.MonkeyPatch) -> None:
     """A tool call opens its own session; the faked tool paths never touch it, so a null
     one stands in and no chat test reaches the database."""
 
-    @asynccontextmanager
-    async def no_session(**kwargs: Any) -> AsyncIterator[None]:
-        yield None
-
     monkeypatch.setattr("app.chat.toolbox.service.get_session", no_session)
 
 
@@ -261,10 +257,6 @@ def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
     to hand over: the write is covered in test_service, so no streaming test needs the
     database."""
     states: list[ChatState] = []
-
-    @asynccontextmanager
-    async def no_session(**kwargs: Any) -> AsyncIterator[None]:
-        yield None
 
     async def fake_create_chat_request(session: None, state: ChatState) -> None:
         states.append(state)
@@ -340,10 +332,6 @@ FUELEU_KEY = "chat:answer:v1:what is fueleu"
 def install_versioned_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Turn the cache on under a fixed key prefix, so no test needs a database for its keys."""
     monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
-
-    @asynccontextmanager
-    async def no_session(**kwargs: Any) -> AsyncIterator[None]:
-        yield None
 
     async def versioned_key(session: None, question: str) -> str:
         return f"chat:answer:v1:{normalize_question(question)}"

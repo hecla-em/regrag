@@ -6,13 +6,13 @@ from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.evals.dataset.enums import EvalTrait
 from app.evals.dataset.models import CaseSelection
 from app.evals.metrics import compute_metrics
-from app.evals.models import EvalRun
+from app.evals.models import EvalRunResult
 from tests.evals.conftest import eval_case, eval_result, passed_judgement, refused_result
 
 
 def test_the_summary_carries_the_runs_setup_and_scores_then_names_the_cases_that_raised() -> None:
     results = (eval_result(), eval_result(eval_case(id="boom"), error="TimeoutError"))
-    run = EvalRun(
+    run = EvalRunResult(
         dataset_sha="abc",
         selection=CaseSelection(id_contains="fueleu", trait=EvalTrait.MULTI_PART),
         settings=get_config_snapshot(EVAL_CONFIG_SECTIONS),
@@ -35,7 +35,7 @@ def test_the_summary_names_the_corpus_and_the_cases_owed_a_re_review() -> None:
     """A stale case is reported, never failed: only a human can repair one, so the run stays
     green and says which reference answers were written against text that has since moved."""
     results = (eval_result(),)
-    run = EvalRun(
+    run = EvalRunResult(
         dataset_sha="abc",
         corpus_version="2026-08-01-a3f1c2",
         stale_cases=("amended-one", "amended-two"),
@@ -57,7 +57,7 @@ def test_a_judged_run_whose_judge_never_answered_says_so() -> None:
     """Every judge call failing leaves only warnings behind, so the run itself has to name
     the difference between a judge that was off and one that never came back."""
     answered = (eval_result(),)
-    run = EvalRun(
+    run = EvalRunResult(
         dataset_sha="abc",
         judged=True,
         settings={},
@@ -73,17 +73,17 @@ def test_a_run_with_nothing_to_judge_or_a_verdict_is_not_a_silent_judge() -> Non
     judged = (eval_result(judgement=passed_judgement()),)
     refused_only = (refused_result(),)
 
-    assert not EvalRun(
+    assert not EvalRunResult(
         dataset_sha="abc", judged=True, settings={}, metrics=compute_metrics(judged), results=judged
     ).judge_never_answered
-    assert not EvalRun(
+    assert not EvalRunResult(
         dataset_sha="abc",
         judged=True,
         settings={},
         metrics=compute_metrics(refused_only),
         results=refused_only,
     ).judge_never_answered
-    assert not EvalRun(
+    assert not EvalRunResult(
         dataset_sha="abc",
         judged=False,
         settings={},

@@ -30,7 +30,7 @@ from app.evals.judge.prompts import (
     build_faithfulness_message,
     build_refusal_message,
 )
-from app.evals.models import EvalResult
+from app.evals.models import EvalCaseResult
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +90,11 @@ async def judge_case(case: EvalCase, state: ChatState) -> CaseJudgement:
     return await _judge_answer(case, state)
 
 
-async def judge_results(results: Sequence[EvalResult]) -> list[EvalResult]:
+async def judge_results(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
     """Every result with its judgement filled in, the cases judged a few at a time. Runs
     once the cases have all been timed, so judge latency never reaches a case's timing."""
 
-    async def judge_one(result: EvalResult) -> CaseJudgement:
+    async def judge_one(result: EvalCaseResult) -> CaseJudgement:
         return await judge_case(result.case, result.state)
 
     async with run_concurrently(results, judge_one, limit=config.EVAL_JUDGE_CONCURRENCY) as pairs:

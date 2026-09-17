@@ -1,5 +1,6 @@
 """Eval test factories shared across the eval test modules."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -7,7 +8,7 @@ import pytest
 from app.chat.enums import ChatNode, RefusalReason, ToolStep
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import ChatState, ChatStepResult, Refusal
-from app.core.config import config
+from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.evals.dataset.enums import EvalKind
 from app.evals.dataset.models import CaseReference, CaseSelection, EvalCase, EvalDataset
 from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
@@ -18,7 +19,9 @@ from app.evals.judge.models import (
     FaithfulnessVerdict,
     RefusalVerdict,
 )
-from app.evals.models import EvalResult
+from app.evals.metrics import compute_metrics
+from app.evals.models import EvalCaseResult, EvalMetrics, EvalRunResult
+from app.evals.schemas import EvalRun
 from tests.conftest import REPORTED_USAGE, retrieved_chunk, search_result
 
 REFERENCE = CaseReference(celex="32023R1805", article="4")
@@ -68,7 +71,7 @@ def eval_dataset(*cases: EvalCase, **selection: Any) -> EvalDataset:
 
 def eval_result(
     case: EvalCase | None = None, judgement: CaseJudgement | None = None, **state: Any
-) -> EvalResult:
+) -> EvalCaseResult:
     """A completed in-corpus case whose answer cites its one authored reference, with the
     state's fields overridable — nodes, hits, sources, answer, error."""
     defaults: dict[str, Any] = {
@@ -82,7 +85,7 @@ def eval_result(
         "answer": "Yes [1].",
         "total_ms": 1000,
     }
-    return EvalResult(
+    return EvalCaseResult(
         case=case or eval_case(), state=ChatState(**{**defaults, **state}), judgement=judgement
     )
 
@@ -130,7 +133,7 @@ REFUSED_PATH = (
 """The path a gate refusal leaves: retrieve ran, then refuse, and no model call."""
 
 
-def refused_result(case: EvalCase | None = None, **state: Any) -> EvalResult:
+def refused_result(case: EvalCase | None = None, **state: Any) -> EvalCaseResult:
     """A case the gate refused: the refusal path, no sources, the fixed answer."""
     defaults: dict[str, Any] = {
         "steps": REFUSED_PATH,
@@ -140,7 +143,7 @@ def refused_result(case: EvalCase | None = None, **state: Any) -> EvalResult:
         "answer": REFUSAL_ANSWER,
         "total_ms": 85,
     }
-    return EvalResult(
+    return EvalCaseResult(
         case=case or out_of_corpus_case(), state=ChatState(question="q?", **{**defaults, **state})
     )
 
@@ -155,7 +158,7 @@ ASSESS_REFUSED_PATH = (
 insufficient, and the graph refused."""
 
 
-def assess_refused_result(case: EvalCase | None = None, **state: Any) -> EvalResult:
+def assess_refused_result(case: EvalCase | None = None, **state: Any) -> EvalCaseResult:
     """A case assess refused: context reached it, and it found nothing bearing on the question."""
     defaults: dict[str, Any] = {
         "steps": ASSESS_REFUSED_PATH,
@@ -168,6 +171,36 @@ def assess_refused_result(case: EvalCase | None = None, **state: Any) -> EvalRes
         "answer": REFUSAL_ANSWER,
         "total_ms": 985,
     }
-    return EvalResult(
+    return EvalCaseResult(
         case=case or out_of_corpus_case(), state=ChatState(question="q?", **{**defaults, **state})
     )
+
+
+def eval_run(*results: EvalCaseResult, **overrides: Any) -> EvalRunResult:
+    """A run over the given results, scored and with the live settings, overridable per field."""
+    defaults: dict[str, Any] = {
+        "dataset_sha": "9f3c",
+        "settings": get_config_snapshot(EVAL_CONFIG_SECTIONS),
+        "metrics": compute_metrics(results),
+        "results": results,
+    }
+    return EvalRunResult(**{**defaults, **overrides})
+
+
+def judged_metrics() -> EvalMetrics:
+    """What a run of one answered, passed case measured."""
+    return compute_metrics((eval_result(judgement=passed_judgement()),))
+
+
+def stored_run(id: int, metrics: EvalMetrics | None = None, **overrides: Any) -> EvalRun:
+    """An eval_runs row as the database hands it back, its metrics a judged run's by default."""
+    defaults: dict[str, Any] = {
+        "id": id,
+        "created_at": datetime(2026, 9, 18, 3, 0, tzinfo=UTC),
+        "git_commit": "12265d6abcdef",
+        "git_dirty": False,
+        "model": "anthropic/claude-haiku-4-5",
+        "settings": {"CHAT_MODEL": "anthropic/claude-haiku-4-5", "CHAT_THINKING_ENABLED": True},
+        "metrics": (metrics or judged_metrics()).model_dump(mode="json"),
+    }
+    return EvalRun(**{**defaults, **overrides})

@@ -10,7 +10,7 @@ from app.evals.dataset.models import CaseSelection, EvalCase
 from app.evals.judge.models import CaseJudgement
 
 
-class EvalResult(FrozenModel):
+class EvalCaseResult(FrozenModel):
     """One case driven through the chat graph: the case, and the run it produced — the
     same state a chat request ends in, so a run is scored off what production records."""
 
@@ -106,12 +106,13 @@ class EvalMetrics(FrozenModel):
     usage: Usage
 
 
-class EvalRun(FrozenModel):
+class EvalRunResult(FrozenModel):
     """One eval run: which dataset and settings it scored, what it measured, and every case.
 
     dataset_sha hashes what the cases assert; selection names the subset actually scored.
     corpus_version names the ingest the corpus stands at, so two scores are only compared
-    when they were measured against the same text; stale_cases names the cases whose cited
+    when they were measured against the same text; git_commit and git_dirty name the code it
+    ran, and whether that code had uncommitted edits; stale_cases names the cases whose cited
     text has moved since they were authored, whose reference answers are owed a re-review.
     cached says the run had the call cache on, so an embed or rerank timing may measure a
     disk read rather than the provider — a cached run is not a latency baseline. judged says
@@ -122,12 +123,14 @@ class EvalRun(FrozenModel):
     dataset_sha: str
     selection: CaseSelection = CaseSelection()
     corpus_version: str | None = None
+    git_commit: str | None = None
+    git_dirty: bool = False
     stale_cases: tuple[str, ...] = ()
     cached: bool = False
     judged: bool = False
     settings: dict[str, Any]
     metrics: EvalMetrics
-    results: tuple[EvalResult, ...]
+    results: tuple[EvalCaseResult, ...]
 
     @property
     def judge_never_answered(self) -> bool:
@@ -148,6 +151,8 @@ class EvalRun(FrozenModel):
                     "dataset_sha",
                     "selection",
                     "corpus_version",
+                    "git_commit",
+                    "git_dirty",
                     "cached",
                     "judged",
                     "settings",
