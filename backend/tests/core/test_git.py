@@ -59,3 +59,12 @@ def test_outside_a_checkout_nothing_is_read(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
 
     assert read_git_commit() == (None, False)
+
+
+def test_a_git_that_hangs_reads_as_nothing(monkeypatch: pytest.MonkeyPatch):
+    def hang(*args, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="git", timeout=kwargs["timeout"])
+
+    monkeypatch.setattr(subprocess, "run", hang)
+
+    assert read_git_commit() == (None, False)
