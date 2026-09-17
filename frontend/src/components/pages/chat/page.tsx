@@ -109,7 +109,7 @@ export function ChatPage() {
 			)}
 			<div className="px-6 pb-6">
 				<PromptForm isBusy={isBusy} onSubmit={askQuestion} onStop={stop} />
-				<p className="mt-2 text-center text-muted-foreground text-xs">
+				<p className="mt-3 text-center text-muted-foreground/70 text-xs">
 					Answers are generated from the official EU texts and may be wrong.
 					<br />
 					They are not legal advice, so check the cited article.
