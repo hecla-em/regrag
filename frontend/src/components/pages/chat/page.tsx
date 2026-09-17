@@ -1,5 +1,6 @@
 import { PlusIcon } from "lucide-react"
 import { useCallback, useRef, useState } from "react"
+import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import { Button } from "@/components/ui/button"
 import {
 	MessageScroller,
@@ -61,7 +62,8 @@ export function ChatPage() {
 	return (
 		<main className="mx-auto flex h-dvh w-full max-w-3xl flex-col">
 			{isEmpty ? (
-				<div className="flex flex-1 flex-col justify-end px-6 pb-8">
+				<div className="flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-8">
+					<HeclaWordmark className="h-8 text-primary" />
 					<h1 className="text-center font-semibold text-3xl tracking-tight">
 						Ask about EU maritime regulation
 					</h1>
@@ -109,7 +111,7 @@ export function ChatPage() {
 			)}
 			<div className="px-6 pb-6">
 				<PromptForm isBusy={isBusy} onSubmit={askQuestion} onStop={stop} />
-				<p className="mt-3 text-center text-muted-foreground/70 text-xs">
+				<p className="mt-3 text-center text-faint-foreground text-xs">
 					Answers are generated from the official EU texts and may be wrong.
 					<br />
 					They are not legal advice, so check the cited article.
