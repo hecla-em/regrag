@@ -4,7 +4,7 @@ import {
 	type ChatAction,
 	type ChatTurn,
 	chatReducer,
-	isThreadFull,
+	turnFailure,
 } from "./chat-turns"
 
 function asked(): ChatTurn[] {
@@ -122,19 +122,66 @@ describe("chatReducer", () => {
 		})
 
 		expect(turn.error).toEqual({ name: "LLMError", message: "boom" })
-		expect(isThreadFull(turn)).toBe(false)
 	})
 
-	it("knows a turn the thread refused for being full", () => {
-		const turn = run({
-			event: "error",
-			data: { error: "ThreadFullError", message: "full", request_id: null },
-		})
+	it.each([
+		["ThreadFullError", "thread_full"],
+		["RateLimitedError", "rate_limited"],
+		["SpendCapReachedError", "paused"],
+		["InternalServerError", "unexpected"],
+		["TypeError", "unexpected"],
+	] as const)("reads a %s as %s", (name, failure) => {
+		const turn = run({ type: "fail", error: { name, message: "detail" } })
 
-		expect(isThreadFull(turn)).toBe(true)
+		expect(turnFailure(turn)).toBe(failure)
 	})
 
 	it("clears every turn when a new thread starts", () => {
 		expect(chatReducer(asked(), { type: "clear" })).toEqual([])
+	})
+
+	it("reruns a failed turn in place when retried", () => {
+		const actions: ChatAction[] = [
+			started("retrieve"),
+			{ event: "text", data: "partial" },
+			{ type: "fail", error: { name: "Error", message: "boom" } },
+			{ type: "retry" },
+		]
+		const turns = actions.reduce(chatReducer, asked())
+
+		expect(turns).toEqual([
+			{
+				id: "t1",
+				question: "q",
+				answer: "",
+				sources: [],
+				steps: [],
+				status: "pending",
+				error: null,
+			},
+		])
+	})
+
+	it("drops a failed turn when a new question is asked", () => {
+		const failed = chatReducer(asked(), {
+			type: "fail",
+			error: { name: "Error", message: "boom" },
+		})
+
+		const turns = chatReducer(failed, { type: "ask", id: "t2", question: "q2" })
+
+		expect(turns.map((turn) => turn.id)).toEqual(["t2"])
+	})
+
+	it("keeps an answered turn when a new question is asked", () => {
+		const answered = chatReducer(asked(), { type: "settle" })
+
+		const turns = chatReducer(answered, {
+			type: "ask",
+			id: "t2",
+			question: "q2",
+		})
+
+		expect(turns.map((turn) => turn.id)).toEqual(["t1", "t2"])
 	})
 })

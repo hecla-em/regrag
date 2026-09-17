@@ -17,13 +17,26 @@ export function isTurnRunning(turn: ChatTurn): boolean {
 	return turn.status === "pending" || turn.status === "streaming"
 }
 
-/** Whether the thread turned the question away for holding all the turns it may. */
-export function isThreadFull(turn: ChatTurn): boolean {
-	return turn.error?.name === "ThreadFullError"
+export type TurnFailure =
+	| "thread_full"
+	| "rate_limited"
+	| "paused"
+	| "unexpected"
+
+const FAILURES_BY_ERROR: Record<string, TurnFailure> = {
+	ThreadFullError: "thread_full",
+	RateLimitedError: "rate_limited",
+	SpendCapReachedError: "paused",
+}
+
+/** Why a turn failed, as far as the reader is told: the refusals they can act on, or anything else. */
+export function turnFailure(turn: ChatTurn): TurnFailure {
+	return FAILURES_BY_ERROR[turn.error?.name ?? ""] ?? "unexpected"
 }
 
 export type ChatAction =
 	| { type: "ask"; id: string; question: string }
+	| { type: "retry" }
 	| { type: "settle" }
 	| { type: "fail"; error: ChatError }
 	| { type: "clear" }
@@ -88,23 +101,32 @@ function applyToTurn(turn: ChatTurn, action: ChatAction): ChatTurn {
 	}
 }
 
+function newTurn(id: string, question: string): ChatTurn {
+	return {
+		id,
+		question,
+		answer: "",
+		sources: [],
+		steps: [],
+		status: "pending",
+		error: null,
+	}
+}
+
+/** The turns with a failed last one dropped: a new question replaces it rather than follows it. */
+function withoutFailedTurn(turns: ChatTurn[]): ChatTurn[] {
+	return turns.at(-1)?.status === "failed" ? turns.slice(0, -1) : turns
+}
+
 export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
 	if ("type" in action && action.type === "clear") return []
 	if ("type" in action && action.type === "ask") {
-		return [
-			...turns,
-			{
-				id: action.id,
-				question: action.question,
-				answer: "",
-				sources: [],
-				steps: [],
-				status: "pending",
-				error: null,
-			},
-		]
+		return [...withoutFailedTurn(turns), newTurn(action.id, action.question)]
 	}
 	const current = turns.at(-1)
 	if (current === undefined) return turns
+	if ("type" in action && action.type === "retry") {
+		return [...turns.slice(0, -1), newTurn(current.id, current.question)]
+	}
 	return [...turns.slice(0, -1), applyToTurn(current, action)]
 }

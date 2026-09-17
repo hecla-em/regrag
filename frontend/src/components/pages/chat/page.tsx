@@ -20,16 +20,22 @@ type OpenMarker = { turnId: string; marker: number } | null
 type TurnHandlers = {
 	onOpenMarker: (marker: number) => void
 	onRetry: () => void
+	onNewThread: () => void
 }
 
 export function ChatPage() {
-	const { turns, ask, stop, newThread, isBusy } = useChatStream()
+	const { turns, ask, retry, stop, newThread, isBusy } = useChatStream()
 	const [openMarker, setOpenMarker] = useState<OpenMarker>(null)
 	const handlersByTurnId = useRef(new Map<string, TurnHandlers>())
 
 	function askQuestion(question: string) {
 		setOpenMarker(null)
 		ask(question)
+	}
+
+	function retryQuestion(question: string) {
+		setOpenMarker(null)
+		retry(question)
 	}
 
 	function startNewThread() {
@@ -42,7 +48,8 @@ export function ChatPage() {
 		if (cached !== undefined) return cached
 		const handlers: TurnHandlers = {
 			onOpenMarker: (marker) => setOpenMarker({ turnId, marker }),
-			onRetry: () => askQuestion(question),
+			onRetry: () => retryQuestion(question),
+			onNewThread: startNewThread,
 		}
 		handlersByTurnId.current.set(turnId, handlers)
 		return handlers
@@ -93,9 +100,9 @@ export function ChatPage() {
 											>
 												<ChatTurn
 													turn={turn}
-													isBusy={isBusy}
 													onOpenMarker={handlers.onOpenMarker}
 													onRetry={handlers.onRetry}
+													onNewThread={handlers.onNewThread}
 												/>
 											</MessageScrollerItem>
 										)

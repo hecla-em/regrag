@@ -7,11 +7,14 @@ export const API_URL: string =
 
 export class ApiError extends Error {
 	readonly status: number
+	/** The backend's name for the error, e.g. RateLimitedError. */
+	readonly code: string
 
-	constructor(status: number, message: string) {
+	constructor(status: number, code: string, message: string) {
 		super(message)
 		this.name = "ApiError"
 		this.status = status
+		this.code = code
 	}
 }
 
@@ -19,9 +22,13 @@ async function readErrorBody(response: Response): Promise<ApiError> {
 	const fallback = `Request failed: ${response.status}`
 	try {
 		const body: Partial<ErrorResponse> = await response.json()
-		return new ApiError(response.status, body.message || fallback)
+		return new ApiError(
+			response.status,
+			body.error || "ApiError",
+			body.message || fallback,
+		)
 	} catch {
-		return new ApiError(response.status, fallback)
+		return new ApiError(response.status, "ApiError", fallback)
 	}
 }
 
