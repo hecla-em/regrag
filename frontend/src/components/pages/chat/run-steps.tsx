@@ -2,6 +2,7 @@ import { CheckIcon, ChevronDownIcon } from "lucide-react"
 import { memo, useEffect, useState } from "react"
 import { ThinkingOrb } from "thinking-orbs"
 import type { ChatStep } from "@/api/types"
+import { Button } from "@/components/ui/button"
 import {
 	Popover,
 	PopoverContent,
@@ -113,7 +114,10 @@ export const RunSteps = memo(function RunSteps({
 
 	return (
 		<Popover>
-			<PopoverTrigger className="group inline-flex h-7 w-fit max-w-full items-center gap-1.5 self-start rounded-lg bg-card pr-2.5 pl-1 font-mono text-muted-foreground text-xs tabular-nums ring-1 ring-border ring-inset transition-colors hover:bg-muted">
+			<PopoverTrigger
+				render={<Button variant="outline" size="sm" />}
+				className="group h-7 w-fit max-w-full gap-1.5 self-start rounded-lg bg-card pr-2.5 pl-1 font-mono font-normal text-muted-foreground text-xs tabular-nums dark:bg-card"
+			>
 				<ChipLabel steps={steps} isRunning={isRunning} askedAt={askedAt} />
 			</PopoverTrigger>
 			<PopoverContent

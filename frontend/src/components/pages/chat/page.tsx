@@ -84,12 +84,13 @@ export function ChatPage() {
 	)
 
 	const openTurn = turns.find((turn) => turn.id === openMarker?.turnId)
-	const opened =
-		openTurn === undefined
-			? undefined
-			: citedSources(openTurn.answer, openTurn.sources).find(
-					(cited) => cited.source.marker === openMarker?.marker,
-				)
+	const openCited = useMemo(
+		() => (openTurn ? citedSources(openTurn.answer, openTurn.sources) : []),
+		[openTurn],
+	)
+	const opened = openCited.find(
+		(cited) => cited.source.marker === openMarker?.marker,
+	)
 
 	const isEmpty = turns.length === 0
 	const sidebarProps = {
@@ -191,7 +192,7 @@ export function ChatPage() {
 				{isEmpty && <div className="flex-1" />}
 			</main>
 
-			{sourcesTurn && sourcesCited.length > 0 && (
+			{sourcesTurn && (
 				<aside className="fade-in slide-in-from-right-2 hidden w-70 shrink-0 animate-in flex-col border-l bg-sidebar duration-200 lg:flex">
 					<div className="flex h-11.5 shrink-0 items-center justify-between border-b pr-2 pl-4">
 						<Eyebrow>Sources</Eyebrow>
@@ -207,8 +208,8 @@ export function ChatPage() {
 					</div>
 					<SourceList
 						cited={sourcesCited}
-						onOpenSource={(marker) =>
-							setOpenMarker({ turnId: sourcesTurn.id, marker })
+						onOpenSource={
+							getTurnHandlers(sourcesTurn.id, sourcesTurn.question).onOpenMarker
 						}
 						className="min-h-0 overflow-y-auto p-3.5"
 					/>

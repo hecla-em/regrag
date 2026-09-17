@@ -1,6 +1,7 @@
 import { CheckIcon, CopyIcon } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import type { ChatSource } from "@/api/types"
+import { Button } from "@/components/ui/button"
 import { renumberCitations } from "@/lib/citations"
 
 const COPIED_MS = 2000
@@ -39,13 +40,18 @@ export function CopyAnswerButton({
 	}
 
 	return (
-		<button
-			type="button"
+		<Button
+			variant="ghost"
+			size="icon-xs"
 			aria-label={copied ? "Answer copied" : "Copy answer"}
 			onClick={copyAnswer}
-			className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+			className="rounded-md text-muted-foreground"
 		>
-			{copied ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
-		</button>
+			{copied ? (
+				<CheckIcon className="size-3.75" />
+			) : (
+				<CopyIcon className="size-3.75" />
+			)}
+		</Button>
 	)
 }
