@@ -20,7 +20,7 @@ from openai import (
 )
 from pydantic import BaseModel, ValidationError
 
-from app.core.exceptions import DomainError
+from app.core.exceptions import DomainError, ErrorCode
 from app.core.retry import transient_retry
 
 logger = logging.getLogger(__name__)
@@ -39,6 +39,7 @@ class LLMError(DomainError):
     """A model provider call failed, or returned a response we cannot trust."""
 
     status_code = status.HTTP_502_BAD_GATEWAY
+    code = ErrorCode.LLM
 
     def __init__(self, message: str, *, transient: bool = False):
         super().__init__(message)

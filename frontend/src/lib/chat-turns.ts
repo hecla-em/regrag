@@ -1,6 +1,10 @@
-import type { ChatSource, ChatStep, ChatStreamEvent } from "@/api/types"
-
-export type ChatError = { name: string; message: string }
+import type {
+	ChatErrorResponse,
+	ChatSource,
+	ChatStep,
+	ChatStreamEvent,
+	ErrorBody,
+} from "@/api/types"
 
 export type ChatTurn = {
 	id: string
@@ -9,7 +13,7 @@ export type ChatTurn = {
 	sources: ChatSource[]
 	steps: ChatStep[]
 	status: "pending" | "streaming" | "settled" | "failed"
-	error: ChatError | null
+	error: ErrorBody | null
 }
 
 /** Whether the run behind a turn is still under way: asked and not yet answering, or answering. */
@@ -27,17 +31,17 @@ const FAILURES_BY_ERROR: Record<string, TurnFailure> = {
 	ThreadFullError: "thread_full",
 	RateLimitedError: "rate_limited",
 	SpendCapReachedError: "paused",
-}
+} satisfies Partial<Record<ChatErrorResponse["error"], TurnFailure>>
 
 /** Why a turn failed, as far as the reader is told: the refusals they can act on, or anything else. */
 export function turnFailure(turn: ChatTurn): TurnFailure {
-	return FAILURES_BY_ERROR[turn.error?.name ?? ""] ?? "unexpected"
+	return FAILURES_BY_ERROR[turn.error?.error ?? ""] ?? "unexpected"
 }
 
 export type ChatAction =
 	| { type: "ask"; id: string; question: string }
 	| { type: "settle" }
-	| { type: "fail"; error: ChatError }
+	| { type: "fail"; error: ErrorBody }
 	| { type: "clear" }
 	| ChatStreamEvent
 
@@ -79,7 +83,7 @@ function applyToTurn(turn: ChatTurn, action: ChatAction): ChatTurn {
 					...turn,
 					steps: finishedSteps(turn.steps),
 					status: "failed",
-					error: { name: action.data.error, message: action.data.message },
+					error: { error: action.data.error, message: action.data.message },
 				}
 		}
 	}

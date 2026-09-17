@@ -121,7 +121,7 @@ describe("chatReducer", () => {
 			data: { error: "LLMError", message: "boom", request_id: null },
 		})
 
-		expect(turn.error).toEqual({ name: "LLMError", message: "boom" })
+		expect(turn.error).toEqual({ error: "LLMError", message: "boom" })
 	})
 
 	it.each([
@@ -130,8 +130,8 @@ describe("chatReducer", () => {
 		["SpendCapReachedError", "paused"],
 		["InternalServerError", "unexpected"],
 		["TypeError", "unexpected"],
-	] as const)("reads a %s as %s", (name, failure) => {
-		const turn = run({ type: "fail", error: { name, message: "detail" } })
+	] as const)("reads a %s as %s", (error, failure) => {
+		const turn = run({ type: "fail", error: { error, message: "detail" } })
 
 		expect(turnFailure(turn)).toBe(failure)
 	})
@@ -143,7 +143,7 @@ describe("chatReducer", () => {
 	it("drops a failed turn when a new question is asked", () => {
 		const failed = chatReducer(asked(), {
 			type: "fail",
-			error: { name: "Error", message: "boom" },
+			error: { error: "Error", message: "boom" },
 		})
 
 		const turns = chatReducer(failed, { type: "ask", id: "t2", question: "q2" })

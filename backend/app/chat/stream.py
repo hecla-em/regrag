@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.chat.cache import cache_stream
 from app.chat.enums import ChatNode, ChatStepStatus
 from app.chat.events import (
+    ChatErrorResponse,
     ChatEvent,
     ChatStep,
     ChatThread,
@@ -32,7 +33,6 @@ from app.core.config import config
 from app.core.db.session import get_session
 from app.core.exceptions import DomainError, describe
 from app.core.logger import request_id_var
-from app.core.models import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +44,7 @@ def _error_event(exc: Exception) -> ErrorEvent:
         logger.warning("chat stream failed: %s", message)
     else:
         logger.exception("chat stream failed unexpectedly")
-    body = ErrorResponse(error=error, message=message, request_id=request_id_var.get())
+    body = ChatErrorResponse(error=error, message=message, request_id=request_id_var.get())
     return ErrorEvent(data=body)
 
 

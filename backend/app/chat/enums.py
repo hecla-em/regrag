@@ -66,3 +66,10 @@ class RefusalReason(StrEnum):
 
 ANSWERED_OUTCOMES = frozenset({ChatOutcome.DONE, ChatOutcome.CACHED})
 """The outcomes that left an answer on the thread: what a follow-up's history reads."""
+
+
+class ChatErrorCode(StrEnum):
+    """The names chat reports its own refusals under, beside core's ErrorCode."""
+
+    SPEND_CAP_REACHED = "SpendCapReachedError"
+    THREAD_FULL = "ThreadFullError"

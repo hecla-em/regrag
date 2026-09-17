@@ -47,6 +47,26 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ChatErrorCode
+         * @description The names chat reports its own refusals under, beside core's ErrorCode.
+         * @enum {string}
+         */
+        ChatErrorCode: "SpendCapReachedError" | "ThreadFullError";
+        /**
+         * ChatErrorResponse
+         * @description The app's one error shape, narrowed to the codes a chat stream can end on.
+         */
+        ChatErrorResponse: {
+            /** Error */
+            error: components["schemas"]["ErrorCode"] | components["schemas"]["ChatErrorCode"];
+            /** Message */
+            message: string;
+            /** Request Id */
+            request_id?: string | null;
+            /** Detail */
+            detail?: unknown[] | null;
+        };
+        /**
          * ChatNode
          * @description The graph's nodes, as astream keys their updates.
          * @enum {string}
@@ -140,6 +160,12 @@ export interface components {
             data: components["schemas"]["ChatThread"];
         };
         /**
+         * ErrorCode
+         * @description The names core reports its errors under; a capability declares its own beside its errors.
+         * @enum {string}
+         */
+        ErrorCode: "ValidationError" | "HTTPException" | "IntegrityError" | "InternalServerError" | "NotFoundError" | "RateLimitedError" | "StorageError" | "ObjectNotFoundError" | "LLMError";
+        /**
          * ErrorEvent
          * @description The last event of a failed stream, in the app's one error shape.
          */
@@ -149,7 +175,7 @@ export interface components {
              * @enum {string}
              */
             event: "error";
-            data: components["schemas"]["ErrorResponse"];
+            data: components["schemas"]["ChatErrorResponse"];
         };
         /**
          * ErrorResponse
@@ -311,6 +337,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["ErrorResponse"];
                 };
             };
         };

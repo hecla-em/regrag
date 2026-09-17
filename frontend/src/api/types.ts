@@ -4,6 +4,7 @@ import type { components } from "./schema"
 export type ChatQuery = components["schemas"]["ChatQuery"]
 export type ChatSource = components["schemas"]["ChatSource"]
 export type ChatStep = components["schemas"]["ChatStep"]
+export type ChatErrorResponse = components["schemas"]["ChatErrorResponse"]
 export type ChatStreamEvent =
 	| components["schemas"]["SourcesEvent"]
 	| components["schemas"]["StepEvent"]
@@ -13,3 +14,5 @@ export type ChatStreamEvent =
 
 // Errors
 export type ErrorResponse = components["schemas"]["ErrorResponse"]
+/** The part of an error the frontend keeps: its code and what the backend said. */
+export type ErrorBody = Pick<ErrorResponse, "error" | "message">
