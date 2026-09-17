@@ -26,11 +26,16 @@ export function PromptForm({
 	onStop: () => void
 }) {
 	const [question, setQuestion] = useState("")
-	const [isFocused, setIsFocused] = useState(false)
 	const [suggestion, setSuggestion] = useState<string | null>(
 		pickSampleQuestion,
 	)
-	const visibleSuggestion = !isFocused && question === "" ? suggestion : null
+	const visibleSuggestion = question === "" ? suggestion : null
+
+	/** The suggestion goes for good once the reader writes their own question, or takes it with →. */
+	function typeQuestion(value: string) {
+		setQuestion(value)
+		if (value !== "") setSuggestion(null)
+	}
 
 	function submitQuestion(event: { preventDefault: () => void }) {
 		event.preventDefault()
@@ -49,16 +54,17 @@ export function PromptForm({
 		>
 			<Textarea
 				value={question}
-				onChange={(event) => setQuestion(event.target.value)}
-				onFocus={() => setIsFocused(true)}
-				onBlur={() => setIsFocused(false)}
+				onChange={(event) => typeQuestion(event.target.value)}
 				onKeyDown={(event) => {
+					if (event.key === "ArrowRight" && visibleSuggestion !== null) {
+						event.preventDefault()
+						typeQuestion(visibleSuggestion)
+						return
+					}
 					if (isBusy) return
 					if (event.key === "Enter" && !event.shiftKey) submitQuestion(event)
 				}}
-				placeholder={
-					visibleSuggestion ?? (suggestion === null ? "Ask a question…" : "")
-				}
+				placeholder={suggestion ?? "Ask a question…"}
 				aria-label="Ask a question"
 				rows={1}
 				className="min-h-9 flex-1 resize-none border-0 bg-transparent px-1 text-sm focus-visible:ring-0"
