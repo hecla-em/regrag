@@ -4,7 +4,7 @@ import {
 	type ChatAction,
 	type ChatTurn,
 	chatReducer,
-	isThreadFull,
+	turnFailure,
 } from "./chat-turns"
 
 function asked(): ChatTurn[] {
@@ -121,20 +121,45 @@ describe("chatReducer", () => {
 			data: { error: "LLMError", message: "boom", request_id: null },
 		})
 
-		expect(turn.error).toEqual({ name: "LLMError", message: "boom" })
-		expect(isThreadFull(turn)).toBe(false)
+		expect(turn.error).toEqual({ error: "LLMError", message: "boom" })
 	})
 
-	it("knows a turn the thread refused for being full", () => {
-		const turn = run({
-			event: "error",
-			data: { error: "ThreadFullError", message: "full", request_id: null },
-		})
+	it.each([
+		["ThreadFullError", "thread_full"],
+		["RateLimitedError", "rate_limited"],
+		["SpendCapReachedError", "paused"],
+		["InternalServerError", "unexpected"],
+		["TypeError", "unexpected"],
+	] as const)("reads a %s as %s", (error, failure) => {
+		const turn = run({ type: "fail", error: { error, message: "detail" } })
 
-		expect(isThreadFull(turn)).toBe(true)
+		expect(turnFailure(turn)).toBe(failure)
 	})
 
 	it("clears every turn when a new thread starts", () => {
 		expect(chatReducer(asked(), { type: "clear" })).toEqual([])
+	})
+
+	it("drops a failed turn when a new question is asked", () => {
+		const failed = chatReducer(asked(), {
+			type: "fail",
+			error: { error: "Error", message: "boom" },
+		})
+
+		const turns = chatReducer(failed, { type: "ask", id: "t2", question: "q2" })
+
+		expect(turns.map((turn) => turn.id)).toEqual(["t2"])
+	})
+
+	it("keeps an answered turn when a new question is asked", () => {
+		const answered = chatReducer(asked(), { type: "settle" })
+
+		const turns = chatReducer(answered, {
+			type: "ask",
+			id: "t2",
+			question: "q2",
+		})
+
+		expect(turns.map((turn) => turn.id)).toEqual(["t1", "t2"])
 	})
 })

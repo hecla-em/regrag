@@ -9,7 +9,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import status
 
 from app.core.config import R2Config, StorageBackend, config
-from app.core.exceptions import DomainError
+from app.core.exceptions import DomainError, ErrorCode
 from app.core.retry import MAX_ATTEMPTS
 
 BOTO_ERRORS = (ClientError, BotoCoreError)
@@ -20,6 +20,7 @@ class StorageError(DomainError):
     """An object storage operation failed, named by the operation and what refused it."""
 
     status_code = status.HTTP_502_BAD_GATEWAY
+    code = ErrorCode.STORAGE
 
     def __init__(self, operation: str, key: str, reason: object | None = None):
         detail = f": {reason}" if reason is not None else ""
@@ -28,6 +29,8 @@ class StorageError(DomainError):
 
 class ObjectNotFoundError(StorageError):
     """Nothing is stored at the key, which the store answered rather than failed to answer."""
+
+    code = ErrorCode.OBJECT_NOT_FOUND
 
 
 def is_missing_object(exc: ClientError) -> bool:

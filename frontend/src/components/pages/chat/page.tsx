@@ -1,5 +1,5 @@
 import { PlusIcon } from "lucide-react"
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	MessageScroller,
@@ -32,10 +32,10 @@ export function ChatPage() {
 		ask(question)
 	}
 
-	function startNewThread() {
+	const startNewThread = useCallback(() => {
 		setOpenMarker(null)
 		newThread()
-	}
+	}, [newThread])
 
 	function getTurnHandlers(turnId: string, question: string): TurnHandlers {
 		const cached = handlersByTurnId.current.get(turnId)
@@ -93,9 +93,9 @@ export function ChatPage() {
 											>
 												<ChatTurn
 													turn={turn}
-													isBusy={isBusy}
 													onOpenMarker={handlers.onOpenMarker}
 													onRetry={handlers.onRetry}
+													onNewThread={startNewThread}
 												/>
 											</MessageScrollerItem>
 										)

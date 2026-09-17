@@ -5,8 +5,9 @@ from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
-from app.chat.enums import ChatEventName, ChatNode, ChatStepStatus, ToolStep
+from app.chat.enums import ChatErrorCode, ChatEventName, ChatNode, ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
+from app.core.exceptions import ErrorCode
 from app.core.models import ErrorResponse, FrozenModel
 from app.ingestion import celex
 from app.retrieval.models import RetrievedChunk
@@ -124,11 +125,17 @@ class DoneEvent(ChatEventBase):
     data: ChatThread
 
 
+class ChatErrorResponse(ErrorResponse):
+    """The app's one error shape, narrowed to the codes a chat stream can end on."""
+
+    error: ErrorCode | ChatErrorCode
+
+
 class ErrorEvent(ChatEventBase):
     """The last event of a failed stream, in the app's one error shape."""
 
     event: Literal[ChatEventName.ERROR] = ChatEventName.ERROR
-    data: ErrorResponse
+    data: ChatErrorResponse
 
 
 ChatEvent = Annotated[

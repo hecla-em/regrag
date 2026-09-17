@@ -1,17 +1,24 @@
 import { createParser, type EventSourceMessage } from "eventsource-parser"
 import { readClientId } from "@/lib/client-id"
-import type { ChatQuery, ChatStreamEvent, ErrorResponse } from "./types"
+import type {
+	ChatQuery,
+	ChatStreamEvent,
+	ErrorBody,
+	ErrorResponse,
+} from "./types"
 
 export const API_URL: string =
 	import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
 export class ApiError extends Error {
 	readonly status: number
+	readonly body: ErrorBody
 
-	constructor(status: number, message: string) {
-		super(message)
+	constructor(status: number, body: ErrorBody) {
+		super(body.message)
 		this.name = "ApiError"
 		this.status = status
+		this.body = body
 	}
 }
 
@@ -19,10 +26,24 @@ async function readErrorBody(response: Response): Promise<ApiError> {
 	const fallback = `Request failed: ${response.status}`
 	try {
 		const body: Partial<ErrorResponse> = await response.json()
-		return new ApiError(response.status, body.message || fallback)
+		return new ApiError(response.status, {
+			error: body.error || "ApiError",
+			message: body.message || fallback,
+		})
 	} catch {
-		return new ApiError(response.status, fallback)
+		return new ApiError(response.status, {
+			error: "ApiError",
+			message: fallback,
+		})
 	}
+}
+
+/** Any thrown value as an error body: an ApiError carries the backend's, anything else names itself. */
+export function describeError(error: unknown): ErrorBody {
+	if (error instanceof ApiError) return error.body
+	if (error instanceof Error)
+		return { error: error.name, message: error.message }
+	return { error: "Error", message: "Request failed" }
 }
 
 async function apiFetch(path: string, init: RequestInit): Promise<Response> {

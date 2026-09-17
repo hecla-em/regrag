@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
-import { streamChat } from "@/api/client"
+import { describeError, streamChat } from "@/api/client"
 import { chatReducer, isTurnRunning } from "@/lib/chat-turns"
 import { randomId } from "@/lib/ids"
 
@@ -22,14 +22,7 @@ export function useChatStream() {
 			dispatch({ type: "settle" })
 		} catch (error) {
 			if (controller.signal.aborted) return
-			dispatch({
-				type: "fail",
-				error: {
-					name: error instanceof Error ? error.name : "Error",
-					message:
-						error instanceof Error ? error.message : "Chat request failed",
-				},
-			})
+			dispatch({ type: "fail", error: describeError(error) })
 		}
 	}, [])
 
