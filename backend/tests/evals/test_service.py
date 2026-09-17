@@ -1,4 +1,4 @@
-"""Driving the golden cases through the chat graph."""
+"""Driving the golden cases through the chat graph, and storing the run."""
 
 import logging
 
@@ -7,13 +7,20 @@ import pytest
 
 from app.chat.enums import ChatNode, ChatOutcome
 from app.core.config import config
+from app.core.exceptions import NotFoundError
+from app.core.git import GitState
 from app.core.llm.errors import LLMError
 from app.evals import service
 from app.evals.dataset.enums import EvalTrait
-from app.evals.service import evaluate_all_cases, evaluate_case
+from app.evals.service import (
+    create_eval_run,
+    evaluate_all_cases,
+    evaluate_case,
+    get_eval_run,
+)
 from tests.chat.conftest import fake_chat_model
 from tests.conftest import REPORTED_USAGE, install_chat_model, install_search, search_result
-from tests.evals.conftest import eval_case, eval_dataset
+from tests.evals.conftest import eval_case, eval_dataset, eval_result, eval_run, passed_judgement
 
 pytestmark = pytest.mark.anyio
 
@@ -115,6 +122,57 @@ async def test_a_run_carries_the_corpus_it_was_measured_against(answering_graph:
 
     assert run.corpus_version == "2026-08-01-a3f1c2"
     assert run.stale_cases == ("amended",)
+
+
+async def test_a_run_records_the_commit_it_ran(
+    answering_graph: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(service, "read_git_state", lambda: GitState(commit="12265d6", dirty=True))
+
+    run = await evaluate_all_cases(eval_dataset(eval_case()))
+
+    assert (run.git_commit, run.git_dirty) == ("12265d6", True)
+    assert '"git_commit": "12265d6"' in run.summary()
+
+
+# Storing a run
+
+
+async def test_a_stored_run_keeps_its_setup_and_metrics(db_session) -> None:
+    run = eval_run(
+        eval_result(judgement=passed_judgement()),
+        judged=True,
+        git_commit="12265d6",
+        corpus_version="2026-09-15",
+        stale_cases=("amended",),
+    )
+
+    created = await create_eval_run(db_session, run)
+    db_session.expunge_all()
+    stored = await get_eval_run(db_session, created.id)
+
+    assert stored.git_commit == "12265d6"
+    assert stored.git_dirty is False
+    assert stored.model == config.CHAT_MODEL
+    assert stored.judge_model == config.EVAL_JUDGE_MODEL
+    assert stored.corpus_version == "2026-09-15"
+    assert stored.stale_cases == ["amended"]
+    assert stored.selection == run.selection.model_dump(mode="json")
+    assert stored.settings["CHAT_MODEL"] == config.CHAT_MODEL
+    assert stored.metrics["judge"]["correctness"] == 1.0
+    assert type(run.metrics).model_validate(stored.metrics) == run.metrics
+
+
+async def test_an_unjudged_run_names_no_judge_model(db_session) -> None:
+    stored = await create_eval_run(db_session, eval_run(eval_result()))
+
+    assert stored.judged is False
+    assert stored.judge_model is None
+
+
+async def test_a_missing_run_is_not_found(db_session) -> None:
+    with pytest.raises(NotFoundError, match="eval run '999999' not found"):
+        await get_eval_run(db_session, 999999)
 
 
 # Judging

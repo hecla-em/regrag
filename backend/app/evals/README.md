@@ -5,7 +5,8 @@ This module focuses on the evaluation of the graph against a set of authored cas
 ```bash
 uv run evals check    # report how far the dataset has drifted from the corpus
 uv run evals stamp    # record what the cited text says now
-uv run evals run      # score the dataset against the current graph
+uv run evals run      # score the dataset against the current graph, and store the run
+uv run evals compare 41 42  # print two stored runs side by side
 uv run evals tune     # rank retrieval settings against the dataset
 ```
 
@@ -66,6 +67,10 @@ Stamps and fields a case leaves at their default are excluded from `dataset_sha`
 ## Running
 
 Each case is driven through the same graph the `/chat` endpoint runs, and ends in the same `ChatState` a real request ends in, so a run is scored off what production records rather than off a parallel eval path. Cases run one at a time, so a per-case timing measures that case alone.
+
+## Storing runs
+
+`evals run` stores each run in `eval_runs` and prints its id. `--no-store` only prints it. A stored run keeps its setup and its `EvalMetrics`, not its per-case results. It records the commit it ran at, and `git_dirty` when tracked files had uncommitted edits, so a score can be traced to the code behind it. Outside a checkout, as in the image, the commit is left empty. Settings and metrics are JSONB, since both grow with the config and the metrics. `evals compare BASE OTHER` prints every metric of both runs, with the other's delta from the base, then the settings the two differ on.
 
 ## Metrics
 

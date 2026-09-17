@@ -1,20 +1,27 @@
-"""Driving the golden cases through the chat graph and recording what the run measured."""
+"""Driving the golden cases through the chat graph, recording what the run measured, and
+storing the run."""
 
 import logging
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatState
 from app.core.clock import elapsed_ms
 from app.core.config import EVAL_CONFIG_SECTIONS, get_config_snapshot
-from app.core.exceptions import DomainError
+from app.core.db.crud import create_record
+from app.core.exceptions import DomainError, NotFoundError
+from app.core.git import read_git_state
 from app.core.llm.cache import call_cache_enabled
 from app.evals.dataset.models import EvalCase, EvalDataset
 from app.evals.judge.service import judge_results
 from app.evals.metrics import compute_metrics
 from app.evals.models import EvalResult, EvalRun
+from app.evals.schemas import EvalRunRecord
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +71,13 @@ async def evaluate_all_cases(
     if judge:
         results = await judge_results(results)
     settings = get_config_snapshot(EVAL_CONFIG_SECTIONS)
+    git = read_git_state()
     return EvalRun(
         dataset_sha=dataset.sha256,
         selection=dataset.selection,
         corpus_version=corpus_version,
+        git_commit=git.commit,
+        git_dirty=git.dirty,
         stale_cases=stale_cases,
         cached=call_cache_enabled(),
         judged=judge,
@@ -75,3 +85,30 @@ async def evaluate_all_cases(
         metrics=compute_metrics(results),
         results=tuple(results),
     )
+
+
+async def create_eval_run(session: AsyncSession, run: EvalRun) -> EvalRunRecord:
+    """The run's setup and metrics as an eval_runs row; the per-case results are not kept."""
+    stored = run.model_dump(
+        mode="json", include={"selection", "stale_cases", "settings", "metrics"}
+    )
+    record = EvalRunRecord(
+        git_commit=run.git_commit,
+        git_dirty=run.git_dirty,
+        model=run.settings["CHAT_MODEL"],
+        judge_model=run.settings["EVAL_JUDGE_MODEL"] if run.judged else None,
+        dataset_sha=run.dataset_sha,
+        corpus_version=run.corpus_version,
+        cached=run.cached,
+        judged=run.judged,
+        **stored,
+    )
+    return await create_record(session, record)
+
+
+async def get_eval_run(session: AsyncSession, run_id: int) -> EvalRunRecord:
+    stmt = select(EvalRunRecord).where(EvalRunRecord.id == run_id)
+    record = await session.scalar(stmt)
+    if record is None:
+        raise NotFoundError("eval run", run_id)
+    return record

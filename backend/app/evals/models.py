@@ -111,7 +111,8 @@ class EvalRun(FrozenModel):
 
     dataset_sha hashes what the cases assert; selection names the subset actually scored.
     corpus_version names the ingest the corpus stands at, so two scores are only compared
-    when they were measured against the same text; stale_cases names the cases whose cited
+    when they were measured against the same text; git_commit and git_dirty name the code it
+    ran, and whether that code had uncommitted edits; stale_cases names the cases whose cited
     text has moved since they were authored, whose reference answers are owed a re-review.
     cached says the run had the call cache on, so an embed or rerank timing may measure a
     disk read rather than the provider — a cached run is not a latency baseline. judged says
@@ -122,6 +123,8 @@ class EvalRun(FrozenModel):
     dataset_sha: str
     selection: CaseSelection = CaseSelection()
     corpus_version: str | None = None
+    git_commit: str | None = None
+    git_dirty: bool = False
     stale_cases: tuple[str, ...] = ()
     cached: bool = False
     judged: bool = False
@@ -148,6 +151,8 @@ class EvalRun(FrozenModel):
                     "dataset_sha",
                     "selection",
                     "corpus_version",
+                    "git_commit",
+                    "git_dirty",
                     "cached",
                     "judged",
                     "settings",

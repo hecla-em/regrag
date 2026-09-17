@@ -1,17 +1,18 @@
-"""Evals CLI: exit codes and what `run` prints."""
+"""Evals CLI: exit codes, what `run` prints and stores, and what `compare` prints."""
 
 from pathlib import Path
 
 import pytest
 
 from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
+from app.core.exceptions import NotFoundError
 from app.evals import cli
 from app.evals.cli import main
 from app.evals.dataset.enums import DriftKind
 from app.evals.dataset.models import CaseReference, DriftedReference
 from app.evals.metrics import compute_metrics
 from app.evals.models import EvalRun
-from tests.evals.conftest import eval_case, eval_result, passed_judgement
+from tests.evals.conftest import eval_case, eval_result, passed_judgement, stored_run
 
 
 def test_a_subcommand_is_required(capsys):
@@ -53,6 +54,19 @@ def fake_run(monkeypatch):
     monkeypatch.setattr(cli, "check_against_corpus", _fake_corpus_read)
     monkeypatch.setattr(cli, "evaluate_all_cases", _fake)
     return results
+
+
+@pytest.fixture(autouse=True)
+def stored(monkeypatch) -> list[EvalRun]:
+    """Record the runs `run` stored, without a database. Autouse so no test here writes one."""
+    stored: list[EvalRun] = []
+
+    async def record(run: EvalRun) -> int:
+        stored.append(run)
+        return 7
+
+    monkeypatch.setattr(cli, "store_eval_run", record)
+    return stored
 
 
 def judged_result():
@@ -119,6 +133,55 @@ def test_run_scores_the_cases_of_a_kind_and_records_the_selection(fake_run, caps
 def test_run_rejects_a_trait_the_dataset_does_not_define(fake_run):
     with pytest.raises(SystemExit):
         main(["run", "--trait", "hard"])
+
+
+# Storing and comparing runs
+
+
+def test_run_stores_the_run_and_prints_its_id(fake_run, stored, capsys):
+    fake_run.append(judged_result())
+
+    assert main(["run"]) == 0
+
+    assert len(stored) == 1
+    assert stored[0].judged is True
+    assert "stored as eval run 7" in capsys.readouterr().out
+
+
+def test_run_stores_a_run_that_had_errors(fake_run, stored):
+    fake_run.append(eval_result(eval_case(id="boom"), error="TimeoutError"))
+
+    assert main(["run"]) == 1
+    assert len(stored) == 1
+
+
+def test_no_store_only_prints(fake_run, stored, capsys):
+    fake_run.append(judged_result())
+
+    assert main(["run", "--no-store"]) == 0
+
+    assert not stored
+    assert "stored as eval run" not in capsys.readouterr().out
+
+
+def test_compare_prints_the_two_runs(monkeypatch, capsys):
+    async def load(*run_ids):
+        return [stored_run(run_id) for run_id in run_ids]
+
+    monkeypatch.setattr(cli, "load_eval_runs", load)
+
+    assert main(["compare", "42", "41"]) == 0
+    assert "metric" in capsys.readouterr().out
+
+
+def test_compare_exits_nonzero_on_a_run_that_is_not_stored(monkeypatch, capsys):
+    async def load(*run_ids):
+        raise NotFoundError("eval run", 999)
+
+    monkeypatch.setattr(cli, "load_eval_runs", load)
+
+    assert main(["compare", "42", "999"]) == 1
+    assert "eval run '999' not found" in capsys.readouterr().out
 
 
 # Which commands replay their paid calls

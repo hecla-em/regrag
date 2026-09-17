@@ -1,12 +1,15 @@
 """Each eval case as one line: what search found, what reached the prompt, what was cited,
-what the judge made of it — and, under a case the judge failed, why."""
+what the judge made of it — and, under a case the judge failed, why. And two stored runs
+side by side, metric by metric."""
 
 from collections.abc import Sequence
+from typing import Any
 
 from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement
 from app.evals.metrics import score_reference_citation_rate, score_reference_recall
-from app.evals.models import EvalResult
+from app.evals.models import EvalMetrics, EvalResult
+from app.evals.schemas import EvalRunRecord
 
 INDENT = "    "
 UNMEASURED = "-"
@@ -77,3 +80,90 @@ def format_case_lines(results: Sequence[EvalResult]) -> list[str]:
         if result.judgement is not None:
             lines.extend(_format_critiques(result.judgement))
     return lines
+
+
+def _flatten_metrics(metrics: dict[str, Any], prefix: str = "") -> dict[str, Any]:
+    """Nested metric blocks as one level, each named by its dotted path."""
+    flat: dict[str, Any] = {}
+    for key, value in metrics.items():
+        if isinstance(value, dict):
+            flat |= _flatten_metrics(value, f"{prefix}{key}.")
+        else:
+            flat[f"{prefix}{key}"] = value
+    return flat
+
+
+def _is_number(value: Any) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def _format_value(value: Any) -> str:
+    if value is None:
+        return UNMEASURED
+    if isinstance(value, bool):
+        return str(value).lower()
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    return str(value)
+
+
+def _format_delta(base: Any, other: Any) -> str:
+    """How far the other run moved from the base, blank where either side is not a number."""
+    if not (_is_number(base) and _is_number(other)):
+        return ""
+    delta = other - base
+    return f"{delta:+.3f}" if isinstance(delta, float) else f"{delta:+d}"
+
+
+def _format_run_header(record: EvalRunRecord) -> str:
+    commit = (record.git_commit or UNMEASURED)[:7] + (" (dirty)" if record.git_dirty else "")
+    return f"#{record.id}  {record.created_at:%Y-%m-%d %H:%M}  {commit}  {record.model}"
+
+
+def _format_rows(rows: list[tuple[str, str, str, str]]) -> list[str]:
+    width = max(len(row[0]) for row in rows)
+    return [
+        f"{name:<{width}}  {base:>10}  {other:>10}  {delta:>8}".rstrip()
+        for name, base, other, delta in rows
+    ]
+
+
+def format_run_comparison(base: EvalRunRecord, other: EvalRunRecord) -> str:
+    """Each run's origin, then every metric of both with the other's delta from the base, then
+    the settings the two ran with that differ. The metrics are read back through EvalMetrics,
+    since JSONB keeps no key order."""
+    base_metrics, other_metrics = (
+        _flatten_metrics(EvalMetrics.model_validate(record.metrics).model_dump(mode="json"))
+        for record in (base, other)
+    )
+    header = ("metric", f"#{base.id}", f"#{other.id}", "delta")
+    metric_rows = [
+        (
+            name,
+            _format_value(base_metrics.get(name)),
+            _format_value(other_metrics.get(name)),
+            _format_delta(base_metrics.get(name), other_metrics.get(name)),
+        )
+        for name in dict.fromkeys([*base_metrics, *other_metrics])
+    ]
+    blocks = [
+        "\n".join([_format_run_header(base), _format_run_header(other)]),
+        "\n".join(_format_rows([header, *metric_rows])),
+    ]
+    differing = sorted(
+        name
+        for name in base.settings.keys() | other.settings.keys()
+        if base.settings.get(name) != other.settings.get(name)
+    )
+    if differing:
+        setting_rows = [
+            (
+                name,
+                _format_value(base.settings.get(name)),
+                _format_value(other.settings.get(name)),
+                "",
+            )
+            for name in differing
+        ]
+        blocks.append("\n".join(["settings that differ:", *_format_rows(setting_rows)]))
+    return "\n\n".join(blocks)

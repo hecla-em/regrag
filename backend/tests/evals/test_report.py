@@ -1,16 +1,18 @@
-"""The per-case lines `evals run --verbose` adds."""
+"""The per-case lines `evals run --verbose` adds, and what `evals compare` prints."""
 
 from app.evals.judge.enums import JudgeVerdict
-from app.evals.report import format_case_lines
+from app.evals.report import format_case_lines, format_run_comparison
 from tests.evals.conftest import (
     assess_refused_result,
     eval_case,
     eval_result,
     failed_judgement,
+    judged_metrics,
     out_of_corpus_case,
     passed_judgement,
     refusal_judgement,
     refused_result,
+    stored_run,
 )
 
 
@@ -114,3 +116,79 @@ def test_a_gate_refusal_prints_no_explanation_line():
     [line] = format_case_lines((refused_result(),))
 
     assert "refused:" not in line
+
+
+# Two stored runs side by side
+
+
+def comparison_line(output: str, name: str) -> list[str]:
+    [line] = [line for line in output.splitlines() if line.split()[:1] == [name]]
+    return line.split()
+
+
+def test_a_comparison_heads_each_run_with_its_origin():
+    output = format_run_comparison(stored_run(42), stored_run(41, git_dirty=True))
+
+    assert "#42  2026-09-18 03:00  12265d6  anthropic/claude-haiku-4-5" in output
+    assert "#41  2026-09-18 03:00  12265d6 (dirty)  anthropic/claude-haiku-4-5" in output
+
+
+def test_a_comparison_lists_every_metric_by_its_path_with_the_delta():
+    base = judged_metrics()
+    other = base.model_copy(
+        update={
+            "judge": base.judge.model_copy(update={"judged": 3, "correctness": 0.7}),
+            "latency": base.latency.model_copy(
+                update={"mean_step_ms": {**base.latency.mean_step_ms, "rewrite": 300}}
+            ),
+        }
+    )
+
+    output = format_run_comparison(stored_run(42, base), stored_run(41, other))
+
+    assert comparison_line(output, "metric") == ["metric", "#42", "#41", "delta"]
+    assert comparison_line(output, "judge.correctness") == [
+        "judge.correctness",
+        "1.000",
+        "0.700",
+        "-0.300",
+    ]
+    assert comparison_line(output, "judge.judged") == ["judge.judged", "1", "3", "+2"]
+    assert comparison_line(output, "gate.refusal_rate") == ["gate.refusal_rate", "-", "-"]
+    assert comparison_line(output, "latency.mean_step_ms.rewrite") == [
+        "latency.mean_step_ms.rewrite",
+        "-",
+        "300",
+    ]
+
+
+def test_a_comparison_keeps_the_metric_blocks_in_order_whatever_order_jsonb_returned():
+    """JSONB sorts keys by length, so the stored dict is read back through EvalMetrics."""
+    run = stored_run(42)
+    run.metrics = dict(reversed(run.metrics.items()))
+
+    output = format_run_comparison(run, stored_run(41))
+
+    rows = output.split("\n\n")[1].splitlines()
+    assert rows[1].split()[0] == "counts.cases"
+
+
+def test_a_comparison_names_only_the_settings_that_differ():
+    other = stored_run(
+        41,
+        settings={"CHAT_MODEL": "anthropic/claude-haiku-4-5", "CHAT_THINKING_ENABLED": False},
+    )
+
+    output = format_run_comparison(stored_run(42), other)
+
+    assert "settings that differ:" in output
+    assert comparison_line(output, "CHAT_THINKING_ENABLED") == [
+        "CHAT_THINKING_ENABLED",
+        "true",
+        "false",
+    ]
+    assert "CHAT_MODEL " not in output
+
+
+def test_identical_settings_print_no_settings_block():
+    assert "settings that differ" not in format_run_comparison(stored_run(42), stored_run(41))
