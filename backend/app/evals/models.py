@@ -117,7 +117,8 @@ class EvalRunResult(FrozenModel):
     cached says the run had the call cache on, so an embed or rerank timing may measure a
     disk read rather than the provider — a cached run is not a latency baseline. judged says
     the judge was on, so a run reading judged: 0 with it on is a judge that never answered,
-    not a run that did not ask.
+    not a run that did not ask. retrieval off is the memory baseline: the model answered
+    every case with no context, so its retrieval and citation scores are zero by construction.
     """
 
     dataset_sha: str
@@ -128,6 +129,7 @@ class EvalRunResult(FrozenModel):
     stale_cases: tuple[str, ...] = ()
     cached: bool = False
     judged: bool = False
+    retrieval: bool = True
     settings: dict[str, Any]
     metrics: EvalMetrics
     results: tuple[EvalCaseResult, ...]
@@ -155,6 +157,7 @@ class EvalRunResult(FrozenModel):
                     "git_dirty",
                     "cached",
                     "judged",
+                    "retrieval",
                     "settings",
                     "metrics",
                 },

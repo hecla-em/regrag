@@ -199,6 +199,7 @@ def stored_run(id: int, metrics: EvalMetrics | None = None, **overrides: Any) ->
         "created_at": datetime(2026, 9, 18, 3, 0, tzinfo=UTC),
         "git_commit": "12265d6abcdef",
         "git_dirty": False,
+        "retrieval": True,
         "model": "anthropic/claude-haiku-4-5",
         "settings": {"CHAT_MODEL": "anthropic/claude-haiku-4-5", "CHAT_THINKING_ENABLED": True},
         "metrics": (metrics or judged_metrics()).model_dump(mode="json"),

@@ -68,6 +68,12 @@ Stamps and fields a case leaves at their default are excluded from `dataset_sha`
 
 Each case is driven through the same graph the `/chat` endpoint runs, and ends in the same `ChatState` a real request ends in, so a run is scored off what production records rather than off a parallel eval path. Cases run one at a time, so a per-case timing measures that case alone.
 
+## The no-retrieval baseline
+
+`evals run --no-retrieval` answers every case from the model's memory alone. Only synthesize runs, with no sources, under a prompt that swaps the context and citation rules for "answer from what you know, and name the act and article". Set beside a normal run with `evals compare`, the correctness delta is what retrieval adds over asking the model cold.
+
+The retrieval and citation scores of such a run are zero by construction, and faithfulness is unmeasured, since there is no context to be faithful to. Out-of-corpus cases never meet the gate, so they are scored on the judge's refusal check alone. The run records `retrieval: false`, and `evals compare` marks it "no retrieval" in its header.
+
 ## Storing runs
 
 `evals run` stores each run in `eval_runs` and prints its id. `--no-store` only prints it. A stored run keeps its setup and its `EvalMetrics`, not its per-case results. It records the commit it ran at, and `git_dirty` when tracked files had uncommitted edits, so a score can be traced to the code behind it. Outside a checkout, as in the image, the commit is left empty. Settings and metrics are JSONB, since both grow with the config and the metrics. `evals compare BASE OTHER` prints every metric of both runs, with the other's delta from the base, then the settings the two differ on.

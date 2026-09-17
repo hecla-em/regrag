@@ -7,7 +7,12 @@ import litellm
 import pytest
 from langchain_core.messages import SystemMessage
 
-from app.chat.graph.nodes.synthesize import SYSTEM_PROMPT, build_user_message
+from app.chat.graph.nodes.synthesize import (
+    MEMORY_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    build_user_message,
+    synthesize,
+)
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatState
 from app.core.config import config
@@ -168,3 +173,23 @@ def test_user_message_puts_context_before_the_question():
 
 def test_system_prompt_demands_inline_markers():
     assert "[1]" in SYSTEM_PROMPT
+
+
+async def test_no_sources_answers_from_memory_under_the_memory_prompt(monkeypatch):
+    model = fake_chat_model()
+    install_chat_model(monkeypatch, model)
+
+    update = await synthesize(ChatState(question=QUESTION))
+
+    (prompt,) = model.received
+    assert prompt[0].content == MEMORY_SYSTEM_PROMPT
+    assert prompt[1].content == QUESTION
+    assert update["answer"] == ANSWER
+
+
+def test_memory_prompt_shares_the_style_rules_and_asks_for_no_markers():
+    shared = "Start directly with the answer"
+    assert shared in SYSTEM_PROMPT
+    assert shared in MEMORY_SYSTEM_PROMPT
+    assert "[1]" not in MEMORY_SYSTEM_PROMPT
+    assert "context blocks" not in MEMORY_SYSTEM_PROMPT

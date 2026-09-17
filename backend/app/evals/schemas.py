@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from sqlalchemy import true
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -23,6 +24,7 @@ class EvalRun(BaseSchema):
     corpus_version: Mapped[str | None]
     cached: Mapped[bool]
     judged: Mapped[bool]
+    retrieval: Mapped[bool] = mapped_column(server_default=true())
     selection: Mapped[dict[str, Any]] = mapped_column(JSONB)
     stale_cases: Mapped[list[str]] = mapped_column(JSONB)
     settings: Mapped[dict[str, Any]] = mapped_column(JSONB)

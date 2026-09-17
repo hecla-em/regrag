@@ -133,6 +133,13 @@ def test_a_comparison_heads_each_run_with_its_origin():
     assert "#41  2026-09-18 03:00  12265d6 (dirty)  anthropic/claude-haiku-4-5" in output
 
 
+def test_a_comparison_marks_the_run_that_had_retrieval_off():
+    output = format_run_comparison(stored_run(42), stored_run(43, retrieval=False))
+
+    assert "#42  2026-09-18 03:00  12265d6  anthropic/claude-haiku-4-5\n" in output
+    assert "#43  2026-09-18 03:00  12265d6  anthropic/claude-haiku-4-5  no retrieval" in output
+
+
 def test_a_comparison_lists_every_metric_by_its_path_with_the_delta():
     base = judged_metrics()
     other = base.model_copy(
