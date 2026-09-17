@@ -10,7 +10,7 @@ import {
 	turnFailure,
 } from "@/lib/chat-turns"
 import { Answer } from "./answer"
-import { CopyAnswerButton } from "./copy-answer-button"
+import { AnswerActions } from "./answer-actions"
 import { RunSteps } from "./run-steps"
 
 const FAILURE_MESSAGES: Record<TurnFailure, string> = {
@@ -56,12 +56,16 @@ function TurnError({
 
 export const ChatTurn = memo(function ChatTurn({
 	turn,
+	isSourcesOpen,
 	onOpenMarker,
+	onToggleSources,
 	onRetry,
 	onNewThread,
 }: {
 	turn: Turn
+	isSourcesOpen: boolean
 	onOpenMarker: (marker: number) => void
+	onToggleSources: () => void
 	onRetry: () => void
 	onNewThread: () => void
 }) {
@@ -97,12 +101,13 @@ export const ChatTurn = memo(function ChatTurn({
 								onOpenMarker={onOpenMarker}
 							/>
 							{turn.status === "settled" && (
-								<div className="fade-in -mx-1 flex animate-in duration-300">
-									<CopyAnswerButton
-										answer={turn.answer}
-										sources={turn.sources}
-									/>
-								</div>
+								<AnswerActions
+									answer={turn.answer}
+									sources={turn.sources}
+									isSourcesOpen={isSourcesOpen}
+									onToggleSources={onToggleSources}
+									onOpenSource={onOpenMarker}
+								/>
 							)}
 						</>
 					)}
