@@ -1,5 +1,5 @@
 import { CircleAlertIcon, PlusIcon, RotateCcwIcon } from "lucide-react"
-import { memo, useMemo } from "react"
+import { memo } from "react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
@@ -9,11 +9,9 @@ import {
 	type TurnFailure,
 	turnFailure,
 } from "@/lib/chat-turns"
-import { citedSources } from "@/lib/citations"
 import { Answer } from "./answer"
-import { AnswerActions } from "./answer-actions"
+import { CopyAnswerButton } from "./copy-answer-button"
 import { RunSteps } from "./run-steps"
-import { SourceList } from "./source-list"
 
 const FAILURE_MESSAGES: Record<TurnFailure, string> = {
 	thread_full: "Maximum chat turns reached.",
@@ -58,22 +56,15 @@ function TurnError({
 
 export const ChatTurn = memo(function ChatTurn({
 	turn,
-	isLatest,
 	onOpenMarker,
 	onRetry,
 	onNewThread,
 }: {
 	turn: Turn
-	isLatest: boolean
 	onOpenMarker: (marker: number) => void
 	onRetry: () => void
 	onNewThread: () => void
 }) {
-	const cited = useMemo(
-		() => citedSources(turn.answer, turn.sources),
-		[turn.answer, turn.sources],
-	)
-
 	return (
 		<div className="flex flex-col gap-3.5">
 			<Message align="end">
@@ -106,14 +97,12 @@ export const ChatTurn = memo(function ChatTurn({
 								onOpenMarker={onOpenMarker}
 							/>
 							{turn.status === "settled" && (
-								<AnswerActions answer={turn.answer} sources={turn.sources} />
-							)}
-							{isLatest && cited.length > 0 && (
-								<SourceList
-									cited={cited}
-									onOpenSource={onOpenMarker}
-									className="mt-2 lg:hidden"
-								/>
+								<div className="fade-in -mx-1 flex animate-in duration-300">
+									<CopyAnswerButton
+										answer={turn.answer}
+										sources={turn.sources}
+									/>
+								</div>
 							)}
 						</>
 					)}

@@ -1,6 +1,7 @@
 import { FuelIcon, GaugeIcon, PlusIcon } from "lucide-react"
 import { Eyebrow } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
+import { Button } from "@/components/ui/button"
 import type { TabThread } from "@/lib/chat-threads"
 import { cn } from "@/lib/utils"
 
@@ -9,6 +10,9 @@ const COVERED_TOPICS = [
 	{ key: "fueleu", name: "FuelEU Maritime", Icon: FuelIcon },
 	{ key: "mrv", name: "MRV", Icon: GaugeIcon },
 ]
+
+export const NOT_LEGAL_ADVICE =
+	"Generated from the official EU texts and may be wrong. Not legal advice, so check the cited article."
 
 export function Sidebar({
 	threads,
@@ -32,30 +36,31 @@ export function Sidebar({
 			)}
 		>
 			<HeclaWordmark className="mx-1 my-0.5 h-5 self-start text-primary" />
-			<button
-				type="button"
+			<Button
+				variant="secondary"
 				onClick={() => onOpenThread(null)}
 				disabled={isBusy}
-				className="flex h-8.5 items-center gap-2 rounded-lg bg-secondary px-2.5 font-medium text-[13px] ring-1 ring-input transition-colors hover:bg-accent disabled:opacity-50"
+				className="h-8.5 justify-start rounded-lg px-2.5 text-[13px] ring-1 ring-input"
 			>
-				<PlusIcon size={15} aria-hidden />
+				<PlusIcon />
 				New question
-			</button>
+			</Button>
 			{threads.length > 0 && (
 				<section className="flex min-h-0 flex-col gap-1.5">
 					<Eyebrow className="px-2.5">Your questions</Eyebrow>
 					<ul className="flex min-h-0 flex-col overflow-y-auto">
 						{threads.map((thread) => (
 							<li key={thread.id}>
-								<button
-									type="button"
+								<Button
+									variant="ghost"
+									size="sm"
 									onClick={() => onOpenThread(thread.id)}
 									disabled={isBusy && thread.id !== activeId}
 									aria-current={thread.id === activeId ? "page" : undefined}
-									className="w-full truncate rounded-lg px-2.5 py-1.75 text-left text-[12.5px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground disabled:opacity-50 aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground"
+									className="w-full justify-start rounded-lg px-2.5 font-normal text-[12.5px] text-muted-foreground aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground"
 								>
-									{thread.turns[0]?.question}
-								</button>
+									<span className="truncate">{thread.turns[0]?.question}</span>
+								</Button>
 							</li>
 						))}
 					</ul>
@@ -76,8 +81,7 @@ export function Sidebar({
 				</ul>
 			</section>
 			<p className="mt-auto px-1.5 text-[10.5px] text-faint-foreground leading-normal">
-				Generated from the official EU texts and may be wrong. Not legal advice,
-				so check the cited article.
+				{NOT_LEGAL_ADVICE}
 			</p>
 		</nav>
 	)

@@ -5,7 +5,18 @@ import { renumberCitations } from "@/lib/citations"
 
 const COPIED_MS = 2000
 
-function CopyAnswerButton({ text }: { text: string }) {
+/** Copies a settled answer out with its citations numbered as the reader saw them. */
+export function CopyAnswerButton({
+	answer,
+	sources,
+}: {
+	answer: string
+	sources: ChatSource[]
+}) {
+	const text = useMemo(
+		() => renumberCitations(answer, sources),
+		[answer, sources],
+	)
 	const [copied, setCopied] = useState(false)
 	const clearing = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -36,25 +47,5 @@ function CopyAnswerButton({ text }: { text: string }) {
 		>
 			{copied ? <CheckIcon size={15} /> : <CopyIcon size={15} />}
 		</button>
-	)
-}
-
-/** What a reader can do with a settled answer: copy it out with the citations numbered as shown. */
-export function AnswerActions({
-	answer,
-	sources,
-}: {
-	answer: string
-	sources: ChatSource[]
-}) {
-	const copyText = useMemo(
-		() => renumberCitations(answer, sources),
-		[answer, sources],
-	)
-
-	return (
-		<div className="fade-in -mx-1 flex animate-in items-center duration-300">
-			<CopyAnswerButton text={copyText} />
-		</div>
 	)
 }

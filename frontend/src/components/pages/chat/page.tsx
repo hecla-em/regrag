@@ -16,7 +16,7 @@ import { useChatThreads } from "@/hooks/use-chat-threads"
 import { citedSources } from "@/lib/citations"
 import { ChatTurn } from "./chat-turn"
 import { PromptForm } from "./prompt-form"
-import { Sidebar } from "./sidebar"
+import { NOT_LEGAL_ADVICE, Sidebar } from "./sidebar"
 import { SourceList } from "./source-list"
 import { SourcePanel } from "./source-panel"
 
@@ -62,14 +62,16 @@ export function ChatPage() {
 	}
 
 	const latest = turns.at(-1)
+	const latestAnswer = latest?.answer ?? ""
+	const latestSources =
+		latest?.status === "failed" ? undefined : latest?.sources
 	const latestCited = useMemo(
-		() => (latest ? citedSources(latest.answer, latest.sources) : []),
-		[latest],
+		() => (latestSources ? citedSources(latestAnswer, latestSources) : []),
+		[latestAnswer, latestSources],
 	)
-	const openLatestSource =
-		latest === undefined
-			? () => {}
-			: getTurnHandlers(latest.id, latest.question).onOpenMarker
+	function openLatestSource(marker: number) {
+		if (latest) setOpenMarker({ turnId: latest.id, marker })
+	}
 
 	const openTurn = turns.find((turn) => turn.id === openMarker?.turnId)
 	const opened =
@@ -103,16 +105,16 @@ export function ChatPage() {
 						<MenuIcon />
 					</Button>
 					{isEmpty ? (
-						<HeclaWordmark className="h-4 text-primary md:hidden" />
+						<HeclaWordmark className="mr-auto h-4 text-primary md:hidden" />
 					) : (
-						<h1 className="min-w-0 truncate font-medium text-[13px]">
-							{turns[0].question}
-						</h1>
-					)}
-					{!isEmpty && (
-						<Eyebrow className="ml-auto hidden shrink-0 sm:block">
-							{turns.length} {turns.length === 1 ? "question" : "questions"}
-						</Eyebrow>
+						<>
+							<h1 className="mr-auto min-w-0 truncate font-medium text-[13px]">
+								{turns[0].question}
+							</h1>
+							<Eyebrow className="hidden shrink-0 sm:block">
+								{turns.length} {turns.length === 1 ? "question" : "questions"}
+							</Eyebrow>
+						</>
 					)}
 					<Button
 						variant="ghost"
@@ -120,7 +122,7 @@ export function ChatPage() {
 						aria-label="New question"
 						onClick={startNewThread}
 						disabled={isBusy}
-						className="ml-auto shrink-0 sm:ml-0 md:hidden"
+						className="shrink-0 md:hidden"
 					>
 						<PlusIcon />
 					</Button>
@@ -147,7 +149,6 @@ export function ChatPage() {
 											>
 												<ChatTurn
 													turn={turn}
-													isLatest={turn === latest}
 													onOpenMarker={handlers.onOpenMarker}
 													onRetry={handlers.onRetry}
 													onNewThread={startNewThread}
@@ -155,6 +156,13 @@ export function ChatPage() {
 											</MessageScrollerItem>
 										)
 									})}
+									{latestCited.length > 0 && (
+										<SourceList
+											cited={latestCited}
+											onOpenSource={openLatestSource}
+											className="-mt-4 lg:hidden"
+										/>
+									)}
 								</MessageScrollerContent>
 							</MessageScrollerViewport>
 							<MessageScrollerButton />
@@ -165,7 +173,7 @@ export function ChatPage() {
 				<div className="mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5">
 					<PromptForm isBusy={isBusy} onSubmit={askQuestion} onStop={stop} />
 					<p className="mt-2 text-center text-[11px] text-faint-foreground md:hidden">
-						Generated from the official EU texts. Not legal advice.
+						{NOT_LEGAL_ADVICE}
 					</p>
 				</div>
 				{isEmpty && <div className="flex-1" />}
