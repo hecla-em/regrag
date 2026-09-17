@@ -1,6 +1,5 @@
 """Evals CLI: exit codes, what `run` prints and stores, and what `compare` prints."""
 
-from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
@@ -14,6 +13,7 @@ from app.evals.dataset.enums import DriftKind
 from app.evals.dataset.models import CaseReference, DriftedReference
 from app.evals.metrics import compute_metrics
 from app.evals.models import EvalRunResult
+from tests.conftest import no_session
 from tests.evals.conftest import eval_case, eval_result, passed_judgement, stored_run
 
 
@@ -62,10 +62,6 @@ def fake_run(monkeypatch):
 def stored(monkeypatch) -> list[EvalRunResult]:
     """Record the runs `run` stored, without a database. Autouse so no test here writes one."""
     stored: list[EvalRunResult] = []
-
-    @asynccontextmanager
-    async def no_session():
-        yield None
 
     async def record(session, result: EvalRunResult):
         stored.append(result)

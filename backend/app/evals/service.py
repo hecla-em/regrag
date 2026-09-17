@@ -1,6 +1,7 @@
 """Driving the golden cases through the chat graph, recording what the run measured, and
 storing the run."""
 
+import asyncio
 import logging
 import time
 from collections.abc import Awaitable, Callable
@@ -71,7 +72,7 @@ async def evaluate_all_cases(
     if judge:
         results = await judge_results(results)
     settings = get_config_snapshot(EVAL_CONFIG_SECTIONS)
-    git_commit, git_dirty = read_git_commit()
+    git_commit, git_dirty = await asyncio.to_thread(read_git_commit)
     return EvalRunResult(
         dataset_sha=dataset.sha256,
         selection=dataset.selection,
@@ -89,19 +90,10 @@ async def evaluate_all_cases(
 
 async def create_eval_run(session: AsyncSession, result: EvalRunResult) -> EvalRun:
     """The run's setup and metrics as an eval_runs row; the per-case results are not kept."""
-    json_fields = result.model_dump(
-        mode="json", include={"selection", "stale_cases", "settings", "metrics"}
-    )
     run = EvalRun(
-        git_commit=result.git_commit,
-        git_dirty=result.git_dirty,
+        **result.model_dump(mode="json", exclude={"results"}),
         model=result.settings["CHAT_MODEL"],
         judge_model=result.settings["EVAL_JUDGE_MODEL"] if result.judged else None,
-        dataset_sha=result.dataset_sha,
-        corpus_version=result.corpus_version,
-        cached=result.cached,
-        judged=result.judged,
-        **json_fields,
     )
     return await create_record(session, run)
 

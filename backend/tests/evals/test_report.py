@@ -192,3 +192,13 @@ def test_a_comparison_names_only_the_settings_that_differ():
 
 def test_identical_settings_print_no_settings_block():
     assert "settings that differ" not in format_run_comparison(stored_run(42), stored_run(41))
+
+
+def test_a_run_stored_before_a_metric_existed_still_compares():
+    older = stored_run(41)
+    older.metrics = {**older.metrics, "judge": {"judged": 1, "retired_metric": 0.5}}
+
+    output = format_run_comparison(stored_run(42), older)
+
+    assert comparison_line(output, "judge.correctness") == ["judge.correctness", "1.000", "-"]
+    assert comparison_line(output, "judge.retired_metric") == ["judge.retired_metric", "-", "0.500"]

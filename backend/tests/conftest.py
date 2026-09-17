@@ -132,6 +132,12 @@ def db_engine(test_database: None) -> AsyncEngine:
 
 
 @asynccontextmanager
+async def no_session(**kwargs: Any) -> AsyncGenerator[None, None]:
+    """Stands in for get_session where the code under test never touches the session."""
+    yield None
+
+
+@asynccontextmanager
 async def rolled_back_session(
     db_engine: AsyncEngine, *, clear: bool = True
 ) -> AsyncGenerator[AsyncSession, None]:

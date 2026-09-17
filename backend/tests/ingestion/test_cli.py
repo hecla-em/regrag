@@ -1,7 +1,5 @@
 """Ingest CLI: argument validation, exit codes, report printing."""
 
-import contextlib
-
 import httpx
 import pytest
 
@@ -12,6 +10,7 @@ from app.ingestion.cli import main
 from app.ingestion.enums import DocChange, Stage
 from app.ingestion.exceptions import MalformedDiscoveryError
 from app.ingestion.models import DocumentOutcome, IngestRunResult
+from tests.conftest import no_session
 
 pytestmark = pytest.mark.anyio
 
@@ -113,16 +112,12 @@ async def test_ingest_hands_the_pipeline_a_paced_client(monkeypatch):
         built.update(kwargs)
         return real_client(**kwargs)
 
-    @contextlib.asynccontextmanager
-    async def fake_session(**_):
-        yield None
-
     async def capture(_session, *, client, **__):
         clients.append(client)
         return IngestRunResult(run_id=1)
 
     monkeypatch.setattr(cli, "http_client", spy)
-    monkeypatch.setattr(cli, "get_session", fake_session)
+    monkeypatch.setattr(cli, "get_session", no_session)
     monkeypatch.setattr(cli, "ingest", capture)
     await cli._ingest(["mrv"])
 
