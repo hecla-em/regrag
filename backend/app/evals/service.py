@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chat.graph.nodes.synthesize import synthesize
 from app.chat.graph.service import chat_graph
 from app.chat.models import ChatState
 from app.core.clock import elapsed_ms
@@ -33,6 +34,11 @@ EvalGraph = Callable[[ChatState], Awaitable[dict[str, Any]]]
 
 async def _full_chat_graph(state: ChatState) -> dict[str, Any]:
     return await chat_graph.ainvoke(state)
+
+
+async def synthesize_graph(state: ChatState) -> dict[str, Any]:
+    """Run synthesize only, with no sources, so the model answers from memory."""
+    return await synthesize(state) | {"question": state.question}
 
 
 async def evaluate_case(case: EvalCase, graph: EvalGraph = _full_chat_graph) -> EvalCaseResult:
@@ -59,6 +65,7 @@ async def evaluate_all_cases(
     stale_cases: tuple[str, ...] = (),
     *,
     judge: bool = True,
+    retrieval: bool = True,
 ) -> EvalRunResult:
     """Every case in the dataset, one at a time, so a per-case timing measures the case alone;
     then, unless told otherwise, the judge over the timed results.
@@ -66,9 +73,11 @@ async def evaluate_all_cases(
     The corpus version and the stale cases are read before the run and carried through it, so
     a score always says which text it was measured against and which cases owe a re-review.
     Whether the run was cached is read off the live litellm cache, not a caller's word, so the
-    recorded flag cannot disagree with what served the calls.
+    recorded flag cannot disagree with what served the calls. With retrieval off every case
+    is answered from the model's memory alone: the baseline a normal run is set beside.
     """
-    results = [await evaluate_case(case) for case in dataset.selected_cases]
+    graph = _full_chat_graph if retrieval else synthesize_graph
+    results = [await evaluate_case(case, graph) for case in dataset.selected_cases]
     if judge:
         results = await judge_results(results)
     settings = get_config_snapshot(EVAL_CONFIG_SECTIONS)
@@ -82,6 +91,7 @@ async def evaluate_all_cases(
         stale_cases=stale_cases,
         cached=call_cache_enabled(),
         judged=judge,
+        retrieval=retrieval,
         settings=settings,
         metrics=compute_metrics(results),
         results=tuple(results),

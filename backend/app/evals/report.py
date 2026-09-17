@@ -116,7 +116,8 @@ def _format_delta(base: Any, other: Any) -> str:
 
 def _format_run_header(run: EvalRun) -> str:
     commit = (run.git_commit or UNMEASURED)[:7] + (" (dirty)" if run.git_dirty else "")
-    return f"#{run.id}  {run.created_at:%Y-%m-%d %H:%M}  {commit}  {run.model}"
+    retrieval = "" if run.retrieval else "  no retrieval"
+    return f"#{run.id}  {run.created_at:%Y-%m-%d %H:%M}  {commit}  {run.model}{retrieval}"
 
 
 def _format_rows(rows: list[tuple[str, str, str, str]]) -> list[str]:

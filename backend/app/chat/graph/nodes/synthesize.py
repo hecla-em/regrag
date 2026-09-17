@@ -1,4 +1,5 @@
-"""synthesize: one streamed model call answering from the context with [n] citations."""
+"""synthesize: one streamed model call answering from the context with [n] citations, or
+from memory when there is no context."""
 
 from collections.abc import Sequence
 from typing import Any
@@ -12,19 +13,34 @@ from app.core.config import config
 from app.core.llm.errors import llm_retry, wrap_provider_errors
 from app.retrieval.models import RetrievedChunk
 
-SYSTEM_PROMPT = (
-    "You are RegRag, an assistant answering questions about EU maritime regulation. "
-    "Answer using only the numbered context blocks provided. Cite every claim inline "
-    "with the marker of the block it comes from, like [1] or [2][3], placed after the "
-    "punctuation that ends the claim (e.g. 'must be reported.[1]'), never before it. "
-    "If the context "
-    "does not answer the question, say so plainly instead of guessing. "
+ROLE = "You are RegRag, an assistant answering questions about EU maritime regulation. "
+
+STYLE = (
     "Start directly with the answer: no title, no restating the question, and no "
     "preamble such as 'Based on the context provided'. When several acts give the same "
     "answer, give it once and name the acts it holds for, then note only where they "
-    "differ; do not repeat near-identical lists per act. Refer to an act by the name and "
-    "number the context gives it; never invent a title for one."
+    "differ; do not repeat near-identical lists per act. "
 )
+
+SYSTEM_PROMPT = (
+    f"{ROLE}"
+    "Answer using only the numbered context blocks provided. Cite every claim inline "
+    "with the marker of the block it comes from, like [1] or [2][3], placed after the "
+    "punctuation that ends the claim (e.g. 'must be reported.[1]'), never before it. "
+    "If the context does not answer the question, say so plainly instead of guessing. "
+    f"{STYLE}"
+    "Refer to an act by the name and number the context gives it; never invent a title for one."
+)
+
+BASELINE_SYSTEM_PROMPT = (
+    f"{ROLE}"
+    "Answer from what you know of the regulations, naming the act and article each claim "
+    "rests on. "
+    f"{STYLE}"
+    "Refer to an act by its official name and number; never invent a title for one."
+)
+"""The prompt a run with no sources answers under: the evals' no-retrieval baseline. The
+graph refuses before synthesize when nothing was retrieved, so no chat request sees it."""
 
 
 def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
@@ -36,15 +52,18 @@ def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
 @llm_retry
 @wrap_provider_errors("chat call")
 async def synthesize(state: ChatState) -> dict[str, Any]:
-    """One streamed model call answering from the context with [n] citations.
+    """One streamed model call answering from the context with [n] citations, or from
+    memory under the baseline prompt when there are no sources.
 
     A transient provider failure is retried like embed and rerank; one that strikes
     mid-stream restarts the answer, so its tokens reach the client twice.
     """
+    base = SYSTEM_PROMPT if state.sources else BASELINE_SYSTEM_PROMPT
+    user = build_user_message(state.question, state.sources) if state.sources else state.question
     messages = [
-        SystemMessage(system_prompt(SYSTEM_PROMPT, state.history)),
+        SystemMessage(system_prompt(base, state.history)),
         *thread_messages(state.history),
-        HumanMessage(build_user_message(state.question, state.sources)),
+        HumanMessage(user),
     ]
     response = await chat_model(thinking=config.CHAT_THINKING_ENABLED).ainvoke(messages)
     return {"answer": response.text, "reply": response}

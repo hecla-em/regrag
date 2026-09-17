@@ -28,6 +28,7 @@ class _RecordedResults(list):
     def __init__(self) -> None:
         super().__init__()
         self.judged: list[bool] = []
+        self.retrieval: list[bool] = []
 
 
 @pytest.fixture
@@ -39,8 +40,9 @@ def fake_run(monkeypatch):
     async def _fake_corpus_read(dataset):
         return (), "2026-08-01-a3f1c2"
 
-    async def _fake(dataset, corpus_version=None, stale_cases=(), *, judge=True):
+    async def _fake(dataset, corpus_version=None, stale_cases=(), *, judge=True, retrieval=True):
         judged.append(judge)
+        results.retrieval.append(retrieval)
         chosen = tuple(results)
         return EvalRunResult(
             dataset_sha=dataset.sha256,
@@ -48,6 +50,7 @@ def fake_run(monkeypatch):
             corpus_version=corpus_version,
             stale_cases=stale_cases,
             judged=judge,
+            retrieval=retrieval,
             settings=get_config_snapshot(EVAL_CONFIG_SECTIONS),
             metrics=compute_metrics(chosen),
             results=chosen,
@@ -84,6 +87,16 @@ def test_run_judges_unless_told_not_to(fake_run):
     main(["run", "--no-judge"])
 
     assert fake_run.judged == [True, False]
+
+
+def test_run_retrieves_unless_told_not_to(fake_run, stored):
+    fake_run.append(judged_result())
+
+    main(["run"])
+    main(["run", "--no-retrieval"])
+
+    assert fake_run.retrieval == [True, False]
+    assert [run.retrieval for run in stored] == [True, False]
 
 
 def test_run_prints_the_summary_and_exits_zero(fake_run, capsys):

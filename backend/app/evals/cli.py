@@ -1,5 +1,5 @@
 """Evals CLI: `uv run evals check | stamp | run [--case ID] [--trait TRAIT] [--verbose]
-[--no-store] | compare BASE OTHER | tune`."""
+[--no-retrieval] [--no-store] | compare BASE OTHER | tune`."""
 
 import argparse
 import asyncio
@@ -49,6 +49,11 @@ def register_run_command(commands: Any) -> None:
         help="skip the LLM judge, leaving the judged metrics unmeasured",
     )
     run.add_argument(
+        "--no-retrieval",
+        action="store_true",
+        help="answer every case from the model's memory alone: the baseline to compare against",
+    )
+    run.add_argument(
         "--no-cache",
         action="store_true",
         help="pay for every embed and rerank again instead of replaying the cached ones",
@@ -83,12 +88,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 async def score_dataset(
-    dataset: EvalDataset, *, judge: bool, store: bool
+    dataset: EvalDataset, *, judge: bool, retrieval: bool, store: bool
 ) -> tuple[EvalRunResult, int | None]:
     """Score the dataset against the corpus as it stands, then store the run unless told not
     to. A failed store is logged, not raised, so the scores of a paid run still print."""
     drifted, corpus_version = await check_against_corpus(dataset)
-    result = await evaluate_all_cases(dataset, corpus_version, stale_case_ids(drifted), judge=judge)
+    result = await evaluate_all_cases(
+        dataset, corpus_version, stale_case_ids(drifted), judge=judge, retrieval=retrieval
+    )
     if not store:
         return result, None
     try:
@@ -105,6 +112,7 @@ def run_evals(
     verbose: bool = False,
     cached: bool = True,
     judge: bool = True,
+    retrieval: bool = True,
     store: bool = True,
 ) -> int:
     """Score the dataset, print what it measured, the cases first when asked for, and store
@@ -113,7 +121,9 @@ def run_evals(
     if cached:
         enable_call_cache(config.EVAL_CACHE_DIR)
 
-    result, run_id = asyncio.run(score_dataset(dataset, judge=judge, store=store))
+    result, run_id = asyncio.run(
+        score_dataset(dataset, judge=judge, retrieval=retrieval, store=store)
+    )
     if verbose:
         print("\n".join(format_case_lines(result.results)), end="\n\n")
 
@@ -154,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.verbose,
                 cached=not args.no_cache,
                 judge=not args.no_judge,
+                retrieval=not args.no_retrieval,
                 store=not args.no_store,
             )
 

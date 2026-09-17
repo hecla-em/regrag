@@ -227,6 +227,19 @@ def test_a_run_cut_short_is_read_off_empty_sources_rather_than_a_refusal() -> No
     assert compute_gate_refusal_rate([retrieval_only]) == 1.0
 
 
+def test_a_case_answered_without_retrieval_never_met_the_gate_or_the_loop() -> None:
+    from_memory = eval_result(
+        out_of_corpus_case(),
+        steps=(ChatStepResult(step=ChatNode.SYNTHESIZE, ms=900),),
+        hits=(),
+        sources=(),
+        answer="No act covers that.",
+    )
+
+    assert compute_gate_refusal_rate((from_memory,)) is None
+    assert compute_assess_refusal_rate((from_memory,)) is None
+
+
 def test_a_refusal_after_assess_is_the_loops_not_the_gates() -> None:
     """The gate acts before any model call; a refusal assess asked for is scored apart, so
     the two rates say which of the two shut the question out."""
