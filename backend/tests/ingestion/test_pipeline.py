@@ -121,9 +121,8 @@ async def test_changed_document_produces_a_new_corpus_version(
     assert versions[0] != versions[1]
 
 
-async def test_failed_run_is_not_stamped_with_a_corpus_version(
-    db_session, local_store, corpus_client
-):
+async def test_failed_run_is_stamped_with_what_it_committed(db_session, local_store, corpus_client):
+    """The document that did land moved the corpus, so the version has to show it."""
     report = await ingest_mrv(
         db_session,
         local_store,
@@ -133,7 +132,7 @@ async def test_failed_run_is_not_stamped_with_a_corpus_version(
 
     run = await db_session.get(IngestRun, report.run_id)
     assert run.status is IngestRunStatus.FAILED
-    assert run.corpus_version is None
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}-[0-9a-f]{7}", run.corpus_version)
 
 
 async def test_a_completed_run_records_what_each_stage_did(db_session, local_store, corpus_client):
@@ -514,7 +513,7 @@ async def test_a_database_failure_does_not_mask_itself(
     assert run.status is IngestRunStatus.ABORTED
 
 
-async def test_partial_fetch_leaves_its_chunks_unstamped(db_session, local_store, corpus_client):
+async def test_partial_fetch_stamps_the_chunks_it_stored(db_session, local_store, corpus_client):
     report = await ingest_mrv(
         db_session,
         local_store,
@@ -522,17 +521,15 @@ async def test_partial_fetch_leaves_its_chunks_unstamped(db_session, local_store
         docs=mrv_docs({"32023R2449": httpx.Response(400, text="bad")}),
     )
 
-    assert report.corpus_version is None
-    assert await chunk_versions(db_session, "32015R0757") == {None}
+    assert report.corpus_version is not None
+    assert await chunk_versions(db_session, "32015R0757") == {report.corpus_version}
 
 
 async def test_chunks_stay_attributed_to_the_run_that_first_stored_them(
     db_session, local_store, corpus_client
 ):
-    """A later whole-corpus run leaves matched chunks pointing at the run they came from.
-
-    Those chunks resolve to no corpus version, because the run that stored them failed.
-    """
+    """A later whole-corpus run leaves matched chunks pointing at the run they came from,
+    and so at the version that failed run was stamped with."""
     partial = await ingest_mrv(
         db_session,
         local_store,
@@ -542,10 +539,10 @@ async def test_chunks_stay_attributed_to_the_run_that_first_stored_them(
 
     report = await ingest_mrv(db_session, local_store, corpus_client)
 
-    assert report.corpus_version is not None
+    assert report.corpus_version != partial.corpus_version
     rows = await chunk_rows(db_session, "32015R0757")
     assert {row.ingest_run_id for row in rows} == {partial.run_id}
-    assert await chunk_versions(db_session, "32015R0757") == {None}
+    assert await chunk_versions(db_session, "32015R0757") == {partial.corpus_version}
 
 
 async def test_failed_fetch_still_chunks_what_was_downloaded(
@@ -560,7 +557,6 @@ async def test_failed_fetch_still_chunks_what_was_downloaded(
 
     assert "32023R2449" in report.failures[Stage.FETCH]
     assert not report.ok
-    assert report.corpus_version is None
     assert await chunk_rows(db_session, "32015R0757")
 
 

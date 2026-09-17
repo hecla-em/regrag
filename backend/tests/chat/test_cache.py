@@ -71,7 +71,7 @@ async def test_the_key_is_one_per_normalized_question(db_session: AsyncSession) 
 
     settings = hash_answer_settings()[:12]
     assert key is not None
-    assert key.startswith(f"chat:answer:{config.BUILD_ID}:{settings}:2026-09-17-abc:0:")
+    assert key.startswith(f"chat:answer:{config.BUILD_ID}:{settings}:2026-09-17-abc:")
     assert key == await answer_key(db_session, "  what is fueleu ")
     assert key != await answer_key(db_session, "What is MRV?")
 
@@ -91,19 +91,6 @@ async def test_a_new_corpus_version_moves_every_key(db_session: AsyncSession) ->
     before = await answer_key(db_session, "What is FuelEU?")
 
     await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-18-def")
-
-    assert await answer_key(db_session, "What is FuelEU?") != before
-
-
-@pytest.mark.parametrize("status", [IngestRunStatus.FAILED, IngestRunStatus.ABORTED])
-async def test_an_unsuccessful_ingest_moves_every_key(
-    db_session: AsyncSession, status: IngestRunStatus
-) -> None:
-    """A run that failed some documents still committed the rest, with no version to show it."""
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
-    before = await answer_key(db_session, "What is FuelEU?")
-
-    await add_ingest_run(db_session, status)
 
     assert await answer_key(db_session, "What is FuelEU?") != before
 
@@ -150,11 +137,8 @@ def test_the_cache_settings_stay_out_of_the_settings_hash(
     assert hash_answer_settings() == before
 
 
-@pytest.mark.parametrize("status", [IngestRunStatus.RUNNING, IngestRunStatus.FAILED])
-async def test_there_is_no_key_before_a_corpus_version(
-    db_session: AsyncSession, status: IngestRunStatus
-) -> None:
-    await add_ingest_run(db_session, status)
+async def test_there_is_no_key_before_a_corpus_version(db_session: AsyncSession) -> None:
+    await add_ingest_run(db_session, IngestRunStatus.RUNNING)
 
     assert await answer_key(db_session, "What is FuelEU?") is None
 

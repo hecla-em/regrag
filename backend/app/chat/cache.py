@@ -21,7 +21,7 @@ from app.chat.models import CachedAnswer, ChatQuery, ChatState
 from app.core.config import ANSWER_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.db.session import get_session
 from app.core.redis import redis_client
-from app.ingestion.service import get_latest_corpus_version, get_latest_unsuccessful_run_id
+from app.ingestion.service import get_latest_corpus_version
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +49,8 @@ async def answer_key(session: AsyncSession, question: str) -> str | None:
     version = await get_latest_corpus_version(session)
     if version is None:
         return None
-    unsuccessful_run_id = await get_latest_unsuccessful_run_id(session) or 0
-    corpus = f"{version}:{unsuccessful_run_id}"
     digest = hashlib.sha256(normalize_question(question).encode()).hexdigest()
-    return f"chat:answer:{config.BUILD_ID}:{hash_answer_settings()[:12]}:{corpus}:{digest}"
+    return f"chat:answer:{config.BUILD_ID}:{hash_answer_settings()[:12]}:{version}:{digest}"
 
 
 async def lookup_answer(redis: Redis, key: str) -> CachedAnswer | None:

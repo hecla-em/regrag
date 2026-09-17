@@ -35,21 +35,6 @@ async def get_latest_corpus_version(session: AsyncSession) -> str | None:
     return await session.scalar(stmt)
 
 
-async def get_latest_unsuccessful_run_id(session: AsyncSession) -> int | None:
-    """The most recent finished run that did not succeed: it committed what it got through,
-    yet minted no corpus version to show the corpus moved."""
-    stmt = (
-        select(IngestRun.id)
-        .where(
-            IngestRun.completed_at.is_not(None),
-            IngestRun.status != IngestRunStatus.SUCCESS,
-        )
-        .order_by(IngestRun.id.desc())
-        .limit(1)
-    )
-    return await session.scalar(stmt)
-
-
 def corpus_fingerprint(documents: Iterable[RawDocument]) -> str:
     """Content hash of the corpus; an identical corpus fingerprints identically."""
     content = sorted((doc.celex, doc.resolved_celex, doc.sha256) for doc in documents)
@@ -88,8 +73,9 @@ async def complete_ingest_run(
     status: IngestRunStatus,
     result: dict[str, Any] | None = None,
 ) -> IngestRun:
-    """Close out a run, minting a corpus version for it only if every stage succeeded."""
-    version = await next_corpus_version(session) if status is IngestRunStatus.SUCCESS else None
+    """Close out a run with the corpus version it left: a failed or aborted run committed
+    what it got through, so it is stamped too."""
+    version = await next_corpus_version(session)
     update_in = IngestRunUpdate(
         status=status, completed_at=utc_now(), corpus_version=version, result=result
     )
