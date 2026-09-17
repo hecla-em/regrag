@@ -3,28 +3,20 @@
 import subprocess
 
 from app.core.config import PROJECT_ROOT
-from app.core.models import FrozenModel
+
+DIRTY_SUFFIX = "-dirty"
 
 
-class GitState(FrozenModel):
-    """commit: HEAD, or None outside a checkout. dirty: tracked files had uncommitted edits."""
-
-    commit: str | None = None
-    dirty: bool = False
-
-
-def _run_git(*args: str) -> str:
-    result = subprocess.run(
-        ["git", *args], cwd=PROJECT_ROOT, capture_output=True, text=True, check=True
-    )
-    return result.stdout.strip()
-
-
-def read_git_state() -> GitState:
-    """HEAD and whether tracked files changed; empty where there is no checkout, as in the image."""
+def read_git_commit() -> tuple[str | None, bool]:
+    """HEAD, and whether tracked files had uncommitted edits; (None, False) outside a checkout."""
     try:
-        commit = _run_git("rev-parse", "HEAD")
-        dirty = bool(_run_git("status", "--porcelain", "--untracked-files=no"))
+        described = subprocess.run(
+            ["git", "describe", "--always", "--dirty", "--abbrev=40", "--exclude=*"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
-        return GitState()
-    return GitState(commit=commit, dirty=dirty)
+        return None, False
+    return described.removesuffix(DIRTY_SUFFIX), described.endswith(DIRTY_SUFFIX)

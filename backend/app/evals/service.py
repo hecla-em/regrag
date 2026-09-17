@@ -15,7 +15,7 @@ from app.core.clock import elapsed_ms
 from app.core.config import EVAL_CONFIG_SECTIONS, get_config_snapshot
 from app.core.db.crud import create_record
 from app.core.exceptions import DomainError, NotFoundError
-from app.core.git import read_git_state
+from app.core.git import read_git_commit
 from app.core.llm.cache import call_cache_enabled
 from app.evals.dataset.models import EvalCase, EvalDataset
 from app.evals.judge.service import judge_results
@@ -71,13 +71,13 @@ async def evaluate_all_cases(
     if judge:
         results = await judge_results(results)
     settings = get_config_snapshot(EVAL_CONFIG_SECTIONS)
-    git = read_git_state()
+    git_commit, git_dirty = read_git_commit()
     return EvalRun(
         dataset_sha=dataset.sha256,
         selection=dataset.selection,
         corpus_version=corpus_version,
-        git_commit=git.commit,
-        git_dirty=git.dirty,
+        git_commit=git_commit,
+        git_dirty=git_dirty,
         stale_cases=stale_cases,
         cached=call_cache_enabled(),
         judged=judge,

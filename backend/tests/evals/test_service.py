@@ -8,7 +8,6 @@ import pytest
 from app.chat.enums import ChatNode, ChatOutcome
 from app.core.config import config
 from app.core.exceptions import NotFoundError
-from app.core.git import GitState
 from app.core.llm.errors import LLMError
 from app.evals import service
 from app.evals.dataset.enums import EvalTrait
@@ -127,7 +126,7 @@ async def test_a_run_carries_the_corpus_it_was_measured_against(answering_graph:
 async def test_a_run_records_the_commit_it_ran(
     answering_graph: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(service, "read_git_state", lambda: GitState(commit="12265d6", dirty=True))
+    monkeypatch.setattr(service, "read_git_commit", lambda: ("12265d6", True))
 
     run = await evaluate_all_cases(eval_dataset(eval_case()))
 

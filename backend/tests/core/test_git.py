@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from app.core import git
-from app.core.git import GitState, read_git_state
+from app.core.git import read_git_commit
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -25,23 +25,32 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_a_clean_checkout_reads_its_commit(repo: Path):
-    state = read_git_state()
+    commit, dirty = read_git_commit()
 
-    assert state.commit is not None
-    assert len(state.commit) == 40
-    assert state.dirty is False
+    assert commit is not None
+    assert len(commit) == 40
+    assert dirty is False
 
 
 def test_an_edited_tracked_file_marks_the_checkout_dirty(repo: Path):
     (repo / "tracked.txt").write_text("two")
 
-    assert read_git_state().dirty is True
+    assert read_git_commit()[1] is True
 
 
 def test_an_untracked_file_leaves_the_checkout_clean(repo: Path):
     (repo / "scratch.txt").write_text("notes")
 
-    assert read_git_state().dirty is False
+    assert read_git_commit()[1] is False
+
+
+def test_a_tag_on_head_still_reads_as_the_commit(repo: Path):
+    _git(repo, "tag", "v1")
+
+    commit, _ = read_git_commit()
+
+    assert commit is not None
+    assert len(commit) == 40
 
 
 def test_outside_a_checkout_nothing_is_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -49,4 +58,4 @@ def test_outside_a_checkout_nothing_is_read(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setattr(git, "PROJECT_ROOT", tmp_path)
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
 
-    assert read_git_state() == GitState()
+    assert read_git_commit() == (None, False)
