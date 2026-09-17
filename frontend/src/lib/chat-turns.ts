@@ -14,6 +14,7 @@ export type ChatTurn = {
 	steps: ChatStep[]
 	status: "pending" | "streaming" | "settled" | "failed"
 	error: ErrorBody | null
+	askedAt: number
 }
 
 /** Whether the run behind a turn is still under way: asked and not yet answering, or answering. */
@@ -39,10 +40,9 @@ export function turnFailure(turn: ChatTurn): TurnFailure {
 }
 
 export type ChatAction =
-	| { type: "ask"; id: string; question: string }
+	| { type: "ask"; id: string; question: string; askedAt: number }
 	| { type: "settle" }
 	| { type: "fail"; error: ErrorBody }
-	| { type: "clear" }
 	| ChatStreamEvent
 
 /** The trail with this step in it: a starting step joins the end, and a finished one settles
@@ -110,7 +110,6 @@ function withoutFailedTurn(turns: ChatTurn[]): ChatTurn[] {
 }
 
 export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
-	if ("type" in action && action.type === "clear") return []
 	if ("type" in action && action.type === "ask") {
 		return [
 			...withoutFailedTurn(turns),
@@ -122,6 +121,7 @@ export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
 				steps: [],
 				status: "pending",
 				error: null,
+				askedAt: action.askedAt,
 			},
 		]
 	}

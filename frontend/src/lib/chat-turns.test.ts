@@ -8,7 +8,7 @@ import {
 } from "./chat-turns"
 
 function asked(): ChatTurn[] {
-	return chatReducer([], { type: "ask", id: "t1", question: "q" })
+	return chatReducer([], { type: "ask", id: "t1", question: "q", askedAt: 0 })
 }
 
 function run(...actions: ChatAction[]): ChatTurn {
@@ -136,17 +136,18 @@ describe("chatReducer", () => {
 		expect(turnFailure(turn)).toBe(failure)
 	})
 
-	it("clears every turn when a new thread starts", () => {
-		expect(chatReducer(asked(), { type: "clear" })).toEqual([])
-	})
-
 	it("drops a failed turn when a new question is asked", () => {
 		const failed = chatReducer(asked(), {
 			type: "fail",
 			error: { error: "Error", message: "boom" },
 		})
 
-		const turns = chatReducer(failed, { type: "ask", id: "t2", question: "q2" })
+		const turns = chatReducer(failed, {
+			type: "ask",
+			id: "t2",
+			question: "q2",
+			askedAt: 0,
+		})
 
 		expect(turns.map((turn) => turn.id)).toEqual(["t2"])
 	})
@@ -158,6 +159,7 @@ describe("chatReducer", () => {
 			type: "ask",
 			id: "t2",
 			question: "q2",
+			askedAt: 0,
 		})
 
 		expect(turns.map((turn) => turn.id)).toEqual(["t1", "t2"])
