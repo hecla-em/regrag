@@ -8,7 +8,7 @@ import pytest
 from langchain_core.messages import SystemMessage
 
 from app.chat.graph.nodes.synthesize import (
-    MEMORY_SYSTEM_PROMPT,
+    BASELINE_SYSTEM_PROMPT,
     SYSTEM_PROMPT,
     build_user_message,
     synthesize,
@@ -175,21 +175,21 @@ def test_system_prompt_demands_inline_markers():
     assert "[1]" in SYSTEM_PROMPT
 
 
-async def test_no_sources_answers_from_memory_under_the_memory_prompt(monkeypatch):
+async def test_no_sources_answers_from_memory_under_the_baseline_prompt(monkeypatch):
     model = fake_chat_model()
     install_chat_model(monkeypatch, model)
 
     update = await synthesize(ChatState(question=QUESTION))
 
     (prompt,) = model.received
-    assert prompt[0].content == MEMORY_SYSTEM_PROMPT
+    assert prompt[0].content == BASELINE_SYSTEM_PROMPT
     assert prompt[1].content == QUESTION
     assert update["answer"] == ANSWER
 
 
-def test_memory_prompt_shares_the_style_rules_and_asks_for_no_markers():
+def test_baseline_prompt_shares_the_style_rules_and_asks_for_no_markers():
     shared = "Start directly with the answer"
     assert shared in SYSTEM_PROMPT
-    assert shared in MEMORY_SYSTEM_PROMPT
-    assert "[1]" not in MEMORY_SYSTEM_PROMPT
-    assert "context blocks" not in MEMORY_SYSTEM_PROMPT
+    assert shared in BASELINE_SYSTEM_PROMPT
+    assert "[1]" not in BASELINE_SYSTEM_PROMPT
+    assert "context blocks" not in BASELINE_SYSTEM_PROMPT

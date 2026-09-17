@@ -32,10 +32,10 @@ SYSTEM_PROMPT = (
     "Refer to an act by the name and number the context gives it; never invent a title for one."
 )
 
-MEMORY_SYSTEM_PROMPT = (
+BASELINE_SYSTEM_PROMPT = (
     f"{ROLE}"
     "Answer from what you know of the regulations, naming the act and article each claim "
-    "rests on. If you do not know the answer, say so plainly instead of guessing. "
+    "rests on. "
     f"{STYLE}"
     "Refer to an act by its official name and number; never invent a title for one."
 )
@@ -57,7 +57,7 @@ async def synthesize(state: ChatState) -> dict[str, Any]:
     A transient provider failure is retried like embed and rerank; one that strikes
     mid-stream restarts the answer, so its tokens reach the client twice.
     """
-    base = SYSTEM_PROMPT if state.sources else MEMORY_SYSTEM_PROMPT
+    base = SYSTEM_PROMPT if state.sources else BASELINE_SYSTEM_PROMPT
     user = build_user_message(state.question, state.sources) if state.sources else state.question
     messages = [
         SystemMessage(system_prompt(base, state.history)),
