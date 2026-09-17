@@ -8,13 +8,13 @@ export function CitationChip({
 }: {
 	marker: number
 	label: number
-	onOpen: (marker: number) => void
+	onOpen: (marker: number, anchor: Element) => void
 }) {
 	return (
 		<button
 			type="button"
 			aria-label={`Open source ${label}`}
-			onClick={() => onOpen(marker)}
+			onClick={(event) => onOpen(marker, event.currentTarget)}
 			className={`${CITATION_BADGE} relative ml-0.75 align-[1px] leading-none transition-colors after:absolute after:-inset-x-1 after:-inset-y-2 hover:bg-primary/25`}
 		>
 			{label}

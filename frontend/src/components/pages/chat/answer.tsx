@@ -15,7 +15,7 @@ export function Answer({
 }: {
 	answer: string
 	sources: ChatSource[]
-	onOpenMarker: (marker: number) => void
+	onOpenMarker: (marker: number, anchor: Element) => void
 }) {
 	const known = useMemo(
 		() => new Set(sources.map((source) => source.marker)),

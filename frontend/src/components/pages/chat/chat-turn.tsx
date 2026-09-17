@@ -1,5 +1,5 @@
 import { CircleAlertIcon, PlusIcon, RotateCcwIcon } from "lucide-react"
-import { memo } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
@@ -9,9 +9,11 @@ import {
 	type TurnFailure,
 	turnFailure,
 } from "@/lib/chat-turns"
+import { citedSources } from "@/lib/citations"
 import { Answer } from "./answer"
-import { AnswerActions } from "./answer-actions"
+import { CopyAnswerButton } from "./copy-answer-button"
 import { RunSteps } from "./run-steps"
+import { SourcesPopover, type SourcesView } from "./sources-popover"
 
 const FAILURE_MESSAGES: Record<TurnFailure, string> = {
 	thread_full: "Maximum chat turns reached.",
@@ -56,19 +58,34 @@ function TurnError({
 
 export const ChatTurn = memo(function ChatTurn({
 	turn,
-	isSourcesOpen,
-	onOpenMarker,
-	onToggleSources,
 	onRetry,
 	onNewThread,
 }: {
 	turn: Turn
-	isSourcesOpen: boolean
-	onOpenMarker: (marker: number) => void
-	onToggleSources: () => void
 	onRetry: () => void
 	onNewThread: () => void
 }) {
+	const [sourcesView, setSourcesView] = useState<SourcesView | null>(null)
+	const isSettled = turn.status === "settled"
+	const needsCited = isSettled || sourcesView !== null
+	const cited = useMemo(
+		() => (needsCited ? citedSources(turn.answer, turn.sources) : []),
+		[needsCited, turn.answer, turn.sources],
+	)
+
+	const openSource = useCallback((marker: number, anchor: Element) => {
+		setSourcesView({ marker, anchor })
+	}, [])
+
+	const sourcesPopover = (
+		<SourcesPopover
+			cited={cited}
+			view={sourcesView}
+			showTrigger={isSettled && cited.length > 0}
+			onViewChange={setSourcesView}
+		/>
+	)
+
 	return (
 		<div className="flex flex-col gap-3.5">
 			<Message align="end">
@@ -98,16 +115,18 @@ export const ChatTurn = memo(function ChatTurn({
 							<Answer
 								answer={turn.answer}
 								sources={turn.sources}
-								onOpenMarker={onOpenMarker}
+								onOpenMarker={openSource}
 							/>
-							{turn.status === "settled" && (
-								<AnswerActions
-									answer={turn.answer}
-									sources={turn.sources}
-									isSourcesOpen={isSourcesOpen}
-									onToggleSources={onToggleSources}
-									onOpenSource={onOpenMarker}
-								/>
+							{isSettled ? (
+								<div className="fade-in -mx-1 flex animate-in items-center duration-300">
+									<CopyAnswerButton
+										answer={turn.answer}
+										sources={turn.sources}
+									/>
+									{sourcesPopover}
+								</div>
+							) : (
+								sourcesPopover
 							)}
 						</>
 					)}
