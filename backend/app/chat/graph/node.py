@@ -46,7 +46,7 @@ def traced(run: NodeFn) -> NodeFn:
     return traced_run
 
 
-def chat_model(*, streaming: bool = True) -> ChatLiteLLM:
+def chat_model(*, streaming: bool = True, thinking: bool = False) -> ChatLiteLLM:
     """A chat client built per call, so config is read at call time like embed's. Every node
     calls CHAT_MODEL — they are steps of one answer, not jobs tuned apart — with the key of
     whichever provider it names.
@@ -56,13 +56,25 @@ def chat_model(*, streaming: bool = True) -> ChatLiteLLM:
     token event; assess wants that one blocking call, so it turns streaming off.
     Usage is asked for, or litellm strips it from every streamed chunk and the run's
     tokens are never reported for a non-OpenAI model; it is read on the streamed path only.
+    Thinking gives the call its budget on top of the answer's cap, at the temperature of 1
+    the provider requires alongside it.
     """
+    sampling: dict[str, Any] = {
+        "max_tokens": config.CHAT_MAX_TOKENS,
+        "temperature": config.CHAT_TEMPERATURE,
+    }
+    if thinking:
+        budget = config.CHAT_THINKING_BUDGET
+        sampling = {
+            "max_tokens": config.CHAT_MAX_TOKENS + budget,
+            "temperature": 1.0,
+            "model_kwargs": {"thinking": {"type": "enabled", "budget_tokens": budget}},
+        }
     return ChatLiteLLM(
         model=config.CHAT_MODEL,
         api_key=api_key_for(config.CHAT_MODEL),
-        max_tokens=config.CHAT_MAX_TOKENS,
-        temperature=config.CHAT_TEMPERATURE,
         request_timeout=config.CHAT_TIMEOUT,
         streaming=streaming,
         stream_options={"include_usage": True},
+        **sampling,
     )

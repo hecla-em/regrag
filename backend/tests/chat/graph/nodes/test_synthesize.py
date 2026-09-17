@@ -151,6 +151,16 @@ async def test_the_chat_client_answers_with_the_text_of_a_reasoning_response(
     assert state.answer == ANSWER
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_the_answer_call_thinks_only_when_switched_on(one_result, monkeypatch, enabled):
+    monkeypatch.setattr(config, "CHAT_THINKING_ENABLED", enabled)
+    calls = litellm_stream(monkeypatch, {"role": "assistant", "content": ANSWER})
+
+    await run_graph()
+
+    assert ("thinking" in calls[0]) is enabled
+
+
 def test_user_message_puts_context_before_the_question():
     message = build_user_message("What is the limit?", (retrieved_chunk(),))
     assert message.index("[1]") < message.index("Question: What is the limit?")
