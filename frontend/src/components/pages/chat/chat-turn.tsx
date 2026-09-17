@@ -68,7 +68,7 @@ export const ChatTurn = memo(function ChatTurn({
 		<div className="flex flex-col gap-4">
 			<Message align="end">
 				<MessageContent>
-					<Bubble align="end">
+					<Bubble align="end" variant="secondary">
 						<BubbleContent>{turn.question}</BubbleContent>
 					</Bubble>
 				</MessageContent>
