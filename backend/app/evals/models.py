@@ -10,7 +10,7 @@ from app.evals.dataset.models import CaseSelection, EvalCase
 from app.evals.judge.models import CaseJudgement
 
 
-class EvalResult(FrozenModel):
+class EvalCaseResult(FrozenModel):
     """One case driven through the chat graph: the case, and the run it produced — the
     same state a chat request ends in, so a run is scored off what production records."""
 
@@ -106,7 +106,7 @@ class EvalMetrics(FrozenModel):
     usage: Usage
 
 
-class EvalRun(FrozenModel):
+class EvalRunResult(FrozenModel):
     """One eval run: which dataset and settings it scored, what it measured, and every case.
 
     dataset_sha hashes what the cases assert; selection names the subset actually scored.
@@ -130,7 +130,7 @@ class EvalRun(FrozenModel):
     judged: bool = False
     settings: dict[str, Any]
     metrics: EvalMetrics
-    results: tuple[EvalResult, ...]
+    results: tuple[EvalCaseResult, ...]
 
     @property
     def judge_never_answered(self) -> bool:

@@ -9,7 +9,7 @@ from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.llm.cache import call_cache_enabled
 from app.evals.dataset.models import EvalCase, EvalDataset
 from app.evals.metrics import compute_metrics
-from app.evals.models import EvalMetrics, EvalResult
+from app.evals.models import EvalCaseResult, EvalMetrics
 from app.evals.service import evaluate_case
 from app.evals.tune.models import TunableParam, TuneResult, TuneRun
 
@@ -21,7 +21,9 @@ async def retrieve_graph(state: ChatState) -> dict[str, Any]:
 
 async def _measure(cases: tuple[EvalCase, ...]) -> EvalMetrics:
     """Run the selected cases through retrieval alone and score what it found."""
-    results: list[EvalResult] = [await evaluate_case(case, graph=retrieve_graph) for case in cases]
+    results: list[EvalCaseResult] = [
+        await evaluate_case(case, graph=retrieve_graph) for case in cases
+    ]
     return compute_metrics(results)
 
 

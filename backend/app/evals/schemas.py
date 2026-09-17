@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.db.schema import BaseSchema
 
 
-class EvalRunRecord(BaseSchema):
+class EvalRun(BaseSchema):
     """One stored eval run: the code, models and dataset it scored, and its EvalMetrics.
     Settings and metrics are JSONB, since their shape grows with the config and the metrics."""
 

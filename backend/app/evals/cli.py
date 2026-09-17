@@ -3,7 +3,10 @@
 
 import argparse
 import asyncio
+import logging
 from typing import Any
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import config
 from app.core.db.session import get_session
@@ -20,11 +23,13 @@ from app.evals.dataset.cli import (
 )
 from app.evals.dataset.exceptions import DatasetError
 from app.evals.dataset.models import CaseSelection, EvalDataset
-from app.evals.models import EvalRun
+from app.evals.models import EvalRunResult
 from app.evals.report import format_case_lines, format_run_comparison
-from app.evals.schemas import EvalRunRecord
+from app.evals.schemas import EvalRun
 from app.evals.service import create_eval_run, evaluate_all_cases, get_eval_run
 from app.evals.tune.cli import register_tune_command, run_tune
+
+logger = logging.getLogger(__name__)
 
 
 def register_run_command(commands: Any) -> None:
@@ -77,10 +82,22 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-async def store_eval_run(run: EvalRun) -> int:
-    async with get_session() as session:
-        record = await create_eval_run(session, run)
-    return record.id
+async def score_dataset(
+    dataset: EvalDataset, *, judge: bool, store: bool
+) -> tuple[EvalRunResult, int | None]:
+    """Score the dataset against the corpus as it stands, then store the run unless told not
+    to. A failed store is logged, not raised, so the scores of a paid run still print."""
+    drifted, corpus_version = await check_against_corpus(dataset)
+    result = await evaluate_all_cases(dataset, corpus_version, stale_case_ids(drifted), judge=judge)
+    if not store:
+        return result, None
+    try:
+        async with get_session() as session:
+            run = await create_eval_run(session, result)
+    except SQLAlchemyError:
+        logger.exception("eval run was not stored")
+        return result, None
+    return result, run.id
 
 
 def run_evals(
@@ -93,24 +110,23 @@ def run_evals(
     """Score the dataset, print what it measured, the cases first when asked for, and store
     the run unless told not to."""
     dataset = EvalDataset.load(selection=selection)
-    drifted, corpus_version = asyncio.run(check_against_corpus(dataset))
-
     if cached:
         enable_call_cache(config.EVAL_CACHE_DIR)
 
-    run = asyncio.run(
-        evaluate_all_cases(dataset, corpus_version, stale_case_ids(drifted), judge=judge)
-    )
+    result, run_id = asyncio.run(score_dataset(dataset, judge=judge, store=store))
     if verbose:
-        print("\n".join(format_case_lines(run.results)), end="\n\n")
+        print("\n".join(format_case_lines(result.results)), end="\n\n")
 
-    print(run.summary())
-    if store:
-        print(f"\nstored as eval run {asyncio.run(store_eval_run(run))}")
-    return 1 if run.metrics.counts.errors or run.judge_never_answered else 0
+    print(result.summary())
+    if run_id is not None:
+        print(f"\nstored as eval run {run_id}")
+    elif store:
+        print("\nthe run was not stored: see the error above")
+    failed = result.metrics.counts.errors or result.judge_never_answered
+    return 1 if failed or (store and run_id is None) else 0
 
 
-async def load_eval_runs(*run_ids: int) -> list[EvalRunRecord]:
+async def load_eval_runs(*run_ids: int) -> list[EvalRun]:
     async with get_session() as session:
         return [await get_eval_run(session, run_id) for run_id in run_ids]
 

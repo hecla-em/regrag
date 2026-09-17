@@ -20,8 +20,8 @@ from app.core.llm.cache import call_cache_enabled
 from app.evals.dataset.models import EvalCase, EvalDataset
 from app.evals.judge.service import judge_results
 from app.evals.metrics import compute_metrics
-from app.evals.models import EvalResult, EvalRun
-from app.evals.schemas import EvalRunRecord
+from app.evals.models import EvalCaseResult, EvalRunResult
+from app.evals.schemas import EvalRun
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ async def _full_chat_graph(state: ChatState) -> dict[str, Any]:
     return await chat_graph.ainvoke(state)
 
 
-async def evaluate_case(case: EvalCase, graph: EvalGraph = _full_chat_graph) -> EvalResult:
+async def evaluate_case(case: EvalCase, graph: EvalGraph = _full_chat_graph) -> EvalCaseResult:
     """One case driven to the state a chat request ends in — through the whole chat graph
     unless told otherwise. A case the driver raises on is recorded by name, not raised:
     the run goes on."""
@@ -49,7 +49,7 @@ async def evaluate_case(case: EvalCase, graph: EvalGraph = _full_chat_graph) -> 
         else:
             logger.exception("eval case %s failed unexpectedly", case.id)
     state.total_ms = elapsed_ms(start)
-    return EvalResult(case=case, state=state)
+    return EvalCaseResult(case=case, state=state)
 
 
 async def evaluate_all_cases(
@@ -58,7 +58,7 @@ async def evaluate_all_cases(
     stale_cases: tuple[str, ...] = (),
     *,
     judge: bool = True,
-) -> EvalRun:
+) -> EvalRunResult:
     """Every case in the dataset, one at a time, so a per-case timing measures the case alone;
     then, unless told otherwise, the judge over the timed results.
 
@@ -72,7 +72,7 @@ async def evaluate_all_cases(
         results = await judge_results(results)
     settings = get_config_snapshot(EVAL_CONFIG_SECTIONS)
     git_commit, git_dirty = read_git_commit()
-    return EvalRun(
+    return EvalRunResult(
         dataset_sha=dataset.sha256,
         selection=dataset.selection,
         corpus_version=corpus_version,
@@ -87,28 +87,28 @@ async def evaluate_all_cases(
     )
 
 
-async def create_eval_run(session: AsyncSession, run: EvalRun) -> EvalRunRecord:
+async def create_eval_run(session: AsyncSession, result: EvalRunResult) -> EvalRun:
     """The run's setup and metrics as an eval_runs row; the per-case results are not kept."""
-    stored = run.model_dump(
+    json_fields = result.model_dump(
         mode="json", include={"selection", "stale_cases", "settings", "metrics"}
     )
-    record = EvalRunRecord(
-        git_commit=run.git_commit,
-        git_dirty=run.git_dirty,
-        model=run.settings["CHAT_MODEL"],
-        judge_model=run.settings["EVAL_JUDGE_MODEL"] if run.judged else None,
-        dataset_sha=run.dataset_sha,
-        corpus_version=run.corpus_version,
-        cached=run.cached,
-        judged=run.judged,
-        **stored,
+    run = EvalRun(
+        git_commit=result.git_commit,
+        git_dirty=result.git_dirty,
+        model=result.settings["CHAT_MODEL"],
+        judge_model=result.settings["EVAL_JUDGE_MODEL"] if result.judged else None,
+        dataset_sha=result.dataset_sha,
+        corpus_version=result.corpus_version,
+        cached=result.cached,
+        judged=result.judged,
+        **json_fields,
     )
-    return await create_record(session, record)
+    return await create_record(session, run)
 
 
-async def get_eval_run(session: AsyncSession, run_id: int) -> EvalRunRecord:
-    stmt = select(EvalRunRecord).where(EvalRunRecord.id == run_id)
-    record = await session.scalar(stmt)
-    if record is None:
+async def get_eval_run(session: AsyncSession, run_id: int) -> EvalRun:
+    stmt = select(EvalRun).where(EvalRun.id == run_id)
+    run = await session.scalar(stmt)
+    if run is None:
         raise NotFoundError("eval run", run_id)
-    return record
+    return run

@@ -1,8 +1,10 @@
 """Evals CLI: exit codes, what `run` prints and stores, and what `compare` prints."""
 
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
+from sqlalchemy.exc import OperationalError
 
 from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.exceptions import NotFoundError
@@ -11,7 +13,7 @@ from app.evals.cli import main
 from app.evals.dataset.enums import DriftKind
 from app.evals.dataset.models import CaseReference, DriftedReference
 from app.evals.metrics import compute_metrics
-from app.evals.models import EvalRun
+from app.evals.models import EvalRunResult
 from tests.evals.conftest import eval_case, eval_result, passed_judgement, stored_run
 
 
@@ -40,7 +42,7 @@ def fake_run(monkeypatch):
     async def _fake(dataset, corpus_version=None, stale_cases=(), *, judge=True):
         judged.append(judge)
         chosen = tuple(results)
-        return EvalRun(
+        return EvalRunResult(
             dataset_sha=dataset.sha256,
             selection=dataset.selection,
             corpus_version=corpus_version,
@@ -57,15 +59,20 @@ def fake_run(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def stored(monkeypatch) -> list[EvalRun]:
+def stored(monkeypatch) -> list[EvalRunResult]:
     """Record the runs `run` stored, without a database. Autouse so no test here writes one."""
-    stored: list[EvalRun] = []
+    stored: list[EvalRunResult] = []
 
-    async def record(run: EvalRun) -> int:
-        stored.append(run)
-        return 7
+    @asynccontextmanager
+    async def no_session():
+        yield None
 
-    monkeypatch.setattr(cli, "store_eval_run", record)
+    async def record(session, result: EvalRunResult):
+        stored.append(result)
+        return stored_run(7)
+
+    monkeypatch.setattr(cli, "get_session", no_session)
+    monkeypatch.setattr(cli, "create_eval_run", record)
     return stored
 
 
@@ -153,6 +160,22 @@ def test_run_stores_a_run_that_had_errors(fake_run, stored):
 
     assert main(["run"]) == 1
     assert len(stored) == 1
+
+
+def test_a_run_that_could_not_be_stored_still_prints_and_exits_nonzero(
+    fake_run, monkeypatch, capsys
+):
+    async def refuse(session, result):
+        raise OperationalError("insert", {}, Exception("database is down"))
+
+    fake_run.append(judged_result())
+    monkeypatch.setattr(cli, "create_eval_run", refuse)
+
+    assert main(["run"]) == 1
+
+    out = capsys.readouterr().out
+    assert '"raw_recall": 1.0' in out
+    assert "the run was not stored" in out
 
 
 def test_no_store_only_prints(fake_run, stored, capsys):

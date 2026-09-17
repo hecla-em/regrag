@@ -8,8 +8,8 @@ from typing import Any
 from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement
 from app.evals.metrics import score_reference_citation_rate, score_reference_recall
-from app.evals.models import EvalMetrics, EvalResult
-from app.evals.schemas import EvalRunRecord
+from app.evals.models import EvalCaseResult, EvalMetrics
+from app.evals.schemas import EvalRun
 
 INDENT = "    "
 UNMEASURED = "-"
@@ -20,7 +20,7 @@ def format_rate(value: float | None) -> str:
     return f"{value:.2f}" if value is not None else UNMEASURED
 
 
-def _format_case_line(result: EvalResult, width: int) -> str:
+def _format_case_line(result: EvalCaseResult, width: int) -> str:
     """One case on one line: what search found, what reached the prompt, what the answer
     cited of the references the case authors, what the judge scored, then how the run ended."""
     state, references, judgement = result.state, result.case.references, result.judgement
@@ -61,7 +61,7 @@ def _format_critiques(judgement: CaseJudgement) -> list[str]:
     return [INDENT + line for line in lines]
 
 
-def format_case_lines(results: Sequence[EvalResult]) -> list[str]:
+def format_case_lines(results: Sequence[EvalCaseResult]) -> list[str]:
     """Every case as its own line, the id column sized to the longest id in the run, with
     the queries decompose split it into, assess's words for a refusal it asked for, and the
     judge's critiques under any case it did not pass. A case that raised scores nothing, as the
@@ -115,9 +115,9 @@ def _format_delta(base: Any, other: Any) -> str:
     return f"{delta:+.3f}" if isinstance(delta, float) else f"{delta:+d}"
 
 
-def _format_run_header(record: EvalRunRecord) -> str:
-    commit = (record.git_commit or UNMEASURED)[:7] + (" (dirty)" if record.git_dirty else "")
-    return f"#{record.id}  {record.created_at:%Y-%m-%d %H:%M}  {commit}  {record.model}"
+def _format_run_header(run: EvalRun) -> str:
+    commit = (run.git_commit or UNMEASURED)[:7] + (" (dirty)" if run.git_dirty else "")
+    return f"#{run.id}  {run.created_at:%Y-%m-%d %H:%M}  {commit}  {run.model}"
 
 
 def _format_rows(rows: list[tuple[str, str, str, str]]) -> list[str]:
@@ -128,13 +128,13 @@ def _format_rows(rows: list[tuple[str, str, str, str]]) -> list[str]:
     ]
 
 
-def format_run_comparison(base: EvalRunRecord, other: EvalRunRecord) -> str:
+def format_run_comparison(base: EvalRun, other: EvalRun) -> str:
     """Each run's origin, then every metric of both with the other's delta from the base, then
     the settings the two ran with that differ. The metrics are read back through EvalMetrics,
     since JSONB keeps no key order."""
     base_metrics, other_metrics = (
-        _flatten_metrics(EvalMetrics.model_validate(record.metrics).model_dump(mode="json"))
-        for record in (base, other)
+        _flatten_metrics(EvalMetrics.model_validate(run.metrics).model_dump(mode="json"))
+        for run in (base, other)
     )
     header = ("metric", f"#{base.id}", f"#{other.id}", "delta")
     metric_rows = [
