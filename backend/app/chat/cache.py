@@ -1,6 +1,5 @@
-"""The answer cache: a first question's answer and sources in Redis, keyed on the release,
-the last finished ingest and the question as normalized, so a deploy or an ingest retires
-every answer at once — and the decorator that puts it around a run."""
+"""The answer cache: a first question's answer in Redis, keyed so a deploy or a finished
+ingest retires every answer, and the decorator that puts it around a run."""
 
 import functools
 import hashlib
@@ -83,9 +82,8 @@ async def find_answer_key(query: ChatQuery) -> str | None:
 
 
 def cache_stream(run: ChatRun) -> ChatRun:
-    """The run with the answer cache around it. A hit fills the state and sends the sources,
-    the whole answer as one text, and done, with no step frames since no step ran; a miss
-    runs through, and an answered one is kept for the next asker."""
+    """The run with the answer cache around it: a hit fills the state and sends sources, the
+    whole answer and done, and a miss runs through, kept for the next asker if it answered."""
 
     @functools.wraps(run)
     async def cached_run(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEvent, None]:

@@ -69,11 +69,12 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
         state, stream_mode=["tasks", "values", "messages"]
     )
     async for mode, payload in graph_stream:
-        # Starting carries the node's input, finished what it returned — nothing if it raised
         if mode == "tasks":
+            # Node starting
             if "input" in payload:
                 for step in _starting_steps(payload["input"], ChatNode(payload["name"])):
                     yield StepEvent(data=ChatStep.from_result(step))
+            # Node finished, with no steps if it raised
             else:
                 for step in payload["result"].get("steps", ()):
                     yield StepEvent(data=ChatStep.from_result(step))
@@ -88,12 +89,11 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
 
             if state.last_step is ChatNode.REFUSE:
                 yield TextEvent(data=state.answer)
-        # Node running
+        # Answer tokens
         else:
             chunk, metadata = payload
             if metadata.get("langgraph_node") != ChatNode.SYNTHESIZE:
                 continue
-            # Stream answer text
             if text := chunk.text:
                 yield TextEvent(data=text)
 
@@ -139,10 +139,8 @@ async def run_graph(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEv
 async def record_run(
     state: ChatState, events: AsyncIterator[ChatEvent]
 ) -> AsyncGenerator[ChatEvent, None]:
-    """Any run as the ledger sees it: timed, ended by an error event if it raises, and
-    recorded however it ends — done, cached, refused, error, or the client leaving, which
-    cancels this task — as one chat request, in its own session, shielded from that
-    cancellation. A failed write is logged, not raised: the answer already went out."""
+    """The run, timed, ended by an error event if it raises, and recorded as one chat request
+    however it ends, the client leaving included. A failed write is logged, not raised."""
     start = time.perf_counter()
     try:
         async for event in events:
