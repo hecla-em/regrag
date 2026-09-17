@@ -77,8 +77,6 @@ A thread holds at most `CHAT_THREAD_TURNS` answered turns; the next question on 
 
 `cache_stream` decorates `run_graph`. A first question, one sent without a `thread_id`, is looked up in Redis, and a hit sends `sources`, the whole answer as one `text` frame, and `done`, with no `step` frames and no spend-cap check. Only an answered first question is kept.
 
-The key is `chat:answer:{BUILD_ID}:{latest finished ingest run}:{sha256(normalized question)}`, so a deploy or a finished ingest retires every answer and nothing flushes Redis. Normalization undoes only how the question was typed and keeps every word. Redis unreachable, or an entry that no longer parses, is a miss. `CHAT_CACHE_ENABLED=false` turns it off.
-
 ## The ledger
 
 Every request is recorded however it ended — answered, served from the cache, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step it ran through, holding the question, the outcome, and the timings and tokens each step spent. A step is a graph node, or one tool call an assess round ran, named `tool_search` / `tool_follow_reference` so one column holds both. It is what a spend cap sums over and what a slow path is diagnosed from.

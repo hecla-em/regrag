@@ -1,5 +1,6 @@
 """Chat test fakes shared across the chat test modules."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
@@ -16,9 +17,11 @@ from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from pydantic import Field
 from redis.asyncio import Redis
 
-from app.chat.cache import normalize_question
+from app.chat.cache import normalize_question, pending_stores
+from app.chat.events import ChatEvent
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatState
+from app.chat.models import ChatQuery, ChatState
+from app.chat.stream import stream_chat_events
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.redis import redis_client
@@ -316,6 +319,18 @@ def hits_for(monkeypatch: pytest.MonkeyPatch, **per_query: tuple) -> list[Search
 
     install_search(monkeypatch, fake_search)
     return requests
+
+
+async def settle_stores() -> None:
+    """Wait out the answer stores a finished stream left in flight."""
+    await asyncio.gather(*pending_stores)
+
+
+async def collect_events(query: ChatQuery) -> list[ChatEvent]:
+    """Every event one question's stream sends, run to the end, its answer store landed."""
+    events = [event async for event in stream_chat_events(query)]
+    await settle_stores()
+    return events
 
 
 FUELEU_KEY = "chat:answer:v1:what is fueleu"

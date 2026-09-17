@@ -35,12 +35,15 @@ async def get_latest_corpus_version(session: AsyncSession) -> str | None:
     return await session.scalar(stmt)
 
 
-async def get_latest_finished_run_id(session: AsyncSession) -> int | None:
-    """The most recent run that has finished, whatever its status: every one that ran
-    committed what it got through."""
+async def get_latest_unsuccessful_run_id(session: AsyncSession) -> int | None:
+    """The most recent finished run that did not succeed: it committed what it got through,
+    yet minted no corpus version to show the corpus moved."""
     stmt = (
         select(IngestRun.id)
-        .where(IngestRun.completed_at.is_not(None))
+        .where(
+            IngestRun.completed_at.is_not(None),
+            IngestRun.status != IngestRunStatus.SUCCESS,
+        )
         .order_by(IngestRun.id.desc())
         .limit(1)
     )

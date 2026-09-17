@@ -9,7 +9,12 @@ import httpx
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.core.config import config
 from app.core.llm.errors import LLMError
-from tests.chat.conftest import THINKING, fake_chat_model, reasoning_chat_model
+from tests.chat.conftest import (
+    THINKING,
+    fake_chat_model,
+    reasoning_chat_model,
+    settle_stores,
+)
 from tests.conftest import install_chat_model, install_search
 
 
@@ -231,12 +236,13 @@ def test_a_malformed_thread_id_is_rejected(client):
 
 
 def test_a_repeated_question_is_answered_from_the_cache(cached_client, two_results, answer_model):
-    """Over the app's own Redis, as the route's dependency hands it to the stream."""
+    """Over the app's own Redis, through the real route."""
     for _ in range(2):
         with cached_client.stream(
             "POST", "/chat", json={"question": "What is FuelEU?"}
         ) as response:
             events = read_events(response)
+        cached_client.portal.call(settle_stores)
 
     assert [name for name, _ in events] == ["sources", "text", "done"]
     assert first_payload(events, "text") == "Answered [1]."

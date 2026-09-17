@@ -213,9 +213,8 @@ class ChatState(AppModel):
     @computed_field
     @property
     def outcome(self) -> ChatOutcome:
-        """How the run ended, read off the path and the error: a stream that raised, one
-        served from the cache, one the gate refused, one that answered, or one the client
-        left before either."""
+        """How the run ended, read off the error, the cache flag and the path: raised, served
+        from the cache, refused, answered, or left by the client before any of them."""
         visited = {result.step for result in self.steps}
         if self.error:
             return ChatOutcome.ERROR

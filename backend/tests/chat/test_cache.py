@@ -9,11 +9,16 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat import cache
-from app.chat.cache import answer_key, lookup_answer, normalize_question, store_answer
+from app.chat.cache import (
+    answer_key,
+    hash_answer_settings,
+    lookup_answer,
+    normalize_question,
+    store_answer,
+)
 from app.chat.enums import ChatOutcome
-from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, TextEvent
+from app.chat.events import DoneEvent, ErrorEvent, SourcesEvent, TextEvent
 from app.chat.models import CachedAnswer, ChatQuery, ChatTurn
-from app.chat.stream import stream_chat_events
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.db.crud import create_record
@@ -22,6 +27,7 @@ from app.ingestion.enums import IngestRunStatus
 from app.ingestion.schemas import IngestRun
 from tests.chat.conftest import (
     FUELEU_KEY,
+    collect_events,
     fake_chat_model,
     install_versioned_key,
     restated_message,
@@ -50,43 +56,63 @@ def test_normalization_keeps_punctuation_inside_the_question() -> None:
     assert normalize_question("Article 5(1)?") != normalize_question("Article 51?")
 
 
-async def record_run(session: AsyncSession, status: IngestRunStatus) -> IngestRun:
+async def add_ingest_run(
+    session: AsyncSession, status: IngestRunStatus, corpus_version: str | None = None
+) -> IngestRun:
     completed_at = None if status is IngestRunStatus.RUNNING else utc_now()
-    return await create_record(session, IngestRun(status=status, completed_at=completed_at))
+    run = IngestRun(status=status, completed_at=completed_at, corpus_version=corpus_version)
+    return await create_record(session, run)
 
 
 async def test_the_key_is_one_per_normalized_question(db_session: AsyncSession) -> None:
-    run = await record_run(db_session, IngestRunStatus.SUCCESS)
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
 
     key = await answer_key(db_session, "What is FuelEU?")
 
+    settings = hash_answer_settings()[:12]
     assert key is not None
-    assert key.startswith(f"chat:answer:{config.BUILD_ID}:{run.id}:")
+    assert key.startswith(f"chat:answer:{config.BUILD_ID}:{settings}:2026-09-17-abc:0:")
     assert key == await answer_key(db_session, "  what is fueleu ")
     assert key != await answer_key(db_session, "What is MRV?")
 
 
-@pytest.mark.parametrize(
-    "status", [IngestRunStatus.SUCCESS, IngestRunStatus.FAILED, IngestRunStatus.ABORTED]
-)
-async def test_any_finished_ingest_moves_every_key(
-    db_session: AsyncSession, status: IngestRunStatus
-) -> None:
-    """A run that failed some documents still committed the rest, so it retires answers too."""
-    await record_run(db_session, IngestRunStatus.SUCCESS)
+async def test_a_run_over_an_unchanged_corpus_keeps_the_key(db_session: AsyncSession) -> None:
+    """The nightly ingest finishes a run every day, and most days nothing moved."""
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
     before = await answer_key(db_session, "What is FuelEU?")
 
-    await record_run(db_session, status)
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
+
+    assert await answer_key(db_session, "What is FuelEU?") == before
+
+
+async def test_a_new_corpus_version_moves_every_key(db_session: AsyncSession) -> None:
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
+    before = await answer_key(db_session, "What is FuelEU?")
+
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-18-def")
+
+    assert await answer_key(db_session, "What is FuelEU?") != before
+
+
+@pytest.mark.parametrize("status", [IngestRunStatus.FAILED, IngestRunStatus.ABORTED])
+async def test_an_unsuccessful_ingest_moves_every_key(
+    db_session: AsyncSession, status: IngestRunStatus
+) -> None:
+    """A run that failed some documents still committed the rest, with no version to show it."""
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
+    before = await answer_key(db_session, "What is FuelEU?")
+
+    await add_ingest_run(db_session, status)
 
     assert await answer_key(db_session, "What is FuelEU?") != before
 
 
 async def test_a_run_still_going_keeps_the_key_until_it_finishes(db_session: AsyncSession) -> None:
-    """Answers written mid-run then die with the key the finished run replaces."""
-    await record_run(db_session, IngestRunStatus.SUCCESS)
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
     before = await answer_key(db_session, "What is FuelEU?")
 
-    await record_run(db_session, IngestRunStatus.RUNNING)
+    await add_ingest_run(db_session, IngestRunStatus.RUNNING)
 
     assert await answer_key(db_session, "What is FuelEU?") == before
 
@@ -95,7 +121,7 @@ async def test_a_new_build_moves_every_key(
     db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A deploy can change the chunker, prompts or model without any ingest running."""
-    await record_run(db_session, IngestRunStatus.SUCCESS)
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
     before = await answer_key(db_session, "What is FuelEU?")
 
     monkeypatch.setattr(config, "BUILD_ID", "registry.fly.io/regrag:deployment-2")
@@ -103,8 +129,32 @@ async def test_a_new_build_moves_every_key(
     assert await answer_key(db_session, "What is FuelEU?") != before
 
 
-async def test_there_is_no_key_before_an_ingest_has_finished(db_session: AsyncSession) -> None:
-    await record_run(db_session, IngestRunStatus.RUNNING)
+def test_a_setting_that_shapes_answers_moves_the_settings_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A secrets-only release restarts the same image, so the build alone would not show it."""
+    before = hash_answer_settings()
+
+    monkeypatch.setattr(config, "CHAT_MODEL", "anthropic/claude-sonnet-5")
+
+    assert hash_answer_settings() != before
+
+
+def test_the_cache_settings_stay_out_of_the_settings_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    before = hash_answer_settings()
+
+    monkeypatch.setattr(config, "CHAT_CACHE_TTL_SECONDS", 60)
+
+    assert hash_answer_settings() == before
+
+
+@pytest.mark.parametrize("status", [IngestRunStatus.RUNNING, IngestRunStatus.FAILED])
+async def test_there_is_no_key_before_a_corpus_version(
+    db_session: AsyncSession, status: IngestRunStatus
+) -> None:
+    await add_ingest_run(db_session, status)
 
     assert await answer_key(db_session, "What is FuelEU?") is None
 
@@ -142,14 +192,14 @@ async def test_redis_away_is_a_logged_miss_and_a_logged_skip(
     redis = unreachable_redis()
     answer = CachedAnswer(answer="a", sources=())
 
-    with caplog.at_level(logging.ERROR, logger=cache.logger.name):
+    with caplog.at_level(logging.WARNING, logger=cache.logger.name):
         assert await lookup_answer(redis, "chat:answer:v:k") is None
         await store_answer(redis, "chat:answer:v:k", answer)
 
-    assert [record.getMessage() for record in caplog.records] == [
-        "answer cache lookup failed; running the graph",
-        "answer not cached",
-    ]
+    lookup, store = caplog.records
+    assert (lookup.levelno, store.levelno) == (logging.WARNING, logging.WARNING)
+    assert lookup.getMessage().startswith("answer cache lookup failed, running the graph: ")
+    assert store.getMessage().startswith("answer not cached: ")
     await redis.aclose()
 
 
@@ -159,11 +209,6 @@ def cache_on(monkeypatch, answer_cache):
     install_versioned_key(monkeypatch)
     monkeypatch.setattr("app.chat.cache.redis_client", answer_cache)
     return answer_cache
-
-
-async def collect_events(query: ChatQuery) -> list[ChatEvent]:
-    """Every event one question's stream sends, run to the end."""
-    return [event async for event in stream_chat_events(query)]
 
 
 FUELEU = ChatQuery(question="What is FuelEU?")

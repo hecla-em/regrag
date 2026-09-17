@@ -13,7 +13,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.chat import stream
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
-from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, StepEvent, TextEvent
+from app.chat.events import DoneEvent, ErrorEvent, SourcesEvent, StepEvent, TextEvent
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import ChatQuery, ChatTurn, Refusal
 from app.chat.stream import stream_chat_events
@@ -21,6 +21,7 @@ from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
     RecordingChatModel,
+    collect_events,
     fake_chat_model,
     restated_message,
     tool_call_message,
@@ -28,11 +29,6 @@ from tests.chat.conftest import (
 from tests.conftest import REPORTED_USAGE, USAGE, install_chat_model, install_search, search_result
 
 pytestmark = pytest.mark.anyio
-
-
-async def collect_events(query: ChatQuery) -> list[ChatEvent]:
-    """Every event one question's stream sends, run to the end."""
-    return [event async for event in stream_chat_events(query)]
 
 
 async def test_finished_stream_records_timings_sources_and_usage(

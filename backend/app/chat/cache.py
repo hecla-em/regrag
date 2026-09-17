@@ -1,8 +1,10 @@
-"""The answer cache: a first question's answer in Redis, keyed so a deploy or a finished
-ingest retires every answer, and the decorator that puts it around a run."""
+"""The answer cache: a first question's answer in Redis, keyed so a deploy, a changed setting
+or a moved corpus retires every answer, and the decorator that puts it around a run."""
 
+import asyncio
 import functools
 import hashlib
+import json
 import logging
 import re
 import unicodedata
@@ -16,10 +18,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.chat.enums import ChatOutcome
 from app.chat.events import ChatEvent, ChatThread, DoneEvent, SourcesEvent, TextEvent
 from app.chat.models import CachedAnswer, ChatQuery, ChatState
-from app.core.config import config
+from app.core.config import ANSWER_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.db.session import get_session
 from app.core.redis import redis_client
-from app.ingestion.service import get_latest_finished_run_id
+from app.ingestion.service import get_latest_corpus_version, get_latest_unsuccessful_run_id
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +35,24 @@ def normalize_question(question: str) -> str:
     return TRAILING_PUNCTUATION.sub("", " ".join(folded.split()))
 
 
+def hash_answer_settings() -> str:
+    """The settings that shape an answer, hashed, so changing one retires every answer. The
+    cache's own settings stay out, since they change no answer."""
+    snapshot = get_config_snapshot(ANSWER_CONFIG_SECTIONS)
+    shaping = {name: value for name, value in snapshot.items() if "_CACHE_" not in name}
+    return hashlib.sha256(json.dumps(shaping, sort_keys=True, default=str).encode()).hexdigest()
+
+
 async def answer_key(session: AsyncSession, question: str) -> str | None:
-    """The key a question's answer lives under for this release and corpus, or None before
-    any ingest has finished."""
-    run_id = await get_latest_finished_run_id(session)
-    if run_id is None:
+    """The key a question's answer lives under for this release, settings and corpus, or
+    None before any corpus version exists."""
+    version = await get_latest_corpus_version(session)
+    if version is None:
         return None
+    unsuccessful_run_id = await get_latest_unsuccessful_run_id(session) or 0
+    corpus = f"{version}:{unsuccessful_run_id}"
     digest = hashlib.sha256(normalize_question(question).encode()).hexdigest()
-    return f"chat:answer:{config.BUILD_ID}:{run_id}:{digest}"
+    return f"chat:answer:{config.BUILD_ID}:{hash_answer_settings()[:12]}:{corpus}:{digest}"
 
 
 async def lookup_answer(redis: Redis, key: str) -> CachedAnswer | None:
@@ -48,8 +60,8 @@ async def lookup_answer(redis: Redis, key: str) -> CachedAnswer | None:
     the entry no longer reads as a CachedAnswer."""
     try:
         payload = await redis.get(key)
-    except RedisError:
-        logger.exception("answer cache lookup failed; running the graph")
+    except RedisError as exc:
+        logger.warning("answer cache lookup failed, running the graph: %s", exc)
         return None
     if payload is None:
         return None
@@ -64,8 +76,20 @@ async def store_answer(redis: Redis, key: str, answer: CachedAnswer) -> None:
     """Keep the answer under the key for the configured TTL; a failed write is logged."""
     try:
         await redis.set(key, answer.model_dump_json(), ex=config.CHAT_CACHE_TTL_SECONDS)
-    except RedisError:
-        logger.exception("answer not cached")
+    except RedisError as exc:
+        logger.warning("answer not cached: %s", exc)
+
+
+pending_stores: set[asyncio.Task[None]] = set()
+"""The stores still in flight, held so none is collected before it lands."""
+
+
+def store_in_background(redis: Redis, key: str, answer: CachedAnswer) -> None:
+    """Keep the answer in a task of its own, so the run ends without waiting on Redis and a
+    client leaving on done cannot cancel the write."""
+    task = asyncio.create_task(store_answer(redis, key, answer))
+    pending_stores.add(task)
+    task.add_done_callback(pending_stores.discard)
 
 
 ChatRun = Callable[[ChatQuery, ChatState], AsyncGenerator[ChatEvent, None]]
@@ -98,6 +122,6 @@ def cache_stream(run: ChatRun) -> ChatRun:
             yield event
         if key and state.outcome is ChatOutcome.DONE:
             answer = CachedAnswer(answer=state.answer, sources=state.sources)
-            await store_answer(redis_client, key, answer)
+            store_in_background(redis_client, key, answer)
 
     return cached_run

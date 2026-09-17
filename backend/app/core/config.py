@@ -201,8 +201,9 @@ class ChatConfig(BaseConfig):
         positive: zero would refuse every question on an empty ledger, not switch the cap off.
     CHAT_CACHE_ENABLED: the answer cache's off switch, which serves a repeated first question
         without running the graph; tests switch it off.
-    CHAT_CACHE_TTL_SECONDS: how long a cached answer is kept. A deploy or a finished ingest
-        already retires every answer, so this only bounds how long a dead key holds memory.
+    CHAT_CACHE_TTL_SECONDS: how long a cached answer is kept. A deploy, a changed setting or
+        a moved corpus already retires every answer, so this bounds how long an answer is
+        served over an unchanged corpus, and how long a dead key holds memory.
     """
 
     CHAT_MODEL: str = "anthropic/claude-haiku-4-5"
@@ -394,6 +395,13 @@ EVAL_CONFIG_SECTIONS = (
     DecomposeConfig,
     RetrievalConfig,
     JudgeConfig,
+)
+ANSWER_CONFIG_SECTIONS = (
+    EmbeddingConfig,
+    ChatConfig,
+    AssessConfig,
+    DecomposeConfig,
+    RetrievalConfig,
 )
 
 

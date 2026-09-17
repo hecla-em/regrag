@@ -45,9 +45,8 @@ class ChatEventName(StrEnum):
 
 
 class ChatOutcome(StrEnum):
-    """How a chat stream ended: done, served from the answer cache, refused before any model
-    call, an error event, or the client leaving first. An ERROR run's timings cover what
-    ran before the error."""
+    """How a chat stream ended: done, served from the cache, refused before any model call, an
+    error event, or the client leaving first. An ERROR run's timings stop at the error."""
 
     DONE = "done"
     CACHED = "cached"
