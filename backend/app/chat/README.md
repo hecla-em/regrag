@@ -73,10 +73,14 @@ Markers run `1..n` in context order and match the numbering the prompt gave the 
 
 A thread holds at most `CHAT_THREAD_TURNS` answered turns; the next question on a full one ends in an `error` frame naming `ThreadFullError`, and the client starts a new thread by sending no `thread_id`.
 
+## The answer cache
+
+`cache_stream` decorates `run_graph`. A first question, one sent without a `thread_id`, is looked up in Redis, and a hit sends `sources`, the whole answer as one `text` frame, and `done`, with no `step` frames and no spend-cap check. Only an answered first question is kept.
+
 ## The ledger
 
-Every request is recorded however it ended — answered, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step it ran through, holding the question, the outcome, and the timings and tokens each step spent. A step is a graph node, or one tool call an assess round ran, named `tool_search` / `tool_follow_reference` so one column holds both. It is what a spend cap sums over and what a slow path is diagnosed from.
+Every request is recorded however it ended — answered, served from the cache, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step it ran through, holding the question, the outcome, and the timings and tokens each step spent. A step is a graph node, or one tool call an assess round ran, named `tool_search` / `tool_follow_reference` so one column holds both. It is what a spend cap sums over and what a slow path is diagnosed from.
 
 This is deliberately the tracing, in place of a tracing library: the request row has to exist for the spend cap anyway, and the per-step timings come with it. It is a flat span list ordered by `position`, not a tree — a tool step's parent is the assess step before it — which is enough while the graph nests only one level deep.
 
-The row also holds the thread the request belongs to and the answer it gave. That is what a follow-up reads back: the thread's answered rows, oldest first, are its history, so the ledger is the conversation store and nothing else needs to be.
+The row also holds the thread the request belongs to and the answer it gave. That is what a follow-up reads back: the thread's answered rows, cached ones included, oldest first, are its history, so the ledger is the conversation store and nothing else needs to be.

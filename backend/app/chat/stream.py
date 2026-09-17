@@ -5,11 +5,12 @@ import time
 from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.chat.cache import cache_stream
 from app.chat.enums import ChatNode, ChatStepStatus
 from app.chat.events import (
     ChatEvent,
@@ -23,7 +24,7 @@ from app.chat.events import (
 )
 from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatQuery, ChatState, ChatStepResult
+from app.chat.models import ChatQuery, ChatState, ChatStepResult, ChatTurn
 from app.chat.service import create_chat_request, load_thread_history, spent_since
 from app.chat.toolbox.service import build_call_step
 from app.core.clock import elapsed_ms, utc_now
@@ -68,11 +69,12 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
         state, stream_mode=["tasks", "values", "messages"]
     )
     async for mode, payload in graph_stream:
-        # Starting carries the node's input, finished what it returned — nothing if it raised
         if mode == "tasks":
+            # Node starting
             if "input" in payload:
                 for step in _starting_steps(payload["input"], ChatNode(payload["name"])):
                     yield StepEvent(data=ChatStep.from_result(step))
+            # Node finished, with no steps if it raised
             else:
                 for step in payload["result"].get("steps", ()):
                     yield StepEvent(data=ChatStep.from_result(step))
@@ -87,12 +89,11 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
 
             if state.last_step is ChatNode.REFUSE:
                 yield TextEvent(data=state.answer)
-        # Node running
+        # Answer tokens
         else:
             chunk, metadata = payload
             if metadata.get("langgraph_node") != ChatNode.SYNTHESIZE:
                 continue
-            # Stream answer text
             if text := chunk.text:
                 yield TextEvent(data=text)
 
@@ -115,30 +116,34 @@ async def check_spend_cap() -> None:
         raise SpendCapReachedError()
 
 
-async def open_thread(query: ChatQuery) -> ChatState:
-    """The state a question starts from: on a fresh thread, one minted here and no history;
-    on a continued one, its answered turns — or a refusal to add another once it is full."""
-    if query.thread_id is None:
-        return ChatState(question=query.question)
+async def load_history(thread_id: UUID) -> tuple[ChatTurn, ...]:
+    """A continued thread's answered turns — or a refusal to add another once it is full."""
     async with get_session(auto_commit=False) as session:
-        history = await load_thread_history(session, query.thread_id)
+        history = await load_thread_history(session, thread_id)
     if len(history) >= config.CHAT_THREAD_TURNS:
         raise ThreadFullError(config.CHAT_THREAD_TURNS)
-    return ChatState(question=query.question, thread_id=query.thread_id, history=history)
+    return history
 
 
-async def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
-    """One question's events, ended by an error event if the day's spend is capped, the
-    thread is full or the run raises; however it ends — done, refused, error, or the client
-    leaving, which cancels this task — it is recorded as one chat request, in its own
-    session, shielded from that cancellation. A failed write is logged, not raised: the
-    answer already went out."""
-    state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
+@cache_stream
+async def run_graph(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEvent, None]:
+    """The paid path, filling the state as it goes: the spend cap, the thread's history when
+    the question continues one, then the graph."""
+    await check_spend_cap()
+    if query.thread_id is not None:
+        state.history = await load_history(query.thread_id)
+    async for event in _stream_graph_events(state):
+        yield event
+
+
+async def record_run(
+    state: ChatState, events: AsyncIterator[ChatEvent]
+) -> AsyncGenerator[ChatEvent, None]:
+    """The run, timed, ended by an error event if it raises, and recorded as one chat request
+    however it ends, the client leaving included. A failed write is logged, not raised."""
     start = time.perf_counter()
     try:
-        await check_spend_cap()
-        state = await open_thread(query)
-        async for event in _stream_graph_events(state):
+        async for event in events:
             yield event
     except Exception as exc:
         state.record_error(exc)
@@ -151,3 +156,10 @@ async def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None
                     await create_chat_request(session, state)
             except SQLAlchemyError:
                 logger.exception("chat request not recorded")
+
+
+def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
+    """One question's events: the run, recorded on a state made here, its thread minted when
+    the caller sent none. Handed back, not re-yielded, so closing it closes the recorder."""
+    state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
+    return record_run(state, run_graph(query, state))

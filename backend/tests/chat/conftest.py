@@ -1,5 +1,6 @@
 """Chat test fakes shared across the chat test modules."""
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import asynccontextmanager
@@ -8,16 +9,22 @@ from typing import Any
 
 import openai
 import pytest
+from fastapi.testclient import TestClient
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
 from langchain_core.outputs import ChatGenerationChunk, ChatResult
 from pydantic import Field
+from redis.asyncio import Redis
 
+from app.chat.cache import normalize_question, pending_stores
+from app.chat.events import ChatEvent
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatState
+from app.chat.models import ChatQuery, ChatState
+from app.chat.stream import stream_chat_events
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
+from app.core.redis import redis_client
 from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
 from tests.conftest import (
     REPLY_METADATA,
@@ -250,7 +257,7 @@ def no_tool_session(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
-    """Capture the state stream_chat_events hands to create_chat_request, and give it no session
+    """Capture the state record_run hands to create_chat_request, and give it no session
     to hand over: the write is covered in test_service, so no streaming test needs the
     database."""
     states: list[ChatState] = []
@@ -312,3 +319,57 @@ def hits_for(monkeypatch: pytest.MonkeyPatch, **per_query: tuple) -> list[Search
 
     install_search(monkeypatch, fake_search)
     return requests
+
+
+async def settle_stores() -> None:
+    """Wait out the answer stores a finished stream left in flight."""
+    await asyncio.gather(*pending_stores)
+
+
+async def collect_events(query: ChatQuery) -> list[ChatEvent]:
+    """Every event one question's stream sends, run to the end, its answer store landed."""
+    events = [event async for event in stream_chat_events(query)]
+    await settle_stores()
+    return events
+
+
+FUELEU_KEY = "chat:answer:v1:what is fueleu"
+"""Where install_versioned_key files "What is FuelEU?"."""
+
+
+def install_versioned_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Turn the cache on under a fixed key prefix, so no test needs a database for its keys."""
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+
+    @asynccontextmanager
+    async def no_session(**kwargs: Any) -> AsyncIterator[None]:
+        yield None
+
+    async def versioned_key(session: None, question: str) -> str:
+        return f"chat:answer:v1:{normalize_question(question)}"
+
+    monkeypatch.setattr("app.chat.cache.get_session", no_session)
+    monkeypatch.setattr("app.chat.cache.answer_key", versioned_key)
+
+
+@pytest.fixture
+async def answer_cache() -> AsyncIterator[Redis]:
+    """An emptied Redis index opened on the test's own loop, which the app's shared client,
+    bound to the TestClient's loop, cannot serve."""
+    redis = Redis.from_url(
+        config.REDIS_URL,
+        socket_connect_timeout=config.REDIS_TIMEOUT,
+        socket_timeout=config.REDIS_TIMEOUT,
+    )
+    await redis.flushdb()
+    yield redis
+    await redis.aclose()
+
+
+@pytest.fixture
+def cached_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
+    """The answer cache on, in the suite's Redis index, emptied first."""
+    assert client.portal is not None
+    client.portal.call(redis_client.flushdb)
+    install_versioned_key(monkeypatch)
+    return client

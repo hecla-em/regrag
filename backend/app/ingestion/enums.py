@@ -7,7 +7,7 @@ class IngestRunStatus(StrEnum):
     """How a run ended, and so how much of its report can be trusted.
 
     RUNNING: open, and its rows are already visible to readers.
-    SUCCESS: cleared every stage; the only status stamped with a corpus version.
+    SUCCESS: cleared every stage.
     FAILED: ran to the end with documents failing along the way, so the report names every one.
     ABORTED: died partway, so the report covers only what had committed by then.
 

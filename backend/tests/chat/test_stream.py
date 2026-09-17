@@ -21,6 +21,7 @@ from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
     RecordingChatModel,
+    collect_events,
     fake_chat_model,
     restated_message,
     tool_call_message,
@@ -79,7 +80,7 @@ async def test_unexpected_failure_is_recorded_by_its_type_and_sent_as_the_generi
 
     install_search(monkeypatch, exploding_search)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert isinstance(events[-1], ErrorEvent)
     assert events[-1].data.message == "An unexpected error occurred"
@@ -114,7 +115,7 @@ async def test_failed_write_is_logged_not_raised(two_results, monkeypatch, caplo
 
     monkeypatch.setattr("app.chat.stream.create_chat_request", broken_create_chat_request)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert isinstance(events[-1], DoneEvent)
     [error] = [
@@ -156,9 +157,7 @@ async def test_refused_stream_carries_the_refusal_as_its_answer_and_records_it(
 ):
     """No context, so no model call: an empty sources event, the refusal as the one text frame,
     done — and the ledger says refused, with nothing spent past retrieval."""
-    events = [
-        event async for event in stream_chat_events(ChatQuery(question="best pizza topping?"))
-    ]
+    events = await collect_events(ChatQuery(question="best pizza topping?"))
 
     assert step_frames(events) == [
         (ChatNode.RETRIEVE, ChatStepStatus.RUNNING, None),
@@ -190,7 +189,7 @@ async def test_a_refusal_assess_asked_for_sends_the_context_it_read_then_the_ref
     model = fake_chat_model()
     install_chat_model(monkeypatch, model)
 
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert step_frames(events)[4:] == [
         (ToolStep.REFUSE, ChatStepStatus.RUNNING, "nothing bears on it"),
@@ -223,7 +222,7 @@ async def test_each_step_is_announced_as_it_starts_and_again_once_it_finishes(
 ):
     """A trail that only reported finished work would name a step at the moment it stopped
     being true; the running frame is what the reader is actually waiting on."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     assert step_frames(events) == [
         (ChatNode.RETRIEVE, ChatStepStatus.RUNNING, None),
@@ -234,7 +233,7 @@ async def test_each_step_is_announced_as_it_starts_and_again_once_it_finishes(
 
 
 async def test_retrieve_is_running_before_the_sources_it_finds_arrive(two_results, answer_model):
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     first_step = next(i for i, e in enumerate(events) if isinstance(e, StepEvent))
     sources = next(i for i, e in enumerate(events) if isinstance(e, SourcesEvent))
@@ -248,7 +247,7 @@ async def test_retrieve_is_reported_finished_before_the_sources_it_found_arrive(
     """The finished frame comes from the node's task result, the sources from the state
     snapshot after it. Were that order to flip, the sources would land while the trail still
     said retrieve was running."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     finished = next(
         i
@@ -264,7 +263,7 @@ async def test_a_running_step_reports_no_timing_and_the_ledger_never_sees_one(
     two_results, answer_model, recorded_requests
 ):
     """Timing belongs to work that has happened; the path the ledger keeps is finished work."""
-    events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+    events = await collect_events(ChatQuery(question="q"))
 
     steps = [event.data for event in events if isinstance(event, StepEvent)]
     running = [step for step in steps if step.status is ChatStepStatus.RUNNING]
@@ -321,7 +320,7 @@ class TestLoopStreaming:
     async def test_sources_arrive_once_with_the_merged_context(
         self, loop_on, one_result, one_assess_round, answer_model
     ):
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+        events = await collect_events(ChatQuery(question="q"))
 
         sources_events = [e for e in events if isinstance(e, SourcesEvent)]
         assert len(sources_events) == 1
@@ -335,7 +334,7 @@ class TestLoopStreaming:
     ):
         install_chat_model(monkeypatch, fake_chat_model("The answer [1]."))
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+        events = await collect_events(ChatQuery(question="q"))
 
         text = "".join(e.data for e in events if isinstance(e, TextEvent))
         assert text == "The answer [1]."
@@ -345,7 +344,7 @@ class TestLoopStreaming:
     ):
         """The round announces one step per call assess asked for, each carrying the query,
         so the reader sees what is being searched for while it is being searched for."""
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+        events = await collect_events(ChatQuery(question="q"))
 
         running, completed = ChatStepStatus.RUNNING, ChatStepStatus.COMPLETED
         assert step_frames(events) == [
@@ -384,7 +383,7 @@ class TestThreads:
         fake_load, asked = history_of()
         monkeypatch.setattr("app.chat.stream.load_thread_history", fake_load)
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+        events = await collect_events(ChatQuery(question="q"))
 
         done = events[-1]
         assert isinstance(done, DoneEvent)
@@ -410,7 +409,7 @@ class TestThreads:
         install_search(monkeypatch, fake_search)
 
         query = ChatQuery(question="What penalties does it impose?", thread_id=THREAD_ID)
-        events = [event async for event in stream_chat_events(query)]
+        events = await collect_events(query)
 
         assert asked == [THREAD_ID]
         assert [s for s, _, _ in step_frames(events)][:2] == [ChatNode.REWRITE, ChatNode.REWRITE]
@@ -431,7 +430,7 @@ class TestThreads:
         install_chat_model(monkeypatch, model)
 
         query = ChatQuery(question="one more?", thread_id=THREAD_ID)
-        events = [event async for event in stream_chat_events(query)]
+        events = await collect_events(query)
 
         [error] = events
         assert isinstance(error, ErrorEvent)
@@ -461,7 +460,7 @@ class TestSpendCap:
         model = fake_chat_model()
         install_chat_model(monkeypatch, model)
 
-        events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+        events = await collect_events(ChatQuery(question="q"))
 
         [error] = events
         assert isinstance(error, ErrorEvent)
@@ -484,7 +483,7 @@ class TestSpendCap:
         install_chat_model(monkeypatch, fake_chat_model())
 
         with caplog.at_level(logging.INFO, logger=stream.logger.name):
-            events = [event async for event in stream_chat_events(ChatQuery(question="q"))]
+            events = await collect_events(ChatQuery(question="q"))
 
         assert isinstance(events[-1], DoneEvent)
         [spend_line] = [r for r in caplog.records if "spend" in r.getMessage()]

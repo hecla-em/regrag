@@ -73,6 +73,14 @@ class Refusal(FrozenModel):
     explanation: str = ""
 
 
+class CachedAnswer(FrozenModel):
+    """What the answer cache keeps for a question: the answer, and the blocks its [n]
+    markers number."""
+
+    answer: str
+    sources: tuple[RetrievedChunk, ...]
+
+
 class ChatState(AppModel):
     """Everything one question produced, in the order it is produced: what was asked, what
     retrieval built from it, the path the graph took, and how it ended — the last including
@@ -101,6 +109,7 @@ class ChatState(AppModel):
     refusal: why the question ended without an answer, set by the tool round that ran
         assess's refuse call, and by the refuse node itself when nothing was retrieved to
         assess; None on any run that has not refused.
+    cached: whether the answer was served from the answer cache, with no graph run behind it.
     """
 
     # What was asked
@@ -124,6 +133,7 @@ class ChatState(AppModel):
     refusal: Refusal | None = None
     total_ms: int | None = None
     error: str | None = None
+    cached: bool = False
 
     @property
     def last_step(self) -> ChatNode | ToolStep | None:
@@ -203,11 +213,13 @@ class ChatState(AppModel):
     @computed_field
     @property
     def outcome(self) -> ChatOutcome:
-        """How the run ended, read off the path and the error: a stream that raised, one
-        the gate refused, one that answered, or one the client left before either."""
+        """How the run ended, read off the error, the cache flag and the path: raised, served
+        from the cache, refused, answered, or left by the client before any of them."""
         visited = {result.step for result in self.steps}
         if self.error:
             return ChatOutcome.ERROR
+        if self.cached:
+            return ChatOutcome.CACHED
         if ChatNode.REFUSE in visited:
             return ChatOutcome.REFUSED
         if ChatNode.SYNTHESIZE in visited:
