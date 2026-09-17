@@ -9,10 +9,11 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat import cache
-from app.chat.cache import answer_key, cache_stream, lookup_answer, normalize_question, store_answer
+from app.chat.cache import answer_key, lookup_answer, normalize_question, store_answer
 from app.chat.enums import ChatOutcome
 from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, TextEvent
 from app.chat.models import CachedAnswer, ChatQuery, ChatTurn
+from app.chat.stream import stream_chat_events
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.db.crud import create_record
@@ -154,15 +155,15 @@ async def test_redis_away_is_a_logged_miss_and_a_logged_skip(
 
 @pytest.fixture
 def cache_on(monkeypatch, answer_cache):
-    """The answer cache on, over an emptied Redis; the returned client is the one the stream
-    is handed."""
+    """The answer cache on, over an emptied Redis standing in for the shared client."""
     install_versioned_key(monkeypatch)
+    monkeypatch.setattr("app.chat.cache.redis_client", answer_cache)
     return answer_cache
 
 
-async def collect_events(query: ChatQuery, redis: Redis) -> list[ChatEvent]:
+async def collect_events(query: ChatQuery) -> list[ChatEvent]:
     """Every event one question's stream sends, run to the end."""
-    return [event async for event in cache_stream(query, redis)]
+    return [event async for event in stream_chat_events(query)]
 
 
 FUELEU = ChatQuery(question="What is FuelEU?")
@@ -171,13 +172,14 @@ THREAD_ID = UUID("11111111-2222-3333-4444-555555555555")
 
 
 class TestCacheStream:
-    """A repeated first question is answered from Redis, with no graph run behind it."""
+    """The decorator on the graph run: a repeated first question is answered from Redis, and
+    recorded by the same stream as any other."""
 
     async def test_a_repeated_question_replays_the_answer_without_a_model_call(
         self, cache_on, two_results, answer_model, recorded_requests
     ):
-        first = await collect_events(FUELEU, cache_on)
-        second = await collect_events(ChatQuery(question="  what is FUELEU "), cache_on)
+        first = await collect_events(FUELEU)
+        second = await collect_events(ChatQuery(question="  what is FUELEU "))
 
         assert len(answer_model.received) == 1
         assert [event.event for event in second] == ["sources", "text", "done"]
@@ -200,7 +202,7 @@ class TestCacheStream:
 
         monkeypatch.setattr("app.chat.stream.spent_since", spent_the_cap)
 
-        events = await collect_events(FUELEU, cache_on)
+        events = await collect_events(FUELEU)
 
         assert [event.event for event in events] == ["sources", "text", "done"]
 
@@ -218,7 +220,7 @@ class TestCacheStream:
         install_chat_model(monkeypatch, fake_chat_model("Fresh [1]."))
 
         follow_up = ChatQuery(question=FUELEU.question, thread_id=THREAD_ID)
-        events = await collect_events(follow_up, cache_on)
+        events = await collect_events(follow_up)
 
         assert "".join(e.data for e in events if isinstance(e, TextEvent)) == "Fresh [1]."
         assert await cache_on.dbsize() == 1
@@ -226,7 +228,7 @@ class TestCacheStream:
         assert (state.outcome, state.thread_id) == (ChatOutcome.DONE, THREAD_ID)
 
     async def test_a_refusal_is_not_kept(self, cache_on, one_junk_result, answer_model):
-        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU)
 
         assert await cache_on.dbsize() == 0
 
@@ -236,7 +238,7 @@ class TestCacheStream:
 
         install_search(monkeypatch, failing_search)
 
-        events = await collect_events(FUELEU, cache_on)
+        events = await collect_events(FUELEU)
 
         assert isinstance(events[-1], ErrorEvent)
         assert await cache_on.dbsize() == 0
@@ -249,8 +251,8 @@ class TestCacheStream:
 
         monkeypatch.setattr("app.chat.cache.answer_key", no_corpus)
 
-        await collect_events(FUELEU, cache_on)
-        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU)
+        await collect_events(FUELEU)
 
         assert len(answer_model.received) == 2
         assert await cache_on.dbsize() == 0
@@ -260,16 +262,19 @@ class TestCacheStream:
     ):
         monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", False)
 
-        await collect_events(FUELEU, cache_on)
-        await collect_events(FUELEU, cache_on)
+        await collect_events(FUELEU)
+        await collect_events(FUELEU)
 
         assert len(answer_model.received) == 2
         assert await cache_on.dbsize() == 0
 
-    async def test_redis_away_runs_the_graph(self, cache_on, two_results, answer_model):
+    async def test_redis_away_runs_the_graph(
+        self, cache_on, two_results, answer_model, monkeypatch
+    ):
         redis = unreachable_redis()
+        monkeypatch.setattr("app.chat.cache.redis_client", redis)
 
-        events = await collect_events(FUELEU, redis)
+        events = await collect_events(FUELEU)
 
         assert isinstance(events[-1], DoneEvent)
         assert len(answer_model.received) == 1

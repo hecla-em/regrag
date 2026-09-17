@@ -1,16 +1,16 @@
-"""Chat streaming: a run translated into chat events and recorded when it ends, whether the
-run is the graph or an answer already held."""
+"""Chat streaming: the graph run, translated into chat events, and recorded when it ends."""
 
 import logging
 import time
 from collections.abc import AsyncGenerator, AsyncIterator
 from datetime import timedelta
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.chat.cache import cache_stream
 from app.chat.enums import ChatNode, ChatStepStatus
 from app.chat.events import (
     ChatEvent,
@@ -125,6 +125,7 @@ async def load_history(thread_id: UUID) -> tuple[ChatTurn, ...]:
     return history
 
 
+@cache_stream
 async def run_graph(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEvent, None]:
     """The paid path, filling the state as it goes: the spend cap, the thread's history when
     the question continues one, then the graph."""
@@ -133,14 +134,6 @@ async def run_graph(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEv
         state.history = await load_history(query.thread_id)
     async for event in _stream_graph_events(state):
         yield event
-
-
-async def replay_answer(state: ChatState) -> AsyncGenerator[ChatEvent, None]:
-    """A state already holding its answer, as the frames a client needs: the sources, the
-    whole answer as one text, and done. No step frames, since no step ran."""
-    yield SourcesEvent.from_results(state.sources)
-    yield TextEvent(data=state.answer)
-    yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
 
 
 async def record_run(
@@ -165,3 +158,10 @@ async def record_run(
                     await create_chat_request(session, state)
             except SQLAlchemyError:
                 logger.exception("chat request not recorded")
+
+
+def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
+    """One question's events: the run, recorded on a state made here, its thread minted when
+    the caller sent none. Handed back, not re-yielded, so closing it closes the recorder."""
+    state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
+    return record_run(state, run_graph(query, state))

@@ -3,8 +3,7 @@
 import json
 import logging
 import re
-from collections.abc import AsyncGenerator
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import anyio
 import pytest
@@ -16,8 +15,8 @@ from app.chat import stream
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
 from app.chat.events import ChatEvent, DoneEvent, ErrorEvent, SourcesEvent, StepEvent, TextEvent
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
-from app.chat.models import ChatQuery, ChatState, ChatTurn, Refusal
-from app.chat.stream import record_run, run_graph
+from app.chat.models import ChatQuery, ChatTurn, Refusal
+from app.chat.stream import stream_chat_events
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
@@ -31,15 +30,9 @@ from tests.conftest import REPORTED_USAGE, USAGE, install_chat_model, install_se
 pytestmark = pytest.mark.anyio
 
 
-def chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
-    """The graph path as cache_stream composes it on a miss: one question's run, recorded."""
-    state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
-    return record_run(state, run_graph(query, state))
-
-
 async def collect_events(query: ChatQuery) -> list[ChatEvent]:
     """Every event one question's stream sends, run to the end."""
-    return [event async for event in chat_events(query)]
+    return [event async for event in stream_chat_events(query)]
 
 
 async def test_finished_stream_records_timings_sources_and_usage(
@@ -48,7 +41,7 @@ async def test_finished_stream_records_timings_sources_and_usage(
     model = fake_chat_model("Two words [1].")
     install_chat_model(monkeypatch, model)
 
-    async for _ in chat_events(ChatQuery(question="q")):
+    async for _ in stream_chat_events(ChatQuery(question="q")):
         pass
 
     [state] = recorded_requests
@@ -70,7 +63,7 @@ async def test_failed_stream_records_what_it_reached(monkeypatch, recorded_reque
 
     install_search(monkeypatch, failing_search)
 
-    async for _ in chat_events(ChatQuery(question="q")):
+    async for _ in stream_chat_events(ChatQuery(question="q")):
         pass
 
     [state] = recorded_requests
@@ -104,7 +97,7 @@ async def test_abandoned_stream_still_records(two_results, monkeypatch, recorded
     model = fake_chat_model()
     install_chat_model(monkeypatch, model)
 
-    events = chat_events(ChatQuery(question="q"))
+    events = stream_chat_events(ChatQuery(question="q"))
     async for event in events:
         if isinstance(event, SourcesEvent):
             break
@@ -152,7 +145,7 @@ async def test_cancelled_stream_still_records(two_results, monkeypatch, recorded
     async with anyio.create_task_group() as tg:
 
         async def consume_until_sources_then_leave():
-            async for event in chat_events(ChatQuery(question="q")):
+            async for event in stream_chat_events(ChatQuery(question="q")):
                 if isinstance(event, SourcesEvent):
                     tg.cancel_scope.cancel()
 
