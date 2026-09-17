@@ -39,11 +39,9 @@ export function PromptForm({
 
 	function submitQuestion(event: { preventDefault: () => void }) {
 		event.preventDefault()
-		const trimmed = question.trim()
-		const submitted = trimmed !== "" ? trimmed : visibleSuggestion
-		if (submitted === null || submitted === "") return
+		const submitted = question.trim()
+		if (submitted === "") return
 		setQuestion("")
-		setSuggestion(null)
 		onSubmit(submitted)
 	}
 
@@ -85,7 +83,7 @@ export function PromptForm({
 					size="icon-lg"
 					className="rounded-xl"
 					aria-label="Send"
-					onMouseDown={(event) => event.preventDefault()}
+					disabled={question.trim() === ""}
 				>
 					<ArrowUpIcon />
 				</Button>
