@@ -36,7 +36,6 @@ export function turnFailure(turn: ChatTurn): TurnFailure {
 
 export type ChatAction =
 	| { type: "ask"; id: string; question: string }
-	| { type: "retry" }
 	| { type: "settle" }
 	| { type: "fail"; error: ChatError }
 	| { type: "clear" }
@@ -101,18 +100,6 @@ function applyToTurn(turn: ChatTurn, action: ChatAction): ChatTurn {
 	}
 }
 
-function newTurn(id: string, question: string): ChatTurn {
-	return {
-		id,
-		question,
-		answer: "",
-		sources: [],
-		steps: [],
-		status: "pending",
-		error: null,
-	}
-}
-
 /** The turns with a failed last one dropped: a new question replaces it rather than follows it. */
 function withoutFailedTurn(turns: ChatTurn[]): ChatTurn[] {
 	return turns.at(-1)?.status === "failed" ? turns.slice(0, -1) : turns
@@ -121,12 +108,20 @@ function withoutFailedTurn(turns: ChatTurn[]): ChatTurn[] {
 export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
 	if ("type" in action && action.type === "clear") return []
 	if ("type" in action && action.type === "ask") {
-		return [...withoutFailedTurn(turns), newTurn(action.id, action.question)]
+		return [
+			...withoutFailedTurn(turns),
+			{
+				id: action.id,
+				question: action.question,
+				answer: "",
+				sources: [],
+				steps: [],
+				status: "pending",
+				error: null,
+			},
+		]
 	}
 	const current = turns.at(-1)
 	if (current === undefined) return turns
-	if ("type" in action && action.type === "retry") {
-		return [...turns.slice(0, -1), newTurn(current.id, current.question)]
-	}
 	return [...turns.slice(0, -1), applyToTurn(current, action)]
 }

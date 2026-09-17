@@ -1,5 +1,5 @@
 import { PlusIcon } from "lucide-react"
-import { useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	MessageScroller,
@@ -20,11 +20,10 @@ type OpenMarker = { turnId: string; marker: number } | null
 type TurnHandlers = {
 	onOpenMarker: (marker: number) => void
 	onRetry: () => void
-	onNewThread: () => void
 }
 
 export function ChatPage() {
-	const { turns, ask, retry, stop, newThread, isBusy } = useChatStream()
+	const { turns, ask, stop, newThread, isBusy } = useChatStream()
 	const [openMarker, setOpenMarker] = useState<OpenMarker>(null)
 	const handlersByTurnId = useRef(new Map<string, TurnHandlers>())
 
@@ -33,23 +32,17 @@ export function ChatPage() {
 		ask(question)
 	}
 
-	function retryQuestion(question: string) {
-		setOpenMarker(null)
-		retry(question)
-	}
-
-	function startNewThread() {
+	const startNewThread = useCallback(() => {
 		setOpenMarker(null)
 		newThread()
-	}
+	}, [newThread])
 
 	function getTurnHandlers(turnId: string, question: string): TurnHandlers {
 		const cached = handlersByTurnId.current.get(turnId)
 		if (cached !== undefined) return cached
 		const handlers: TurnHandlers = {
 			onOpenMarker: (marker) => setOpenMarker({ turnId, marker }),
-			onRetry: () => retryQuestion(question),
-			onNewThread: startNewThread,
+			onRetry: () => askQuestion(question),
 		}
 		handlersByTurnId.current.set(turnId, handlers)
 		return handlers
@@ -102,7 +95,7 @@ export function ChatPage() {
 													turn={turn}
 													onOpenMarker={handlers.onOpenMarker}
 													onRetry={handlers.onRetry}
-													onNewThread={handlers.onNewThread}
+													onNewThread={startNewThread}
 												/>
 											</MessageScrollerItem>
 										)

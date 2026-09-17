@@ -140,28 +140,6 @@ describe("chatReducer", () => {
 		expect(chatReducer(asked(), { type: "clear" })).toEqual([])
 	})
 
-	it("reruns a failed turn in place when retried", () => {
-		const actions: ChatAction[] = [
-			started("retrieve"),
-			{ event: "text", data: "partial" },
-			{ type: "fail", error: { name: "Error", message: "boom" } },
-			{ type: "retry" },
-		]
-		const turns = actions.reduce(chatReducer, asked())
-
-		expect(turns).toEqual([
-			{
-				id: "t1",
-				question: "q",
-				answer: "",
-				sources: [],
-				steps: [],
-				status: "pending",
-				error: null,
-			},
-		])
-	})
-
 	it("drops a failed turn when a new question is asked", () => {
 		const failed = chatReducer(asked(), {
 			type: "fail",

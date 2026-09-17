@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useReducer, useRef } from "react"
 import { ApiError, streamChat } from "@/api/client"
-import { type ChatAction, chatReducer, isTurnRunning } from "@/lib/chat-turns"
+import { chatReducer, isTurnRunning } from "@/lib/chat-turns"
 import { randomId } from "@/lib/ids"
 
 export function useChatStream() {
@@ -8,11 +8,11 @@ export function useChatStream() {
 	const abort = useRef<AbortController | null>(null)
 	const threadId = useRef<string | null>(null)
 
-	const runTurn = useCallback(async (question: string, begin: ChatAction) => {
+	const ask = useCallback(async (question: string) => {
 		abort.current?.abort()
 		const controller = new AbortController()
 		abort.current = controller
-		dispatch(begin)
+		dispatch({ type: "ask", id: randomId(), question })
 		try {
 			const query = { question, thread_id: threadId.current }
 			for await (const event of streamChat(query, controller.signal)) {
@@ -38,18 +38,6 @@ export function useChatStream() {
 		}
 	}, [])
 
-	const ask = useCallback(
-		(question: string) =>
-			runTurn(question, { type: "ask", id: randomId(), question }),
-		[runTurn],
-	)
-
-	/** Reruns the failed last turn in its own place rather than asking it again below. */
-	const retry = useCallback(
-		(question: string) => runTurn(question, { type: "retry" }),
-		[runTurn],
-	)
-
 	const stop = useCallback(() => {
 		abort.current?.abort()
 		dispatch({ type: "settle" })
@@ -72,7 +60,6 @@ export function useChatStream() {
 	return {
 		turns,
 		ask,
-		retry,
 		stop,
 		newThread,
 		isBusy: current !== undefined && isTurnRunning(current),
