@@ -1,14 +1,18 @@
-import {
-	FuelIcon,
-	GaugeIcon,
-	PanelLeftCloseIcon,
-	PanelLeftOpenIcon,
-	SquarePenIcon,
-} from "lucide-react"
-import { useEffect, useRef } from "react"
-import { Eyebrow } from "@/components/shared/eyebrow"
+import { FuelIcon, GaugeIcon, SquarePenIcon } from "lucide-react"
+import { EYEBROW } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
-import { Button } from "@/components/ui/button"
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarGroup,
+	SidebarGroupLabel,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarTrigger,
+	useSidebar,
+} from "@/components/ui/sidebar"
 import type { TabThread } from "@/lib/chat-threads"
 import { cn } from "@/lib/utils"
 
@@ -18,163 +22,114 @@ const COVERED_TOPICS = [
 	{ key: "mrv", name: "MRV", Icon: GaugeIcon },
 ]
 
-const EASE = "ease-[cubic-bezier(0.16,1,0.3,1)]"
+/** Collapsing fades the words in place, so no icon moves. */
+const FADE =
+	"transition-[opacity,translate] duration-180 ease-[cubic-bezier(0.16,1,0.3,1)] group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:-translate-x-2 group-data-[collapsible=icon]:opacity-0"
 
-const COPY = cn(
-	"transition-[opacity,translate] duration-180 group-data-collapsed/sidebar:pointer-events-none group-data-collapsed/sidebar:-translate-x-2 group-data-collapsed/sidebar:opacity-0",
-	EASE,
+const GROUP_LABEL = cn(
+	"h-6 px-2 font-normal group-data-[collapsible=icon]:mt-0",
+	EYEBROW,
 )
 
-const ROW =
-	"mx-2 h-8 w-52 justify-start gap-1.5 rounded-lg px-2 text-[13px] text-muted-foreground hover:text-foreground group-data-collapsed/sidebar:w-9"
+const ROW = "has-[>svg:first-child]:pl-2"
 
-/** Labels fade as the sidebar narrows to its icons, and every icon keeps its place. The toggle
- * shows only where `onCollapsedChange` is given, so the mobile drawer always opens expanded. */
-export function Sidebar({
+/** Narrows to its icons on desktop and opens as a sheet on mobile. Opening a chat closes the sheet. */
+export function ChatSidebar({
 	threads,
 	activeId,
 	isBusy,
-	collapsed = false,
 	onOpenThread,
-	onCollapsedChange,
-	className,
 }: {
 	threads: TabThread[]
 	activeId: string | null
 	isBusy: boolean
-	collapsed?: boolean
 	onOpenThread: (id: string | null) => void
-	onCollapsedChange?: (collapsed: boolean) => void
-	className?: string
 }) {
-	const collapseButton = useRef<HTMLButtonElement>(null)
-	const expandButton = useRef<HTMLButtonElement>(null)
-	const isToggling = useRef(false)
+	const { state, isMobile, setOpenMobile } = useSidebar()
+	const isCollapsed = state === "collapsed" && !isMobile
 
-	useEffect(() => {
-		if (!isToggling.current) return
-		isToggling.current = false
-		const next = collapsed ? expandButton : collapseButton
-		next.current?.focus()
-	}, [collapsed])
-
-	/** The pressed toggle turns inert, so focus moves to the one that replaces it. */
-	function toggleCollapsed(next: boolean) {
-		isToggling.current = true
-		onCollapsedChange?.(next)
+	function openThread(id: string | null) {
+		setOpenMobile(false)
+		onOpenThread(id)
 	}
 
 	return (
-		<nav
-			aria-label="Chats"
-			data-collapsed={collapsed || undefined}
-			className={cn(
-				"group/sidebar flex min-h-0 shrink-0 overflow-hidden bg-sidebar py-2 text-sidebar-foreground transition-[width] duration-280",
-				EASE,
-				collapsed ? "w-13" : "w-56",
-				className,
-			)}
-		>
-			<div className="flex min-h-0 w-56 shrink-0 flex-col">
-				<div className="relative mb-2 h-10 shrink-0">
-					<HeclaWordmark
-						className={cn("absolute top-3.5 left-4 h-4 text-primary", COPY)}
-					/>
-					{onCollapsedChange && (
-						<>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								ref={collapseButton}
-								aria-label="Collapse sidebar"
-								inert={collapsed}
-								onClick={() => toggleCollapsed(true)}
-								className={cn(
-									"absolute top-1.5 right-2 text-muted-foreground",
-									COPY,
-								)}
-							>
-								<PanelLeftCloseIcon />
-							</Button>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								ref={expandButton}
-								aria-label="Expand sidebar"
-								inert={!collapsed}
-								onClick={() => toggleCollapsed(false)}
-								className="pointer-events-none absolute top-1.5 left-3 text-muted-foreground opacity-0 transition-opacity group-data-collapsed/sidebar:pointer-events-auto group-data-collapsed/sidebar:opacity-100"
-							>
-								<PanelLeftOpenIcon />
-							</Button>
-						</>
-					)}
-				</div>
+		<Sidebar collapsible="icon">
+			<SidebarHeader className="relative h-12">
+				<HeclaWordmark
+					className={cn("absolute top-4 left-4 h-4 text-primary", FADE)}
+				/>
+				<SidebarTrigger className="absolute top-2.5 right-2.5 text-muted-foreground" />
+			</SidebarHeader>
 
-				<Button
-					variant="ghost"
-					title="New question"
-					onClick={() => onOpenThread(null)}
-					disabled={isBusy}
-					className={cn(ROW, "font-medium text-foreground")}
-				>
-					<span className="flex size-5 shrink-0 items-center justify-center">
-						<SquarePenIcon />
-					</span>
-					<span className={COPY}>New question</span>
-				</Button>
+			<SidebarContent>
+				<SidebarGroup className="py-0">
+					<SidebarMenu>
+						<SidebarMenuItem>
+							<SidebarMenuButton
+								tooltip="New question"
+								onClick={() => openThread(null)}
+								disabled={isBusy}
+								className={cn(ROW, "font-medium")}
+							>
+								<SquarePenIcon />
+								<span className={FADE}>New question</span>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					</SidebarMenu>
+				</SidebarGroup>
 
-				<section className="mt-4 flex flex-col gap-1">
-					<Eyebrow className={cn("mx-2 px-2", COPY)}>Topics</Eyebrow>
-					<ul className="flex flex-col gap-px">
+				<SidebarGroup>
+					<SidebarGroupLabel className={cn(GROUP_LABEL, FADE)}>
+						Topics
+					</SidebarGroupLabel>
+					<SidebarMenu>
 						{COVERED_TOPICS.map(({ key, name, Icon }) => (
-							<li
-								key={key}
-								title={name}
-								className="mx-2 flex h-8 items-center gap-1.5 px-2 text-[13px] text-muted-foreground"
-							>
-								<span className="flex size-5 shrink-0 items-center justify-center">
-									<Icon size={16} aria-hidden />
-								</span>
-								<span className={cn("truncate", COPY)}>{name}</span>
-							</li>
+							<SidebarMenuItem key={key}>
+								<SidebarMenuButton
+									tooltip={name}
+									render={<div />}
+									className={cn(
+										ROW,
+										"cursor-default text-muted-foreground hover:bg-transparent hover:text-muted-foreground",
+									)}
+								>
+									<Icon />
+									<span className={FADE}>{name}</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
 						))}
-					</ul>
-				</section>
+					</SidebarMenu>
+				</SidebarGroup>
 
-				<section
-					inert={collapsed}
-					className={cn("mt-4 flex min-h-0 flex-1 flex-col gap-1", COPY)}
+				<SidebarGroup
+					inert={isCollapsed}
+					className={cn("min-h-0 flex-1", FADE)}
 				>
-					<Eyebrow className="mx-2 px-2">Chats</Eyebrow>
+					<SidebarGroupLabel className={GROUP_LABEL}>Chats</SidebarGroupLabel>
 					{threads.length === 0 ? (
-						<p className="mx-2 px-2 py-1.5 text-[12.5px] text-faint-foreground">
+						<p className="px-2 py-1.5 text-[12.5px] text-faint-foreground">
 							No chats yet
 						</p>
 					) : (
-						<ul className="flex min-h-0 flex-col gap-px overflow-y-auto">
+						<SidebarMenu className="min-h-0 overflow-y-auto">
 							{threads.map((thread) => (
-								<li key={thread.id}>
-									<Button
-										variant="ghost"
-										onClick={() => onOpenThread(thread.id)}
-										disabled={isBusy && thread.id !== activeId}
+								<SidebarMenuItem key={thread.id}>
+									<SidebarMenuButton
+										isActive={thread.id === activeId}
 										aria-current={thread.id === activeId ? "page" : undefined}
-										className={cn(
-											ROW,
-											"font-normal aria-[current=page]:bg-sidebar-accent aria-[current=page]:text-sidebar-accent-foreground",
-										)}
+										onClick={() => openThread(thread.id)}
+										disabled={isBusy && thread.id !== activeId}
+										className="text-muted-foreground"
 									>
-										<span className="truncate">
-											{thread.turns[0]?.question}
-										</span>
-									</Button>
-								</li>
+										<span>{thread.turns[0]?.question}</span>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
 							))}
-						</ul>
+						</SidebarMenu>
 					)}
-				</section>
-			</div>
-		</nav>
+				</SidebarGroup>
+			</SidebarContent>
+		</Sidebar>
 	)
 }

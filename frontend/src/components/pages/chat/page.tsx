@@ -1,9 +1,8 @@
-import { MenuIcon, PlusIcon } from "lucide-react"
-import { useCallback, useRef, useState } from "react"
+import { PlusIcon } from "lucide-react"
+import { type CSSProperties, useCallback, useRef } from "react"
 import { Eyebrow } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import { Button } from "@/components/ui/button"
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer"
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -12,36 +11,23 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import { useChatThreads } from "@/hooks/use-chat-threads"
 import {
-	readSidebarCollapsed,
-	storeSidebarCollapsed,
-} from "@/lib/sidebar-collapsed"
+	SidebarInset,
+	SidebarProvider,
+	SidebarTrigger,
+} from "@/components/ui/sidebar"
+import { useChatThreads } from "@/hooks/use-chat-threads"
+import { readSidebarOpen } from "@/lib/sidebar-open"
 import { ChatTurn } from "./chat-turn"
 import { PromptForm } from "./prompt-form"
-import { Sidebar } from "./sidebar"
+import { ChatSidebar } from "./sidebar"
 
 export function ChatPage() {
 	const { threads, thread, ask, stop, openThread, isBusy } = useChatThreads()
-	const [isMenuOpen, setIsMenuOpen] = useState(false)
-	const [isCollapsed, setIsCollapsed] = useState(readSidebarCollapsed)
 	const retriesByTurnId = useRef(new Map<string, () => void>())
 	const turns = thread?.turns ?? []
 
-	const showThread = useCallback(
-		(id: string | null) => {
-			setIsMenuOpen(false)
-			openThread(id)
-		},
-		[openThread],
-	)
-
-	const startNewThread = useCallback(() => showThread(null), [showThread])
-
-	function collapseSidebar(collapsed: boolean) {
-		setIsCollapsed(collapsed)
-		storeSidebarCollapsed(collapsed)
-	}
+	const startNewThread = useCallback(() => openThread(null), [openThread])
 
 	/** One retry per turn, kept stable so a settled turn does not re-render as others stream. */
 	function getRetry(turnId: string, question: string): () => void {
@@ -53,33 +39,23 @@ export function ChatPage() {
 	}
 
 	const isEmpty = turns.length === 0
-	const sidebarProps = {
-		threads,
-		activeId: thread?.id ?? null,
-		isBusy,
-		onOpenThread: showThread,
-	}
 
 	return (
-		<div className="flex h-dvh">
-			<Sidebar
-				{...sidebarProps}
-				collapsed={isCollapsed}
-				onCollapsedChange={collapseSidebar}
-				className="hidden border-r md:flex"
+		<SidebarProvider
+			defaultOpen={readSidebarOpen()}
+			className="h-dvh min-h-0"
+			style={{ "--sidebar-width": "14rem" } as CSSProperties}
+		>
+			<ChatSidebar
+				threads={threads}
+				activeId={thread?.id ?? null}
+				isBusy={isBusy}
+				onOpenThread={openThread}
 			/>
 
-			<main className="flex min-h-0 min-w-0 flex-1 flex-col">
+			<SidebarInset className="min-h-0 min-w-0">
 				<header className="flex h-11.5 shrink-0 items-center gap-2.5 border-b px-3 md:px-5.5">
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						aria-label="Open menu"
-						onClick={() => setIsMenuOpen(true)}
-						className="md:hidden"
-					>
-						<MenuIcon />
-					</Button>
+					<SidebarTrigger className="md:hidden" />
 					{isEmpty ? (
 						<HeclaWordmark className="mr-auto h-4 text-primary md:hidden" />
 					) : (
@@ -144,21 +120,7 @@ export function ChatPage() {
 					</p>
 				</div>
 				{isEmpty && <div className="flex-1" />}
-			</main>
-
-			<Drawer
-				open={isMenuOpen}
-				onOpenChange={setIsMenuOpen}
-				swipeDirection="left"
-			>
-				<DrawerContent className="data-[swipe-axis=x]:[--drawer-content-width:14rem] data-[swipe-axis=x]:sm:[--drawer-content-width:14rem]">
-					<DrawerTitle className="sr-only">Menu</DrawerTitle>
-					<Sidebar
-						{...sidebarProps}
-						className="h-full w-full rounded-[inherit]"
-					/>
-				</DrawerContent>
-			</Drawer>
-		</div>
+			</SidebarInset>
+		</SidebarProvider>
 	)
 }
