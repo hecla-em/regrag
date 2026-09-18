@@ -103,6 +103,14 @@ def test_an_unsplit_case_prints_no_split_line():
     assert "split:" not in line
 
 
+def test_an_answer_using_the_prompts_wording_shows_it_beneath_the_case():
+    result = eval_result(answer="The context does not say.")
+
+    line, wording = format_case_lines((result,))
+
+    assert wording == "    prompt wording: The context"
+
+
 def test_a_case_assess_refused_shows_its_explanation_beneath_it():
     """Runs persist nothing, so the report is the one place a wrongful refusal is read."""
     line, explanation = format_case_lines((assess_refused_result(),))

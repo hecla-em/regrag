@@ -10,9 +10,9 @@ from app.ingestion.celex import format_act_name
 from app.retrieval.models import RetrievedChunk
 
 THREAD_NOTE = (
-    " Earlier turns of the conversation come before the context; read them only to "
-    "understand what the question refers to. They are not context to answer from: cite "
-    "only this turn's numbered blocks."
+    " Earlier turns of the conversation come before the numbered passages; read them only to "
+    "understand what the question refers to. They are not text to answer from: cite "
+    "only this turn's numbered passages."
 )
 
 

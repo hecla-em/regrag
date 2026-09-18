@@ -1,4 +1,4 @@
-import { FuelIcon, GaugeIcon, LandmarkIcon, SquarePenIcon } from "lucide-react"
+import { SquarePenIcon } from "lucide-react"
 import { EYEBROW } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import {
@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/sidebar"
 import type { TabThread } from "@/lib/chat-threads"
 import { cn } from "@/lib/utils"
-
-/** The corpus topics, keyed as the backend's TOPIC_BASE_ACTS keys them. */
-const COVERED_TOPICS = [
-	{ key: "fueleu", name: "FuelEU Maritime", Icon: FuelIcon },
-	{ key: "mrv", name: "MRV", Icon: GaugeIcon },
-	{ key: "ets", name: "EU ETS", Icon: LandmarkIcon },
-]
 
 /** Collapsing fades the words in place, so no icon moves. */
 const FADE =
@@ -58,6 +51,7 @@ export function ChatSidebar({
 		<Sidebar collapsible="icon">
 			<SidebarHeader className="relative h-12">
 				<HeclaWordmark
+					aria-hidden={isCollapsed}
 					className={cn("absolute top-4 left-4 h-4 text-primary", FADE)}
 				/>
 				<SidebarTrigger className="absolute top-2.5 right-2.5 text-muted-foreground" />
@@ -77,29 +71,6 @@ export function ChatSidebar({
 								<span className={FADE}>New question</span>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
-					</SidebarMenu>
-				</SidebarGroup>
-
-				<SidebarGroup>
-					<SidebarGroupLabel className={cn(GROUP_LABEL, FADE)}>
-						Topics
-					</SidebarGroupLabel>
-					<SidebarMenu>
-						{COVERED_TOPICS.map(({ key, name, Icon }) => (
-							<SidebarMenuItem key={key}>
-								<SidebarMenuButton
-									tooltip={name}
-									render={<div />}
-									className={cn(
-										ROW,
-										"cursor-default text-muted-foreground hover:bg-transparent hover:text-muted-foreground",
-									)}
-								>
-									<Icon />
-									<span className={FADE}>{name}</span>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						))}
 					</SidebarMenu>
 				</SidebarGroup>
 

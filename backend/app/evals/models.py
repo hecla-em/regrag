@@ -73,6 +73,13 @@ class CitationMetrics(FrozenModel):
     markers_in_context: float | None
 
 
+class AnswerMetrics(FrozenModel):
+    """How the answers read. prompt_wording: answers speaking of what the model was shown in
+    the prompt's words, like 'the context does not say', not 'the passages I found'."""
+
+    prompt_wording: int
+
+
 class JudgeMetrics(FrozenModel):
     """The judge's three dimensions over the cases it returned a verdict on. judged says how
     many, so a run with the judge off reads as unmeasured rather than perfect. refusal_rate:
@@ -101,6 +108,7 @@ class EvalMetrics(FrozenModel):
     gate: GateMetrics
     assess: AssessMetrics
     citations: CitationMetrics
+    answers: AnswerMetrics
     judge: JudgeMetrics
     latency: LatencyMetrics
     usage: Usage
