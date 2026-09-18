@@ -15,7 +15,10 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    environment: prod
+    # Reads the prod environment's secrets without each run counting as a deployment.
+    environment:
+      name: prod
+      deployment: false
     timeout-minutes: 60
     defaults:
       run:

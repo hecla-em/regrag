@@ -18,7 +18,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata
 from redis.asyncio import Redis
-from sqlalchemy import URL, create_engine, delete, make_url, select, text
+from sqlalchemy import URL, create_engine, delete, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 from tenacity import wait_none
@@ -118,8 +118,7 @@ def test_database() -> None:
     needs no server. Migrating every session is what keeps the schema honest: a new revision
     would otherwise only reach the suite once someone ran alembic against it by hand.
     """
-    url = make_url(config.SQLALCHEMY_DATABASE_URI)
-    _create_database_if_missing(url)
+    _create_database_if_missing(config.SQLALCHEMY_DATABASE_URI)
     alembic = AlembicConfig(str(BACKEND_ROOT / "alembic.ini"))
     alembic.set_main_option("script_location", str(BACKEND_ROOT / "migrations"))
     command.upgrade(alembic, "head")

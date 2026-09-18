@@ -171,20 +171,21 @@ def test_prod_verifies_the_database_certificate_by_default():
 
 def test_a_set_sslmode_reaches_the_database_uri_with_a_root_certificate():
     """In the URI, which alembic and the app engine both connect with."""
-    postgres = PostgresConfig(DB_SSLMODE=SslMode.VERIFY_FULL)
-    url = make_url(postgres.SQLALCHEMY_DATABASE_URI)
+    url = PostgresConfig(DB_SSLMODE=SslMode.VERIFY_FULL).SQLALCHEMY_DATABASE_URI
     assert url.query == {"sslmode": "verify-full", "sslrootcert": certifi.where()}
 
 
 def test_outside_prod_the_database_is_reached_without_tls():
     """The compose Postgres serves none."""
-    assert make_url(PostgresConfig().SQLALCHEMY_DATABASE_URI).query == {}
+    assert PostgresConfig().SQLALCHEMY_DATABASE_URI.query == {}
 
 
-def test_a_password_with_url_characters_survives_the_database_uri():
+def test_the_database_password_reaches_the_driver_whole_and_is_masked_when_printed():
     password = "p@ss/w?rd#%"
-    url = make_url(PostgresConfig(DB_PASS=SecretStr(password)).SQLALCHEMY_DATABASE_URI)
-    assert (url.password, url.host) == (password, "localhost")
+    url = PostgresConfig(DB_PASS=SecretStr(password)).SQLALCHEMY_DATABASE_URI
+    assert url.password == password
+    assert password not in str(url)
+    assert make_url(url.render_as_string(hide_password=False)).password == password
 
 
 def test_ingest_defaults_match_the_shipped_tunables():

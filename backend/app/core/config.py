@@ -133,12 +133,12 @@ class PostgresConfig(BaseConfig):
     DB_COMMAND_TIMEOUT: int = 30
 
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> str:
-        """Build SQLAlchemy database URI, which alembic and the app engine both connect with."""
+    def SQLALCHEMY_DATABASE_URI(self) -> URL:
+        """What alembic and the app engine both connect with, its password masked when printed."""
         tls = {}
         if self.DB_SSLMODE:
             tls = {"sslmode": self.DB_SSLMODE.value, "sslrootcert": certifi.where()}
-        url = URL.create(
+        return URL.create(
             "postgresql+psycopg",
             username=self.DB_USER,
             password=self.DB_PASS.get_secret_value(),
@@ -147,7 +147,6 @@ class PostgresConfig(BaseConfig):
             database=self.DB_NAME,
             query=tls,
         )
-        return url.render_as_string(hide_password=False)
 
     @property
     def SQLALCHEMY_ENGINE_ARGS(self) -> dict[str, Any]:
