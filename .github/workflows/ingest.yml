@@ -15,7 +15,6 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    # Reads the prod environment's secrets without each run counting as a deployment.
     environment:
       name: prod
       deployment: false
