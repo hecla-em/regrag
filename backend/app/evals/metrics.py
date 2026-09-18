@@ -1,6 +1,7 @@
 """Eval scoring: what counts as a retrieved reference and a grounded citation, per case;
 and the run's measures, each a plain function over its results."""
 
+import re
 from collections.abc import Sequence
 
 from app.chat.citations import find_cited_markers, find_cited_sources
@@ -9,6 +10,7 @@ from app.core.llm.models import Usage
 from app.evals.dataset.enums import EvalKind
 from app.evals.judge.models import CaseJudgement
 from app.evals.models import (
+    AnswerMetrics,
     AssessMetrics,
     CaseCounts,
     CitationMetrics,
@@ -21,6 +23,17 @@ from app.evals.models import (
     RetrievalMetrics,
 )
 from app.retrieval.models import ReferenceTarget, RetrievedChunk
+
+PROMPT_WORDING = re.compile(
+    r"\b(?:the|this|provided|given|retrieved|available) context\b(?! of\b)"
+    r"|\bcontext (?:provided|given|blocks?)\b"
+    r"|\b(?:the|provided|numbered|retrieved) blocks\b|\bblocks (?:provided|shown)\b"
+    r"|\b(?:provided|numbered|given) (?:passages|excerpts)\b|\bpassages (?:provided|shown)\b"
+    r"|\b(?:provided|given) texts?\b|\btexts? provided\b",
+    re.IGNORECASE,
+)
+"""The answer prompt's own names for what the model was shown, which a reader never sees.
+'In the context of' is plain English and passes."""
 
 
 def _division(item: ReferenceTarget | RetrievedChunk) -> tuple[str, str | None, str | None]:
@@ -62,6 +75,12 @@ def score_reference_citation_rate(
         return None
     cited = {_division(source) for _, source in find_cited_sources(answer, sources)}
     return sum(_division(target) in cited for target in targets) / len(targets)
+
+
+def find_prompt_wording(answer: str) -> tuple[str, ...]:
+    """Each phrase of the answer that names the prompt's blocks rather than the texts
+    searched, like 'the context' or 'the provided text', in the order it appears."""
+    return tuple(match.group(0) for match in PROMPT_WORDING.finditer(answer))
 
 
 # Run metrics: each a plain function over the run's results, scoring the cases it applies to
@@ -277,6 +296,18 @@ def compute_citation_metrics(results: Sequence[EvalCaseResult]) -> CitationMetri
     )
 
 
+# Answers: how the answers read
+
+
+def count_answers_with_prompt_wording(results: Sequence[EvalCaseResult]) -> int:
+    """Answers that name the prompt's blocks to the reader, in either kind of case."""
+    return sum(bool(find_prompt_wording(r.state.answer)) for r in _scored(results))
+
+
+def compute_answer_metrics(results: Sequence[EvalCaseResult]) -> AnswerMetrics:
+    return AnswerMetrics(prompt_wording=count_answers_with_prompt_wording(results))
+
+
 # Judge: the judge's dimensions over the cases it returned a verdict on
 
 
@@ -361,6 +392,7 @@ def compute_metrics(results: Sequence[EvalCaseResult]) -> EvalMetrics:
         gate=compute_gate_metrics(results),
         assess=compute_assess_metrics(results),
         citations=compute_citation_metrics(results),
+        answers=compute_answer_metrics(results),
         judge=compute_judge_metrics(results),
         latency=compute_latency_metrics(results),
         usage=compute_usage(results),

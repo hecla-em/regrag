@@ -1,5 +1,7 @@
 """Eval scoring: what counts as a retrieved reference, a correct citation, a refusal."""
 
+import pytest
+
 from app.chat.enums import ChatNode
 from app.chat.models import ChatStepResult
 from app.evals.judge.enums import JudgeVerdict
@@ -19,11 +21,13 @@ from app.evals.metrics import (
     compute_model_refusal_rate,
     compute_raw_recall,
     compute_usage,
+    count_answers_with_prompt_wording,
     count_assess_false_refusals,
     count_errors,
     count_false_refusals,
     count_judged,
     count_refusals_of_a_found_reference,
+    find_prompt_wording,
     score_citation_validity,
     score_reference_citation_rate,
     score_reference_recall,
@@ -391,3 +395,42 @@ def test_an_errored_case_is_not_judged_whatever_it_carries() -> None:
 
     assert count_judged(results) == 0
     assert compute_correctness(results) is None
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "The context does not explain how the plans relate.",
+        "The provided context is silent on this.",
+        "Based on the context provided, ships must report.",
+        "The blocks do not say.",
+        "The provided text does not cover it.",
+        "If it means something else, the passages provided do not address it.",
+    ],
+)
+def test_an_answer_naming_the_prompts_blocks_is_found(answer: str) -> None:
+    assert find_prompt_wording(answer)
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "The FuelEU Maritime and MRV texts do not say.[1]",
+        "The passages I found do not give the formula, only that Annex IV holds it.[1]",
+        "In the context of Article 5, a company must report.[1]",
+        "The text of Annex II sets the factors.[2]",
+    ],
+)
+def test_plain_english_is_not_prompt_wording(answer: str) -> None:
+    assert find_prompt_wording(answer) == ()
+
+
+def test_answers_with_prompt_wording_are_counted_once_each() -> None:
+    results = (
+        eval_result(answer="The context is silent. The provided context too."),
+        eval_result(),
+        refused_result(),
+    )
+
+    assert count_answers_with_prompt_wording(results) == 1
+    assert compute_metrics(results).answers.prompt_wording == 1

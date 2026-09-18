@@ -10,7 +10,11 @@ from pydantic import BaseModel
 from app.core.mappings import flatten_dict
 from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement
-from app.evals.metrics import score_reference_citation_rate, score_reference_recall
+from app.evals.metrics import (
+    find_prompt_wording,
+    score_reference_citation_rate,
+    score_reference_recall,
+)
 from app.evals.models import EvalCaseResult, EvalMetrics
 from app.evals.schemas import EvalRun
 
@@ -73,10 +77,10 @@ def _format_critiques(judgement: CaseJudgement) -> list[str]:
 
 def format_case_lines(results: Sequence[EvalCaseResult]) -> list[str]:
     """Every case as its own line, the id column sized to the longest id in the run, with
-    the queries decompose split it into, assess's words for a refusal it asked for, and the
-    judge's critiques under any case it did not pass. A case that raised scores nothing, as the
-    aggregate leaves it out; one authoring no reference has no recall to measure, and prints
-    a dash rather than a zero."""
+    the queries decompose split it into, assess's words for a refusal it asked for, any of
+    the prompt's wording the answer used, and the judge's critiques under any case it did
+    not pass. A case that raised scores nothing, as the aggregate leaves it out; one authoring
+    no reference has no recall to measure, and prints a dash rather than a zero."""
     if not results:
         return []
     width = max(len(result.case.id) for result in results)
@@ -87,6 +91,8 @@ def format_case_lines(results: Sequence[EvalCaseResult]) -> list[str]:
             lines.append(INDENT + "split: " + " | ".join(result.state.queries))
         if result.state.refusal is not None and result.state.refusal.explanation:
             lines.append(INDENT + "refused: " + result.state.refusal.explanation)
+        if wording := find_prompt_wording(result.state.answer):
+            lines.append(INDENT + "prompt wording: " + " | ".join(wording))
         if result.judgement is not None:
             lines.extend(_format_critiques(result.judgement))
     return lines
