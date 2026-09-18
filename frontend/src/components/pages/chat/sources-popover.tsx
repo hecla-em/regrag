@@ -5,6 +5,7 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 } from "lucide-react"
+import { useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
 	Popover,
@@ -169,8 +170,14 @@ export function SourcesPopover({
 	showTrigger: boolean
 	onViewChange: (view: SourcesView | null) => void
 }) {
-	const index = cited.findIndex(({ source }) => source.marker === view?.marker)
-	const anchor = view?.anchor ?? undefined
+	const lastOpened = useRef<{ view: SourcesView; cited: CitedSource[] }>(null)
+	if (view !== null) lastOpened.current = { view, cited }
+	const shown = lastOpened.current
+	const shownCited = shown?.cited ?? cited
+	const index = shownCited.findIndex(
+		({ source }) => source.marker === shown?.view.marker,
+	)
+	const anchor = shown?.view.anchor ?? undefined
 
 	function select(marker: number) {
 		onViewChange({ marker, anchor: view?.anchor ?? null })
@@ -201,10 +208,10 @@ export function SourcesPopover({
 				className="w-90 max-w-[calc(100vw-2rem)] gap-0 rounded-2xl p-1.5 ring-border"
 			>
 				{index === -1 ? (
-					<SourceRows cited={cited} onSelect={select} />
+					<SourceRows cited={shownCited} onSelect={select} />
 				) : (
 					<SourceText
-						cited={cited}
+						cited={shownCited}
 						index={index}
 						onSelect={select}
 						onBack={() =>

@@ -77,15 +77,6 @@ export const ChatTurn = memo(function ChatTurn({
 		setSourcesView({ marker, anchor })
 	}, [])
 
-	const sourcesPopover = (
-		<SourcesPopover
-			cited={cited}
-			view={sourcesView}
-			showTrigger={isSettled && cited.length > 0}
-			onViewChange={setSourcesView}
-		/>
-	)
-
 	return (
 		<div className="flex flex-col gap-3.5">
 			<Message align="end">
@@ -117,17 +108,26 @@ export const ChatTurn = memo(function ChatTurn({
 								sources={turn.sources}
 								onOpenMarker={openSource}
 							/>
-							{isSettled ? (
-								<div className="fade-in -mx-1 flex animate-in items-center duration-300">
+							<div
+								className={
+									isSettled
+										? "fade-in -mx-1 flex animate-in items-center duration-300"
+										: "contents"
+								}
+							>
+								{isSettled && (
 									<CopyAnswerButton
 										answer={turn.answer}
 										sources={turn.sources}
 									/>
-									{sourcesPopover}
-								</div>
-							) : (
-								sourcesPopover
-							)}
+								)}
+								<SourcesPopover
+									cited={cited}
+									view={sourcesView}
+									showTrigger={isSettled && cited.length > 0}
+									onViewChange={setSourcesView}
+								/>
+							</div>
 						</>
 					)}
 				</MessageContent>
