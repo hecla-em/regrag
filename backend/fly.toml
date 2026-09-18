@@ -10,8 +10,6 @@ primary_region = 'lhr'
 
 [env]
   ENVIRONMENT = 'prod'
-  PGSSLMODE = 'verify-full'
-  PGSSLROOTCERT = '/etc/ssl/certs/ca-certificates.crt'
 
 [http_service]
   internal_port = 8000

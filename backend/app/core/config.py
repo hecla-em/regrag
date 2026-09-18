@@ -4,7 +4,9 @@ import os
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
+import certifi
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -111,11 +113,16 @@ class PostgresConfig(BaseConfig):
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        """Build SQLAlchemy database URI."""
-        return (
+        """Build SQLAlchemy database URI. Prod verifies the server's certificate here, in the
+        one string alembic and the app engine share, so no host's environment can leave it off."""
+        uri = (
             f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASS.get_secret_value()}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
+        if ENVIRONMENT is Environment.PROD:
+            tls = {"sslmode": "verify-full", "sslrootcert": certifi.where()}
+            return f"{uri}?{urlencode(tls)}"
+        return uri
 
     @property
     def SQLALCHEMY_ENGINE_ARGS(self) -> dict[str, Any]:
