@@ -105,15 +105,3 @@ does and every flag it takes.
 `ingest` needs `VOYAGE_API_KEY`, `evals run` also needs `ANTHROPIC_API_KEY`, and
 re-running `ingest` is cheap — unchanged documents are neither downloaded nor
 re-embedded.
-
-## Deploy
-
-The API runs on [Fly](https://fly.io) from this directory's `Dockerfile` and
-`fly.toml`, and deploys itself on every push to `main`. Each release first runs
-`alembic upgrade head` on a throwaway machine, so a failed migration stops the
-release before it takes traffic.
-
-Settings that are not secret sit in the `[env]` block of `fly.toml`. The rest
-are Fly secrets: `DB_HOST`, `DB_USER`, `DB_PASS`, `REDIS_URL` and the provider
-keys. The nightly ingest (`.github/workflows/ingest.yml`) reads the same values
-from the GitHub `prod` environment and assumes the schema is already at head.

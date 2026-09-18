@@ -10,11 +10,8 @@ primary_region = 'lhr'
 
 [env]
   ENVIRONMENT = 'prod'
-  DB_PORT = '5432'
-  DB_NAME = 'regrag'
   PGSSLMODE = 'verify-full'
   PGSSLROOTCERT = '/etc/ssl/certs/ca-certificates.crt'
-  CORS_ORIGINS = '["https://faqs.hecla-em.com"]'
 
 [http_service]
   internal_port = 8000
