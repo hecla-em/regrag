@@ -113,8 +113,7 @@ class PostgresConfig(BaseConfig):
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        """Build SQLAlchemy database URI. Prod verifies the server's certificate here, in the
-        one string alembic and the app engine share, so no host's environment can leave it off."""
+        """Build SQLAlchemy database URI. Prod verifies the server's certificate."""
         uri = (
             f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASS.get_secret_value()}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
