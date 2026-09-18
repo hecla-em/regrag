@@ -14,6 +14,8 @@ amended often, and cross-references itself constantly. RegRag keeps a current
 copy of that corpus and answers questions against it, returning the exact
 articles it relied on rather than a paraphrase to take on trust.
 
+![The RegRag chat page, ready for a question](docs/images/hero.png)
+
 ## How it works
 
 - **Discovery** queries CELLAR for every act with FuelEU or MRV as its legal
