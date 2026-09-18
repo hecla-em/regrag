@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import certifi
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -64,6 +64,12 @@ class AppConfig(BaseConfig):
     PROJECT_NAME: str = "RegRag"
     FRONTEND_URL: str = "http://localhost:5173"
     BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
+
+    @field_validator("FRONTEND_URL")
+    @classmethod
+    def strip_trailing_slash(cls, value: str) -> str:
+        """A browser's Origin header has no trailing slash, and CORS compares exactly."""
+        return value.rstrip("/")
 
 
 class StorageBackend(StrEnum):

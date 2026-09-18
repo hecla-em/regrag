@@ -63,6 +63,12 @@ def test_the_build_is_the_image_fly_runs_or_local(monkeypatch):
     assert AppConfig().BUILD_ID == "registry.fly.io/regrag:deployment-01J"
 
 
+def test_the_frontend_url_loses_a_trailing_slash(monkeypatch):
+    """A browser sends its origin without one, and CORS compares the two as strings."""
+    monkeypatch.setenv("FRONTEND_URL", "https://ask.example.com/")
+    assert AppConfig().FRONTEND_URL == "https://ask.example.com"
+
+
 def test_the_answer_cache_defaults_on(monkeypatch):
     monkeypatch.delenv("CHAT_CACHE_ENABLED")
 

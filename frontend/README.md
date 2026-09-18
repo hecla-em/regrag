@@ -39,7 +39,7 @@ The app is then on `http://localhost:5173`.
 | Command             | Description                                        |
 | ------------------- | -------------------------------------------------- |
 | `pnpm dev`          | Start the dev server                               |
-| `pnpm build`        | Type-check and build for production                |
+| `pnpm build`        | Type-check and build, needs `VITE_API_URL` set     |
 | `pnpm lint`         | Check formatting and lint with Biome               |
 | `pnpm check`        | Check and auto-fix with Biome                      |
 | `pnpm test`         | Run the unit tests with Vitest                     |

@@ -94,4 +94,6 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+        env:
+          VITE_API_URL: http://localhost:8000
       - run: pnpm test:run
