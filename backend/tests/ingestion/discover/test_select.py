@@ -2,6 +2,7 @@
 
 from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.discover.select import (
+    exclude_acts_by_basis_article,
     extract_candidate_acts,
     filter_acts_by_basis_article,
     filter_legislative_acts,
@@ -149,14 +150,25 @@ def test_filter_acts_by_basis_article_keeps_acts_based_on_a_listed_article():
         act_row("32010D0670"),
     ]
     kept = filter_acts_by_basis_article(
-        extract_candidate_acts(rows), "32003L0087", ("A03g", "A12P3-")
+        extract_candidate_acts(rows), "32003L0087", r"A03g[a-g]|A12P3-[b-e]"
     )
     assert [act.celex for act in kept] == ["32023D2895", "32023R2599"]
 
 
+def test_filter_acts_by_basis_article_matches_from_the_start_of_the_article():
+    """Article 3g is aviation; only 3ga to 3gg are shipping."""
+    rows = [
+        act_row("32010D0001", basis_article="A03gP1"),
+        act_row("32010D0002", basis_article="XA03ga"),
+    ]
+    assert (
+        filter_acts_by_basis_article(extract_candidate_acts(rows), "32003L0087", r"A03g[a-g]") == []
+    )
+
+
 def test_filter_acts_by_basis_article_always_keeps_the_base_act():
     acts = extract_candidate_acts([act_row("32003L0087"), act_row("32009R0748")])
-    kept = filter_acts_by_basis_article(acts, "32003L0087", ("A03g",))
+    kept = filter_acts_by_basis_article(acts, "32003L0087", r"A03g[a-g]")
     assert [act.celex for act in kept] == ["32003L0087"]
 
 
@@ -178,10 +190,21 @@ def test_select_documents_keeps_every_act_of_a_topic_with_no_basis_articles():
     assert [d.celex for d in select_documents("mrv", rows)] == ["32015R0757", "32016R1928"]
 
 
-def test_select_documents_leaves_out_an_act_the_topic_excludes():
-    """The list of shipping companies is names, not rules."""
+def test_exclude_acts_by_basis_article_turns_away_an_act_with_any_matching_article():
+    rows = [
+        act_row("32023R2599", basis_article="A03gfP4"),
+        act_row("32024D0411", basis_article="A03gfP2PTA)"),
+        act_row("32024D0411", basis_article="A03gfP4"),
+    ]
+    kept = exclude_acts_by_basis_article(extract_candidate_acts(rows), r"A03gfP2")
+    assert [act.celex for act in kept] == ["32023R2599"]
+
+
+def test_select_documents_leaves_out_every_list_of_shipping_companies():
+    """The lists are names, not rules: 2024/411 today, and whichever act replaces it."""
     rows = [
         act_row("32003L0087", in_force=True),
         act_row("32024D0411", in_force=True, basis_article="A03gfP2PTA)"),
+        act_row("32028D0100", in_force=True, basis_article="A03gfP2PTB)"),
     ]
     assert [d.celex for d in select_documents("ets", rows)] == ["32003L0087"]
