@@ -24,6 +24,8 @@ def as_binding(row: ActsQueryRow) -> dict:
         binding["force"] = {"value": "1" if row.in_force else "0"}
     if row.consolidation:
         binding["cons"] = {"value": row.consolidation}
+    if row.basis_article:
+        binding["basis"] = {"value": row.basis_article}
     return binding
 
 

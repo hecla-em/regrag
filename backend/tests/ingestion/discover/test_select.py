@@ -3,6 +3,7 @@
 from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.discover.select import (
     extract_candidate_acts,
+    filter_acts_by_basis_article,
     filter_legislative_acts,
     select_documents,
 )
@@ -129,3 +130,49 @@ def test_documents_carry_topic_and_source():
     assert document == DiscoveredDocument(
         topic="fueleu", source="eurlex", celex="32023R1805", candidates=()
     )
+
+
+def test_extract_candidate_acts_collects_every_basis_article():
+    rows = [
+        act_row("32023D2895", in_force=True, basis_article="A12P3-c"),
+        act_row("32023D2895", in_force=True, basis_article="A12P3-d"),
+    ]
+    assert extract_candidate_acts(rows)[0].basis_articles == frozenset({"A12P3-c", "A12P3-d"})
+
+
+def test_filter_acts_by_basis_article_keeps_acts_based_on_a_listed_article():
+    rows = [
+        act_row("32023R2599", basis_article="A03gfP4"),
+        act_row("32023D2895", basis_article="A12P3-c"),
+        act_row("32024R2620", basis_article="A12P3bL2"),
+        act_row("32009R0748", basis_article="A03cP6"),
+        act_row("32010D0670"),
+    ]
+    kept = filter_acts_by_basis_article(
+        extract_candidate_acts(rows), "32003L0087", ("A03g", "A12P3-")
+    )
+    assert [act.celex for act in kept] == ["32023D2895", "32023R2599"]
+
+
+def test_filter_acts_by_basis_article_always_keeps_the_base_act():
+    acts = extract_candidate_acts([act_row("32003L0087"), act_row("32009R0748")])
+    kept = filter_acts_by_basis_article(acts, "32003L0087", ("A03g",))
+    assert [act.celex for act in kept] == ["32003L0087"]
+
+
+def test_select_documents_keeps_only_maritime_acts_for_ets():
+    rows = [
+        act_row("32003L0087", in_force=True),
+        act_row("32023R2599", in_force=True, basis_article="A03gfP4"),
+        act_row("32009R0748", in_force=True, basis_article="A03cP6"),
+    ]
+    selected = select_documents("ets", rows)
+    assert [document.celex for document in selected] == ["32003L0087", "32023R2599"]
+
+
+def test_select_documents_keeps_every_act_of_a_topic_with_no_basis_articles():
+    rows = [
+        act_row("32015R0757", in_force=True),
+        act_row("32016R1928", in_force=True, basis_article="A05P2"),
+    ]
+    assert [d.celex for d in select_documents("mrv", rows)] == ["32015R0757", "32016R1928"]

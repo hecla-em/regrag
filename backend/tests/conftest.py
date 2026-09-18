@@ -361,9 +361,14 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
 
 
 def binding(
-    celex: str, force: str | None = None, cons: str | None = None, title: str | None = None
+    celex: str,
+    force: str | None = None,
+    cons: str | None = None,
+    title: str | None = None,
+    basis: str | None = None,
 ) -> dict:
-    """One SPARQL result row for a celex, with optional in-force, consolidation and title."""
+    """One SPARQL result row for a celex, with optional in-force, consolidation, title and
+    legal basis article."""
     b: dict = {"c": {"value": celex}}
     if force is not None:
         b["force"] = {"value": force}
@@ -371,6 +376,8 @@ def binding(
         b["cons"] = {"value": cons}
     if title is not None:
         b["title"] = {"value": title}
+    if basis is not None:
+        b["basis"] = {"value": basis}
     return b
 
 
@@ -384,9 +391,16 @@ def act_row(
     in_force: bool | None = None,
     consolidation: str | None = None,
     title: str | None = None,
+    basis_article: str | None = None,
 ):
     """One row as run_acts_by_topic_query hands it back, past the SPARQL envelope."""
-    return ActsQueryRow(celex=celex, in_force=in_force, consolidation=consolidation, title=title)
+    return ActsQueryRow(
+        celex=celex,
+        in_force=in_force,
+        consolidation=consolidation,
+        title=title,
+        basis_article=basis_article,
+    )
 
 
 MRV_SPARQL = httpx.Response(

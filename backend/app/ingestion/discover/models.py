@@ -14,12 +14,15 @@ class ActsQueryRow(FrozenModel):
     in_force: whether the act is still law; None where there is no flag, as on anything not law.
     consolidation: one consolidated text including the act, or None if it has never been one.
     title: the act's official English title, or None where CELLAR has no English text of it.
+    basis_article: one article of the base act this act was adopted under, as CELLAR writes it
+        (A03gfP4 is Article 3gf(4)), or None where CELLAR names none.
     """
 
     celex: str
     in_force: bool | None = None
     consolidation: str | None = None
     title: str | None = None
+    basis_article: str | None = None
 
 
 class CandidateAct(FrozenModel):
@@ -30,12 +33,14 @@ class CandidateAct(FrozenModel):
     consolidations: every consolidated text including the act, its own and those of other acts
         that folded it in as an amendment.
     title: the official English title those lines repeat; None where CELLAR has none.
+    basis_articles: every article of the base act this act was adopted under.
     """
 
     celex: str
     in_force: bool | None = None
     consolidations: frozenset[str] = frozenset()
     title: str | None = None
+    basis_articles: frozenset[str] = frozenset()
 
 
 class DiscoveredDocument(FrozenModel):

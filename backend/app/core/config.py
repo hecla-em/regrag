@@ -305,6 +305,9 @@ class IngestConfig(BaseConfig):
     """Ingestion tunables.
 
     TOPIC_BASE_ACTS: the act each topic is built from; its corpus is everything based on it.
+    TOPIC_BASIS_ARTICLES: legal basis prefixes, as CELLAR writes them, that narrow a topic to the
+        acts adopted under those articles; a topic with none keeps every act. ETS keeps shipping:
+        Articles 3ga-3gg and the 12(3-b) to 12(3-e) derogations, not 12(3b) on carbon capture.
     CRAWL_DELAYS: seconds between requests per host; eur-lex publishes 10 in robots.txt.
     MAX_DROP_RATIO: fraction of the previous corpus that may vanish before discovery aborts.
     MIN_SUSPICIOUS_DROPS: dropped documents below this never abort, however small the corpus.
@@ -315,7 +318,12 @@ class IngestConfig(BaseConfig):
         bloat the run row.
     """
 
-    TOPIC_BASE_ACTS: dict[str, str] = {"fueleu": "32023R1805", "mrv": "32015R0757"}
+    TOPIC_BASE_ACTS: dict[str, str] = {
+        "fueleu": "32023R1805",
+        "mrv": "32015R0757",
+        "ets": "32003L0087",
+    }
+    TOPIC_BASIS_ARTICLES: dict[str, tuple[str, ...]] = {"ets": ("A03g", "A12P3-")}
     CRAWL_DELAYS: dict[str, float] = {"eur-lex.europa.eu": 10.0, "publications.europa.eu": 1.0}
     MAX_DROP_RATIO: float = 0.2
     MIN_SUSPICIOUS_DROPS: int = 3
