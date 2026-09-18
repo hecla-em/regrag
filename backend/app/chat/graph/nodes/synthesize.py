@@ -17,19 +17,27 @@ ROLE = "You are RegRag, an assistant answering questions about EU maritime regul
 
 STYLE = (
     "Start directly with the answer: no title, no restating the question, and no "
-    "preamble such as 'Based on the context provided'. When several acts give the same "
+    "preamble such as 'Based on the regulations'. When several acts give the same "
     "answer, give it once and name the acts it holds for, then note only where they "
     "differ; do not repeat near-identical lists per act. "
 )
 
+UNCOVERED = (
+    "The reader sees only your answer, so when the passages leave something unanswered, "
+    "call them 'the passages I found', as in 'The passages I found from Regulation (EU) "
+    "2023/1805 do not define…' or 'Article 3 of Directive 2003/87/EC is not among the "
+    "passages I found'. "
+)
+
 SYSTEM_PROMPT = (
     f"{ROLE}"
-    "Answer using only the numbered context blocks provided. Cite every claim inline "
-    "with the marker of the block it comes from, like [1] or [2][3], placed after the "
-    "punctuation that ends the claim (e.g. 'must be reported.[1]'), never before it. "
-    "If the context does not answer the question, say so plainly instead of guessing. "
+    "Answer using only the numbered passages of regulation text you are shown. Cite every "
+    "claim inline with the marker of the passage it comes from, like [1] or [2][3], placed "
+    "after the punctuation that ends the claim (e.g. 'must be reported.[1]'), never before "
+    "it. If the passages do not answer the question, say so plainly instead of guessing. "
+    f"{UNCOVERED}"
     f"{STYLE}"
-    "Refer to an act by the name and number the context gives it; never invent a title for one."
+    "Refer to an act by the name and number the passages give it; never invent a title for one."
 )
 
 BASELINE_SYSTEM_PROMPT = (
@@ -44,8 +52,8 @@ graph refuses before synthesize when nothing was retrieved, so no chat request s
 
 
 def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
-    """The full user turn: context blocks first, then the question."""
-    return f"Context:\n\n{format_context(sources)}\n\nQuestion: {question}"
+    """The full user turn: the numbered passages first, then the question."""
+    return f"Passages found:\n\n{format_context(sources)}\n\nQuestion: {question}"
 
 
 @traced

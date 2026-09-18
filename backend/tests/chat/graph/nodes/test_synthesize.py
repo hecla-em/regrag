@@ -14,7 +14,8 @@ from app.chat.graph.nodes.synthesize import (
     synthesize,
 )
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatState
+from app.chat.models import ChatState, ChatTurn
+from app.chat.prompts import system_prompt
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
@@ -192,4 +193,13 @@ def test_baseline_prompt_shares_the_style_rules_and_asks_for_no_markers():
     assert shared in SYSTEM_PROMPT
     assert shared in BASELINE_SYSTEM_PROMPT
     assert "[1]" not in BASELINE_SYSTEM_PROMPT
-    assert "context blocks" not in BASELINE_SYSTEM_PROMPT
+    assert "numbered passages" not in BASELINE_SYSTEM_PROMPT
+
+
+def test_no_prompt_a_reader_facing_answer_is_written_under_says_context():
+    """The model repeats the prompt's words to the reader, who never saw any context."""
+    message = build_user_message("What is the limit?", (retrieved_chunk(),))
+    follow_up = system_prompt(SYSTEM_PROMPT, (ChatTurn(question="Q", answer="A"),))
+
+    for prompt in (follow_up, BASELINE_SYSTEM_PROMPT, message):
+        assert "context" not in prompt.lower()
