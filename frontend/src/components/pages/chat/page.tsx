@@ -1,8 +1,5 @@
-import { PlusIcon } from "lucide-react"
 import { type CSSProperties, useCallback, useRef } from "react"
-import { Eyebrow } from "@/components/shared/eyebrow"
-import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
-import { Button } from "@/components/ui/button"
+import { ShipDrawing } from "@/components/shared/ship-drawing"
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -11,14 +8,12 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import {
-	SidebarInset,
-	SidebarProvider,
-	SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useChatThreads } from "@/hooks/use-chat-threads"
 import { readSidebarOpen } from "@/lib/sidebar-open"
+import { cn } from "@/lib/utils"
 import { ChatTurn } from "./chat-turn"
+import { ChatHeader } from "./header"
 import { PromptForm } from "./prompt-form"
 import { ChatSidebar } from "./sidebar"
 
@@ -38,7 +33,7 @@ export function ChatPage() {
 		return retry
 	}
 
-	const isEmpty = turns.length === 0
+	const isHero = turns.length === 0
 
 	return (
 		<SidebarProvider
@@ -54,34 +49,15 @@ export function ChatPage() {
 			/>
 
 			<SidebarInset className="min-h-0 min-w-0">
-				<header className="flex h-11.5 shrink-0 items-center gap-2.5 border-b px-3 md:px-5.5">
-					<SidebarTrigger className="md:hidden" />
-					{isEmpty ? (
-						<HeclaWordmark className="mr-auto h-4 text-primary md:hidden" />
-					) : (
-						<>
-							<h1 className="mr-auto min-w-0 truncate font-medium text-[13px]">
-								{turns[0].question}
-							</h1>
-							<Eyebrow className="hidden shrink-0 sm:block">
-								{turns.length} {turns.length === 1 ? "question" : "questions"}
-							</Eyebrow>
-						</>
-					)}
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						aria-label="New question"
-						onClick={startNewThread}
-						disabled={isBusy}
-						className="shrink-0 md:hidden"
-					>
-						<PlusIcon />
-					</Button>
-				</header>
+				<ChatHeader
+					turns={turns}
+					isBusy={isBusy}
+					onNewThread={startNewThread}
+				/>
 
-				{isEmpty ? (
-					<div className="flex flex-1 flex-col items-center justify-end px-6 pb-8">
+				{isHero ? (
+					<div className="flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-8">
+						<ShipDrawing className="w-28 text-foreground" />
 						<h2 className="text-center font-semibold text-3xl tracking-tight">
 							Ask about EU maritime regulation
 						</h2>
@@ -111,15 +87,20 @@ export function ChatPage() {
 					</MessageScrollerProvider>
 				)}
 
-				<div className="mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5">
+				<div
+					className={cn(
+						"mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5",
+						isHero && "md:w-[calc(100%-6rem)]",
+					)}
+				>
 					<PromptForm isBusy={isBusy} onSubmit={ask} onStop={stop} />
-					<p className="mt-3 text-center text-footnote-foreground text-xs">
+					<p className="mt-4 text-center text-footnote-foreground text-xs">
 						Answers are generated from the official EU texts and may be wrong.
 						<br />
 						They are not legal advice, so check the cited article.
 					</p>
 				</div>
-				{isEmpty && <div className="flex-1" />}
+				{isHero && <div aria-hidden="true" className="floor-grid flex-1" />}
 			</SidebarInset>
 		</SidebarProvider>
 	)

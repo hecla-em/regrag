@@ -6,13 +6,23 @@
 A retrieval-augmented question answering system over EU maritime emissions law,
 where every answer cites the article it came from.
 
-Shipping companies trading in Europe now answer to two regulations, [FuelEU
-Maritime](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R1805)
-and [MRV](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015R0757),
-plus the delegated and implementing acts made under them. The text is long,
-amended often, and cross-references itself constantly. RegRag keeps a current
-copy of that corpus and answers questions against it, returning the exact
-articles it relied on rather than a paraphrase to take on trust.
+![The RegRag chat page, ready for a question](docs/images/hero.png)
+
+Shipping companies trading in Europe now answer to three EU emissions laws:
+
+- The [MRV Regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32015R0757)
+  (2015/757) makes them monitor, report and verify each ship's emissions.
+- The [FuelEU Maritime Regulation](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R1805)
+  (2023/1805) limits the greenhouse gas intensity of the energy a ship uses.
+- The [EU ETS Directive](https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32003L0087)
+  (2003/87/EC) has covered shipping since 2024. Companies surrender
+  allowances for the emissions verified under MRV.
+
+RegRag covers the two regulations today, plus the delegated and implementing
+acts made under them. The ETS Directive is not in the corpus yet. The text is
+long, amended often, and cross-references itself constantly. RegRag keeps a
+current copy of that corpus and answers questions against it, returning the
+exact articles it relied on rather than a paraphrase to take on trust.
 
 ## How it works
 

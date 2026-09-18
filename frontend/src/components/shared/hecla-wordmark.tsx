@@ -1,16 +1,18 @@
 import wordmarkUrl from "@/assets/hecla-wordmark.svg"
 import { cn } from "@/lib/utils"
+import { MaskedSvg } from "./masked-svg"
 
-const WORDMARK_MASK = `url("${wordmarkUrl}") center / contain no-repeat`
-
-/** The HECLA wordmark, painted in the current text colour through a mask. */
-export function HeclaWordmark({ className }: { className?: string }) {
+/** The HECLA wordmark, in the current text colour. */
+export function HeclaWordmark({
+	className,
+	...props
+}: Omit<React.ComponentProps<typeof MaskedSvg>, "url" | "label">) {
 	return (
-		<span
-			role="img"
-			aria-label="Hecla"
-			className={cn("inline-block aspect-[3200/760] bg-current", className)}
-			style={{ WebkitMask: WORDMARK_MASK, mask: WORDMARK_MASK }}
+		<MaskedSvg
+			url={wordmarkUrl}
+			label="Hecla"
+			className={cn("aspect-[3200/760]", className)}
+			{...props}
 		/>
 	)
 }
