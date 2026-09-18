@@ -128,3 +128,25 @@
 		background-position: -200% 0;
 	}
 }
+
+.floor-grid {
+	position: relative;
+	overflow: hidden;
+	pointer-events: none;
+	mask-image: linear-gradient(to bottom, black 40%, transparent);
+}
+
+.floor-grid::before {
+	content: "";
+	position: absolute;
+	inset: 0 -30% auto;
+	height: 30rem;
+	background-image:
+		linear-gradient(to right, oklch(1 0 0 / 11%) 1px, transparent 1px),
+		linear-gradient(to bottom, oklch(1 0 0 / 11%) 1px, transparent 1px);
+	background-size: 3rem 3rem;
+	background-position: center top;
+	transform: perspective(21rem) rotateX(62deg);
+	transform-origin: top center;
+	mask-image: linear-gradient(to bottom, transparent, black 35%);
+}
