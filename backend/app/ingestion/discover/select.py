@@ -77,6 +77,7 @@ def select_documents(topic: str, rows: list[ActsQueryRow]) -> list[DiscoveredDoc
     fetchable = filter_fetchable_acts(acts)
     if prefixes := config.TOPIC_BASIS_ARTICLES.get(topic):
         fetchable = filter_acts_by_basis_article(fetchable, config.TOPIC_BASE_ACTS[topic], prefixes)
+    excluded = config.TOPIC_EXCLUDED_ACTS.get(topic, ())
     return [
         DiscoveredDocument(
             topic=topic,
@@ -86,4 +87,5 @@ def select_documents(topic: str, rows: list[ActsQueryRow]) -> list[DiscoveredDoc
             title=act.title,
         )
         for act in fetchable
+        if act.celex not in excluded
     ]

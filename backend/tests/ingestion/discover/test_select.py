@@ -176,3 +176,12 @@ def test_select_documents_keeps_every_act_of_a_topic_with_no_basis_articles():
         act_row("32016R1928", in_force=True, basis_article="A05P2"),
     ]
     assert [d.celex for d in select_documents("mrv", rows)] == ["32015R0757", "32016R1928"]
+
+
+def test_select_documents_leaves_out_an_act_the_topic_excludes():
+    """The list of shipping companies is names, not rules."""
+    rows = [
+        act_row("32003L0087", in_force=True),
+        act_row("32024D0411", in_force=True, basis_article="A03gfP2PTA)"),
+    ]
+    assert [d.celex for d in select_documents("ets", rows)] == ["32003L0087"]

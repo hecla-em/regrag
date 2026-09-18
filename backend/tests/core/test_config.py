@@ -197,6 +197,7 @@ def test_ingest_defaults_match_the_shipped_tunables():
         "ets": "32003L0087",
     }
     assert ingest.TOPIC_BASIS_ARTICLES == {"ets": ("A03g", "A12P3-")}
+    assert ingest.TOPIC_EXCLUDED_ACTS == {"ets": ("32024D0411",)}
     assert ingest.CRAWL_DELAYS == {"eur-lex.europa.eu": 10.0, "publications.europa.eu": 1.0}
     assert ingest.MAX_DROP_RATIO == 0.2
     assert ingest.MIN_SUSPICIOUS_DROPS == 3
