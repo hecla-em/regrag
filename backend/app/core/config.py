@@ -5,8 +5,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+import certifi
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sqlalchemy import URL
 
 
 class Environment(StrEnum):
@@ -92,14 +94,35 @@ class R2Config(BaseConfig):
         return f"https://{self.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 
+class SslMode(StrEnum):
+    """libpq's sslmode values."""
+
+    DISABLE = "disable"
+    ALLOW = "allow"
+    PREFER = "prefer"
+    REQUIRE = "require"
+    VERIFY_CA = "verify-ca"
+    VERIFY_FULL = "verify-full"
+
+
+def get_default_sslmode(env: Environment = ENVIRONMENT) -> SslMode | None:
+    """Prod checks the server's certificate; the compose Postgres serves no TLS."""
+    return SslMode.VERIFY_FULL if env is Environment.PROD else None
+
+
 class PostgresConfig(BaseConfig):
-    """PostgreSQL database configuration."""
+    """PostgreSQL database configuration.
+
+    DB_SSLMODE: how far the server's certificate is checked. Set it to verify-full in any
+        env file that points DB_HOST at the prod database.
+    """
 
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432
     DB_USER: str = "postgres"
     DB_PASS: SecretStr = SecretStr("postgres")
     DB_NAME: str = "regrag"
+    DB_SSLMODE: SslMode | None = get_default_sslmode()
 
     DB_POOL_SIZE: int = 3
     DB_MAX_OVERFLOW: int = 3
@@ -110,11 +133,19 @@ class PostgresConfig(BaseConfig):
     DB_COMMAND_TIMEOUT: int = 30
 
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> str:
-        """Build SQLAlchemy database URI."""
-        return (
-            f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASS.get_secret_value()}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+    def SQLALCHEMY_DATABASE_URI(self) -> URL:
+        """What alembic and the app engine both connect with, its password masked when printed."""
+        tls = {}
+        if self.DB_SSLMODE:
+            tls = {"sslmode": self.DB_SSLMODE.value, "sslrootcert": certifi.where()}
+        return URL.create(
+            "postgresql+psycopg",
+            username=self.DB_USER,
+            password=self.DB_PASS.get_secret_value(),
+            host=self.DB_HOST,
+            port=self.DB_PORT,
+            database=self.DB_NAME,
+            query=tls,
         )
 
     @property

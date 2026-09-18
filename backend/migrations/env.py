@@ -10,7 +10,7 @@ from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
-from sqlalchemy.ext.asyncio import async_engine_from_config
+from sqlalchemy.ext.asyncio import create_async_engine
 
 import app.core.db.registry  # noqa: F401  # register models on BaseSchema.metadata for autogenerate
 from app.core.config import config as app_config
@@ -61,13 +61,7 @@ def do_run_migrations(connection: Connection) -> None:
 
 async def run_async_migrations() -> None:
     """Run migrations in online mode with an async engine."""
-    configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = app_config.SQLALCHEMY_DATABASE_URI
-    connectable = async_engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    connectable = create_async_engine(app_config.SQLALCHEMY_DATABASE_URI, poolclass=pool.NullPool)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

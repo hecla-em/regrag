@@ -1,8 +1,10 @@
 """Settings classes: inherited config and per-vendor defaults."""
 
+import certifi
 import pytest
 from pydantic import SecretStr, ValidationError
 from pydantic_settings import BaseSettings
+from sqlalchemy import make_url
 
 from app.core.config import (
     BACKEND_ROOT,
@@ -16,14 +18,17 @@ from app.core.config import (
     Environment,
     IngestConfig,
     JudgeConfig,
+    PostgresConfig,
     ProviderConfig,
     RateLimitConfig,
     RedisConfig,
     RetrievalConfig,
+    SslMode,
     StorageBackend,
     StorageConfig,
     config,
     get_config_snapshot,
+    get_default_sslmode,
     get_env_file,
     load_environment,
 )
@@ -158,6 +163,29 @@ def test_every_provider_key_is_a_secret_that_defaults_to_unset():
 def test_the_suite_runs_against_a_database_of_its_own():
     """Tests commit destructive deletes, so reaching the dev database would cost a corpus."""
     assert Config().DB_NAME == "regrag_test"
+
+
+def test_prod_verifies_the_database_certificate_by_default():
+    assert get_default_sslmode(Environment.PROD) is SslMode.VERIFY_FULL
+
+
+def test_a_set_sslmode_reaches_the_database_uri_with_a_root_certificate():
+    """In the URI, which alembic and the app engine both connect with."""
+    url = PostgresConfig(DB_SSLMODE=SslMode.VERIFY_FULL).SQLALCHEMY_DATABASE_URI
+    assert url.query == {"sslmode": "verify-full", "sslrootcert": certifi.where()}
+
+
+def test_outside_prod_the_database_is_reached_without_tls():
+    """The compose Postgres serves none."""
+    assert PostgresConfig().SQLALCHEMY_DATABASE_URI.query == {}
+
+
+def test_the_database_password_reaches_the_driver_whole_and_is_masked_when_printed():
+    password = "p@ss/w?rd#%"
+    url = PostgresConfig(DB_PASS=SecretStr(password)).SQLALCHEMY_DATABASE_URI
+    assert url.password == password
+    assert password not in str(url)
+    assert make_url(url.render_as_string(hide_password=False)).password == password
 
 
 def test_ingest_defaults_match_the_shipped_tunables():
