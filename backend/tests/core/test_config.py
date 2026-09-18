@@ -23,10 +23,12 @@ from app.core.config import (
     RateLimitConfig,
     RedisConfig,
     RetrievalConfig,
+    SslMode,
     StorageBackend,
     StorageConfig,
     config,
     get_config_snapshot,
+    get_default_sslmode,
     get_env_file,
     load_environment,
 )
@@ -163,16 +165,26 @@ def test_the_suite_runs_against_a_database_of_its_own():
     assert Config().DB_NAME == "regrag_test"
 
 
-def test_prod_verifies_the_database_certificate_whatever_the_host_sets(monkeypatch):
+def test_prod_verifies_the_database_certificate_by_default():
+    assert get_default_sslmode(Environment.PROD) is SslMode.VERIFY_FULL
+
+
+def test_a_set_sslmode_reaches_the_database_uri_with_a_root_certificate():
     """In the URI, which alembic and the app engine both connect with."""
-    monkeypatch.setattr("app.core.config.ENVIRONMENT", Environment.PROD)
-    url = make_url(PostgresConfig().SQLALCHEMY_DATABASE_URI)
+    postgres = PostgresConfig(DB_SSLMODE=SslMode.VERIFY_FULL)
+    url = make_url(postgres.SQLALCHEMY_DATABASE_URI)
     assert url.query == {"sslmode": "verify-full", "sslrootcert": certifi.where()}
 
 
 def test_outside_prod_the_database_is_reached_without_tls():
     """The compose Postgres serves none."""
     assert make_url(PostgresConfig().SQLALCHEMY_DATABASE_URI).query == {}
+
+
+def test_a_password_with_url_characters_survives_the_database_uri():
+    password = "p@ss/w?rd#%"
+    url = make_url(PostgresConfig(DB_PASS=SecretStr(password)).SQLALCHEMY_DATABASE_URI)
+    assert (url.password, url.host) == (password, "localhost")
 
 
 def test_ingest_defaults_match_the_shipped_tunables():
