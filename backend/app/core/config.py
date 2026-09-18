@@ -62,7 +62,7 @@ class AppConfig(BaseConfig):
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    FRONTEND_URL: str = "http://localhost:5173"
     BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
 
 

@@ -95,7 +95,7 @@ def register_middleware(app: FastAPI) -> None:
     app.add_middleware(GZipMiddleware, minimum_size=1000)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=config.CORS_ORIGINS,
+        allow_origins=[config.FRONTEND_URL],
         allow_methods=["*"],
         allow_headers=["*"],
     )
