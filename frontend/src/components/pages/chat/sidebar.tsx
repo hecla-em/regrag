@@ -1,4 +1,4 @@
-import { FuelIcon, GaugeIcon, SquarePenIcon } from "lucide-react"
+import { FuelIcon, GaugeIcon, LandmarkIcon, SquarePenIcon } from "lucide-react"
 import { EYEBROW } from "@/components/shared/eyebrow"
 import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import {
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 const COVERED_TOPICS = [
 	{ key: "fueleu", name: "FuelEU Maritime", Icon: FuelIcon },
 	{ key: "mrv", name: "MRV", Icon: GaugeIcon },
+	{ key: "ets", name: "EU ETS", Icon: LandmarkIcon },
 ]
 
 /** Collapsing fades the words in place, so no icon moves. */

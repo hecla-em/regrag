@@ -10,6 +10,8 @@ const SAMPLE_QUESTIONS = [
 	"How is the compliance balance of a ship calculated?",
 	"What are the penalties for a compliance deficit?",
 	"When must ships use onshore power supply at berth?",
+	"What share of a voyage's emissions must a shipping company surrender EU ETS allowances for?",
+	"Which authority administers a shipping company under the EU ETS?",
 ]
 
 function pickSampleQuestion(): string {
