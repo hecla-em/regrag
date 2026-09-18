@@ -16,16 +16,18 @@ export function ChatHeader({
 	isBusy: boolean
 	onNewThread: () => void
 }) {
-	const { state } = useSidebar()
+	const { state, isMobile } = useSidebar()
+	const isSidebarWordmarkShown = state === "expanded" && !isMobile
 
 	return (
-		<header className="relative flex h-11.5 shrink-0 items-center gap-2.5 border-b px-3 md:px-5.5">
+		<header className="flex h-11.5 shrink-0 items-center gap-2.5 border-b px-3 md:px-5.5">
 			<SidebarTrigger className="md:hidden" />
 			{turns.length === 0 ? (
 				<HeclaWordmark
+					aria-hidden={isSidebarWordmarkShown}
 					className={cn(
-						"mr-auto h-4 text-primary",
-						state === "expanded" && "md:hidden",
+						"mr-auto h-4 text-primary transition-opacity duration-180 ease-[cubic-bezier(0.16,1,0.3,1)]",
+						isSidebarWordmarkShown && "opacity-0",
 					)}
 				/>
 			) : (

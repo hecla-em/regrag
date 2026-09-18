@@ -51,6 +51,7 @@ export function ChatSidebar({
 		<Sidebar collapsible="icon">
 			<SidebarHeader className="relative h-12">
 				<HeclaWordmark
+					aria-hidden={isCollapsed}
 					className={cn("absolute top-4 left-4 h-4 text-primary", FADE)}
 				/>
 				<SidebarTrigger className="absolute top-2.5 right-2.5 text-muted-foreground" />

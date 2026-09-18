@@ -48,7 +48,7 @@ export function ChatPage() {
 				onOpenThread={openThread}
 			/>
 
-			<SidebarInset className="relative min-h-0 min-w-0">
+			<SidebarInset className="min-h-0 min-w-0">
 				<ChatHeader
 					turns={turns}
 					isBusy={isBusy}
@@ -56,7 +56,7 @@ export function ChatPage() {
 				/>
 
 				{isHero ? (
-					<div className="relative flex min-h-0 flex-1 flex-col items-center justify-end gap-6 px-6 pb-8">
+					<div className="flex flex-1 flex-col items-center justify-end gap-6 px-6 pb-8">
 						<ShipDrawing className="w-28 text-foreground" />
 						<h2 className="text-center font-semibold text-3xl tracking-tight">
 							Ask about EU maritime regulation
@@ -89,7 +89,7 @@ export function ChatPage() {
 
 				<div
 					className={cn(
-						"relative mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5",
+						"mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5",
 						isHero && "md:w-[calc(100%-6rem)]",
 					)}
 				>
