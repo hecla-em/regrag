@@ -1,9 +1,5 @@
-import { PlusIcon } from "lucide-react"
 import { type CSSProperties, useCallback, useRef } from "react"
-import { Eyebrow } from "@/components/shared/eyebrow"
-import { HeclaWordmark } from "@/components/shared/hecla-wordmark"
 import { ShipDrawing } from "@/components/shared/ship-drawing"
-import { Button } from "@/components/ui/button"
 import {
 	MessageScroller,
 	MessageScrollerButton,
@@ -12,15 +8,12 @@ import {
 	MessageScrollerProvider,
 	MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
-import {
-	SidebarInset,
-	SidebarProvider,
-	SidebarTrigger,
-} from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { useChatThreads } from "@/hooks/use-chat-threads"
 import { readSidebarOpen } from "@/lib/sidebar-open"
 import { cn } from "@/lib/utils"
 import { ChatTurn } from "./chat-turn"
+import { ChatHeader } from "./header"
 import { PromptForm } from "./prompt-form"
 import { ChatSidebar } from "./sidebar"
 
@@ -56,31 +49,11 @@ export function ChatPage() {
 			/>
 
 			<SidebarInset className="relative min-h-0 min-w-0">
-				<header className="relative flex h-11.5 shrink-0 items-center gap-2.5 border-b px-3 md:px-5.5">
-					<SidebarTrigger className="md:hidden" />
-					{isHero ? (
-						<HeclaWordmark className="mr-auto h-4 text-primary md:hidden" />
-					) : (
-						<>
-							<h1 className="mr-auto min-w-0 truncate font-medium text-[13px]">
-								{turns[0].question}
-							</h1>
-							<Eyebrow className="hidden shrink-0 sm:block">
-								{turns.length} {turns.length === 1 ? "question" : "questions"}
-							</Eyebrow>
-						</>
-					)}
-					<Button
-						variant="ghost"
-						size="icon-sm"
-						aria-label="New question"
-						onClick={startNewThread}
-						disabled={isBusy}
-						className="shrink-0 md:hidden"
-					>
-						<PlusIcon />
-					</Button>
-				</header>
+				<ChatHeader
+					turns={turns}
+					isBusy={isBusy}
+					onNewThread={startNewThread}
+				/>
 
 				{isHero ? (
 					<div className="relative flex min-h-0 flex-1 flex-col items-center justify-end gap-6 px-6 pb-8">
