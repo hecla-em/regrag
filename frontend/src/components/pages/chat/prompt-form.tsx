@@ -26,39 +26,43 @@ export function PromptForm({
 	onStop: () => void
 }) {
 	const [question, setQuestion] = useState("")
-	const [isFocused, setIsFocused] = useState(false)
 	const [suggestion, setSuggestion] = useState<string | null>(
 		pickSampleQuestion,
 	)
-	const visibleSuggestion = !isFocused && question === "" ? suggestion : null
+	const visibleSuggestion = question === "" ? suggestion : null
+
+	/** The suggestion goes for good once the reader writes their own question, or takes it with →. */
+	function typeQuestion(value: string) {
+		setQuestion(value)
+		if (value !== "") setSuggestion(null)
+	}
 
 	function submitQuestion(event: { preventDefault: () => void }) {
 		event.preventDefault()
-		const trimmed = question.trim()
-		const submitted = trimmed !== "" ? trimmed : visibleSuggestion
-		if (submitted === null || submitted === "") return
+		const submitted = question.trim()
+		if (submitted === "") return
 		setQuestion("")
-		setSuggestion(null)
 		onSubmit(submitted)
 	}
 
 	return (
 		<form
 			onSubmit={submitQuestion}
-			className="flex items-center gap-2 rounded-full border py-2 pr-2 pl-6"
+			className="flex items-center gap-2 rounded-[20px] border bg-card py-2 pr-2 pl-4 shadow-lg shadow-black/35"
 		>
 			<Textarea
 				value={question}
-				onChange={(event) => setQuestion(event.target.value)}
-				onFocus={() => setIsFocused(true)}
-				onBlur={() => setIsFocused(false)}
+				onChange={(event) => typeQuestion(event.target.value)}
 				onKeyDown={(event) => {
+					if (event.key === "ArrowRight" && visibleSuggestion !== null) {
+						event.preventDefault()
+						typeQuestion(visibleSuggestion)
+						return
+					}
 					if (isBusy) return
 					if (event.key === "Enter" && !event.shiftKey) submitQuestion(event)
 				}}
-				placeholder={
-					visibleSuggestion ?? (suggestion === null ? "Ask a question…" : "")
-				}
+				placeholder={suggestion ?? "Ask a question…"}
 				aria-label="Ask a question"
 				rows={1}
 				className="min-h-9 flex-1 resize-none border-0 bg-transparent px-1 text-sm focus-visible:ring-0"
@@ -67,7 +71,7 @@ export function PromptForm({
 				<Button
 					type="button"
 					size="icon-lg"
-					className="rounded-full"
+					className="rounded-xl"
 					aria-label="Stop"
 					onClick={onStop}
 				>
@@ -77,9 +81,9 @@ export function PromptForm({
 				<Button
 					type="submit"
 					size="icon-lg"
-					className="rounded-full"
+					className="rounded-xl"
 					aria-label="Send"
-					onMouseDown={(event) => event.preventDefault()}
+					disabled={question.trim() === ""}
 				>
 					<ArrowUpIcon />
 				</Button>

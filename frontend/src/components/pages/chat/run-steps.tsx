@@ -1,109 +1,142 @@
-import { Collapsible } from "@base-ui/react/collapsible"
 import { CheckIcon, ChevronDownIcon } from "lucide-react"
-import { memo, useState } from "react"
+import { memo, useEffect, useState } from "react"
 import { ThinkingOrb } from "thinking-orbs"
 import type { ChatStep } from "@/api/types"
-import { formatDuration, stepLabel } from "@/lib/chat-steps"
+import { Button } from "@/components/ui/button"
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover"
+import { formatDuration, formatMs, stepLabel } from "@/lib/chat-steps"
 import { cn } from "@/lib/utils"
 
-function StepIcon({ step, isRunning }: { step: ChatStep; isRunning: boolean }) {
-	if (step.status === "completed") {
-		return (
-			<CheckIcon
-				size={14}
-				strokeWidth={2.5}
-				className="shrink-0 text-muted-foreground"
-				aria-hidden
-			/>
-		)
-	}
+const ELAPSED_TICK_MS = 100
+
+function useElapsedMs(since: number, isRunning: boolean): number {
+	const [now, setNow] = useState(Date.now)
+	useEffect(() => {
+		if (!isRunning) return
+		const timer = setInterval(() => setNow(Date.now()), ELAPSED_TICK_MS)
+		return () => clearInterval(timer)
+	}, [isRunning])
+	return Math.max(0, now - since)
+}
+
+function SolvingOrb() {
+	return <ThinkingOrb state="solving" size={20} theme="dark" />
+}
+
+function StepRow({ step }: { step: ChatStep }) {
+	const isDone = step.status === "completed"
 	return (
-		<span
-			aria-hidden
+		<li
 			className={cn(
-				"size-3 shrink-0 rounded-full border-[1.5px] border-border",
-				isRunning && "animate-spin border-t-muted-foreground",
+				"grid grid-cols-[20px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1",
+				!isDone && "bg-secondary",
 			)}
-		/>
+		>
+			{isDone ? (
+				<CheckIcon
+					size={14}
+					strokeWidth={2.5}
+					className="justify-self-center text-success"
+					aria-hidden
+				/>
+			) : (
+				<SolvingOrb />
+			)}
+			<span className="truncate">
+				{stepLabel(step)}
+				{step.subject && (
+					<span className="ml-1.5 text-faint-foreground">{step.subject}</span>
+				)}
+			</span>
+			<span className="text-[10.5px] text-faint-foreground tabular-nums">
+				{isDone && formatMs(step.ms)}
+			</span>
+		</li>
 	)
 }
 
-/** The path a run took, above the answer it produced: the step it is on while it runs, and a
- * record of how the answer was reached once it settles. Open while running unless the reader
- * has chosen otherwise. */
-export const RunSteps = memo(function RunSteps({
+function ChipLabel({
 	steps,
 	isRunning,
+	askedAt,
 }: {
 	steps: ChatStep[]
 	isRunning: boolean
+	askedAt: number
 }) {
-	const [openedByReader, setOpenedByReader] = useState<boolean | null>(null)
-	const isOpen = openedByReader ?? isRunning
+	const elapsedMs = useElapsedMs(askedAt, isRunning)
+	if (!isRunning) {
+		return (
+			<>
+				<span aria-hidden className="mx-1.5 size-1.5 rounded-full bg-success" />
+				<span role="status">
+					{steps.length} {steps.length === 1 ? "step" : "steps"} ·{" "}
+					{formatDuration(steps)}
+				</span>
+				<ChevronDownIcon
+					size={12}
+					className="transition-transform duration-200 group-data-popup-open:rotate-180"
+					aria-hidden
+				/>
+			</>
+		)
+	}
+	const current = steps.findLast((step) => step.status === "running")
+	return (
+		<>
+			<SolvingOrb />
+			<span role="status" className="shimmer-text truncate">
+				{current ? stepLabel(current) : "Working"}…
+			</span>
+			<span className="shrink-0 text-faint-foreground">
+				· {formatMs(elapsedMs)}
+			</span>
+		</>
+	)
+}
 
+/** The path a run took, as a chip above its answer: the step it is on while it runs, and the
+ * whole trail in a popover that opens over the answer without moving it. */
+export const RunSteps = memo(function RunSteps({
+	steps,
+	isRunning,
+	askedAt,
+}: {
+	steps: ChatStep[]
+	isRunning: boolean
+	askedAt: number
+}) {
 	if (steps.length === 0 && !isRunning) return null
 
 	return (
-		<Collapsible.Root
-			open={isOpen}
-			onOpenChange={setOpenedByReader}
-			className="flex w-full flex-col"
-		>
-			<Collapsible.Trigger className="group -mx-1.5 flex w-fit items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-muted">
-				{isRunning ? (
-					<ThinkingOrb state="solving" size={20} theme="dark" />
-				) : (
-					<span aria-hidden className="flex size-5 items-center justify-center">
-						<span className="size-2 rounded-full bg-muted-foreground" />
-					</span>
+		<Popover>
+			<PopoverTrigger
+				render={<Button variant="outline" size="sm" />}
+				className="group h-7 w-fit max-w-full gap-1.5 self-start rounded-lg bg-card pr-2.5 pl-1 font-mono font-normal text-muted-foreground text-xs tabular-nums dark:bg-card"
+			>
+				<ChipLabel steps={steps} isRunning={isRunning} askedAt={askedAt} />
+			</PopoverTrigger>
+			<PopoverContent
+				align="start"
+				className="w-75 max-w-[calc(100vw-2rem)] gap-0 rounded-2xl p-1.5 font-mono text-xs ring-border"
+			>
+				<ol className="flex flex-col">
+					{steps.map((step, index) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: the trail only grows at its end, so a step's position is its identity
+						<StepRow key={index} step={step} />
+					))}
+				</ol>
+				{steps.length === 0 && (
+					<p className="flex items-center gap-2 px-2 py-1">
+						<SolvingOrb />
+						Working…
+					</p>
 				)}
-				<span
-					role="status"
-					className={cn(
-						"text-xs whitespace-nowrap",
-						isRunning
-							? "shimmer-text"
-							: "fade-in animate-in text-muted-foreground duration-300",
-					)}
-				>
-					{isRunning
-						? "Working"
-						: `${steps.length} ${steps.length === 1 ? "step" : "steps"} · ${formatDuration(steps)}`}
-				</span>
-				<ChevronDownIcon
-					size={14}
-					className="text-muted-foreground transition-transform duration-300 group-data-panel-open:rotate-180"
-					aria-hidden
-				/>
-			</Collapsible.Trigger>
-
-			<Collapsible.Panel className="h-(--collapsible-panel-height) overflow-hidden transition-[height,opacity] duration-400 ease-[cubic-bezier(0.23,1,0.32,1)] data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0">
-				<div className="relative mt-1 ml-[5px] pl-4">
-					<span
-						aria-hidden
-						className="-top-2 absolute bottom-2.5 left-[3px] w-px bg-border"
-					/>
-					<ol className="flex flex-col gap-1 py-1">
-						{steps.map((step, index) => (
-							<li
-								// biome-ignore lint/suspicious/noArrayIndexKey: the trail only grows at its end, so a step's position is its identity
-								key={index}
-								className="fade-in slide-in-from-bottom-1 flex min-h-7 w-full animate-in items-center gap-2 fill-mode-both px-1.5 py-0.5 duration-300"
-							>
-								<StepIcon step={step} isRunning={isRunning} />
-								<span className="min-w-0 truncate font-medium text-xs">
-									{stepLabel(step)}
-								</span>
-								{step.subject && (
-									<span className="min-w-0 truncate text-muted-foreground text-xs">
-										{step.subject}
-									</span>
-								)}
-							</li>
-						))}
-					</ol>
-				</div>
-			</Collapsible.Panel>
-		</Collapsible.Root>
+			</PopoverContent>
+		</Popover>
 	)
 })

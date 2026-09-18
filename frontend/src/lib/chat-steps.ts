@@ -30,8 +30,11 @@ export function stepLabel(step: ChatStep): string {
 	return step.status === "running" ? named.running : named.done
 }
 
-/** How long the run spent on the steps it finished, as the collapsed trail reports it. */
+export function formatMs(ms: number): string {
+	return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+/** How long the run spent on the steps it finished, as the settled chip reports it. */
 export function formatDuration(steps: ChatStep[]): string {
-	const ms = steps.reduce((total, step) => total + step.ms, 0)
-	return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+	return formatMs(steps.reduce((total, step) => total + step.ms, 0))
 }
