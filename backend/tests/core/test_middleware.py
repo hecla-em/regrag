@@ -74,7 +74,7 @@ def test_access_log_skips_cors_preflight(
     response = client.options(
         "/health",
         headers={
-            "Origin": config.CORS_ORIGINS[0],
+            "Origin": config.FRONTEND_URL,
             "Access-Control-Request-Method": "GET",
         },
     )
