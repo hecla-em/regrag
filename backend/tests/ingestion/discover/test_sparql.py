@@ -91,3 +91,14 @@ async def test_the_title_is_read_with_its_spacing_normalised():
         rows = await run_acts_by_topic_query(client, "32023R1805")
 
     assert rows[0].title == "Regulation (EU) 2023/1805 of 13 September 2023"
+
+
+async def test_the_legal_basis_article_is_read_from_the_row():
+    def handler(request):
+        rows = payload(binding("32003L0087"), binding("32023R2599", basis="A03gfP4"))
+        return httpx.Response(200, json=rows)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        rows = await run_acts_by_topic_query(client, "32003L0087")
+
+    assert [row.basis_article for row in rows] == [None, "A03gfP4"]

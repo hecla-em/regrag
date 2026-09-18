@@ -18,16 +18,18 @@ Shipping companies trading in Europe now answer to three EU emissions laws:
   (2003/87/EC) has covered shipping since 2024. Companies surrender
   allowances for the emissions verified under MRV.
 
-RegRag covers the two regulations today, plus the delegated and implementing
-acts made under them. The ETS Directive is not in the corpus yet. The text is
-long, amended often, and cross-references itself constantly. RegRag keeps a
+RegRag covers all three, plus the delegated and implementing acts made under
+them. For the ETS Directive that means the acts adopted under its shipping
+articles, not the rest of the carbon market. The text is long, amended often,
+and cross-references itself constantly. RegRag keeps a
 current copy of that corpus and answers questions against it, returning the
 exact articles it relied on rather than a paraphrase to take on trust.
 
 ## How it works
 
-- **Discovery** queries CELLAR for every act with FuelEU or MRV as its legal
-  basis, then resolves each to its latest consolidated version by CELEX number.
+- **Discovery** queries CELLAR for every act with FuelEU, MRV or the ETS
+  Directive as its legal basis, then resolves each to its latest consolidated
+  version by CELEX number.
 - **Ingestion** runs incrementally: unchanged documents are neither
   re-downloaded nor re-embedded, so keeping the corpus current is cheap.
 - **Retrieval** fuses a vector leg and a full-text leg with Reciprocal Rank

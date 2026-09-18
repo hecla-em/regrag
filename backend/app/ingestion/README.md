@@ -40,15 +40,22 @@ An act and its amended versions have matching ids apart from the sector digit an
 When an act is absorbed into another, its consolidations are filed under the absorbing act's id instead. An act whose consolidations are all filed under another id has been superseded, and the act that absorbed it is the one to fetch.
 
 ### 1.2 Finding the corpus
-Discovery produces the list of CELEX ids to download. The corpus is built around two regulations: FuelEU (`32023R1805`) and MRV (`32015R0757`).
+Discovery produces the list of CELEX ids to download. The corpus is built around three acts: FuelEU (`32023R1805`), MRV (`32015R0757`) and the ETS Directive (`32003L0087`).
 
-The EU Publications Office runs a document metadata database, CELLAR, which is queried for every act naming one of those regulations as its legal basis (the law it was made under) along with the regulations themselves.
+The EU Publications Office runs a document metadata database, CELLAR, which is queried for every act naming one of those acts as its legal basis (the law it was made under) along with the acts themselves.
 
 The results are wider than the corpus, so each act must pass three filters:
 
 - it is legislation: sector 3, with a kind of R, L or D
 - it is still in force
 - it has not been superseded by an act that absorbed it
+
+FuelEU and MRV are shipping laws from end to end, so every act that passes belongs. The ETS Directive is the whole carbon market: 223 acts name it as their legal basis and 56 pass the filters, most of them on aviation, the registry or free allocation. CELLAR also records which article of the base act each one was adopted under, written as `A03gfP4` for Article 3gf(4), and a topic can name the articles it keeps and the ones it turns away:
+
+- ETS keeps the acts adopted under Articles 3ga to 3gg, the shipping chapter, and under the 12(3-b) to 12(3-e) derogations for ice-class ships, small islands and outermost regions. Article 3g on aviation and 12(3b) on carbon capture sit one character away and stay out.
+- ETS turns away the acts adopted under Article 3gf(2), the lists of shipping companies and their administering authorities: 200k characters of names that crowd the rules out of retrieval.
+
+That leaves the Directive itself and three acts made under it.
 
 CELLAR also reports every consolidated version it holds, and the latest one filed under the act's own id is carried forward as the version to try downloading first.
 

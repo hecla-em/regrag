@@ -149,6 +149,10 @@ async def test_unexpected_error_status_raises():
 
 
 EXPECTED_RESOLVED = {
+    "ets:32003L0087": "02003L0087-20240301",
+    "ets:32023D2895": "02023D2895-20250101",
+    "ets:32023R2297": "32023R2297",
+    "ets:32023R2599": "32023R2599",
     "fueleu:32023R1805": "32023R1805",
     "fueleu:32024R2027": "32024R2027",
     "fueleu:32024R2031": "32024R2031",

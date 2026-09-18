@@ -1,7 +1,9 @@
 """Reducing the query's answer to documents: which acts to fetch, and at what version."""
 
+import re
 from itertools import groupby
 
+from app.core.config import config
 from app.ingestion import celex
 from app.ingestion.discover.models import ActsQueryRow, CandidateAct, DiscoveredDocument
 
@@ -13,12 +15,13 @@ def filter_legislative_acts(rows: list[ActsQueryRow]) -> list[ActsQueryRow]:
 
 def _candidate_act(act_celex: str, rows: list[ActsQueryRow]) -> CandidateAct:
     """Every row for an act repeats its in-force flag and title and carries one of its
-    consolidations."""
+    consolidations and one of its basis articles."""
     return CandidateAct(
         celex=act_celex,
         in_force=rows[0].in_force,
         consolidations=frozenset(row.consolidation for row in rows if row.consolidation),
         title=rows[0].title,
+        basis_articles=frozenset(row.basis_article for row in rows if row.basis_article),
     )
 
 
@@ -52,6 +55,23 @@ def filter_fetchable_acts(acts: list[CandidateAct]) -> list[CandidateAct]:
     return [act for act in acts if _is_in_force(act) and not _is_folded_into_another_act(act)]
 
 
+def _is_adopted_under(act: CandidateAct, articles: str) -> bool:
+    """Whether any article the act was adopted under starts the way the pattern does."""
+    return any(re.match(articles, article) for article in act.basis_articles)
+
+
+def filter_acts_by_basis_article(
+    acts: list[CandidateAct], base_celex: str, articles: str
+) -> list[CandidateAct]:
+    """The base act, and the acts adopted under an article the pattern matches."""
+    return [act for act in acts if act.celex == base_celex or _is_adopted_under(act, articles)]
+
+
+def exclude_acts_by_basis_article(acts: list[CandidateAct], articles: str) -> list[CandidateAct]:
+    """The acts left once those adopted under an article the pattern matches are turned away."""
+    return [act for act in acts if not _is_adopted_under(act, articles)]
+
+
 def _consolidations_newest_first(act: CandidateAct) -> tuple[str, ...]:
     """Every consolidated text of this act, newest first; the date suffix makes that a sort."""
     return tuple(sorted(_extract_consolidations_of_this_act(act), reverse=True))
@@ -62,6 +82,10 @@ def select_documents(topic: str, rows: list[ActsQueryRow]) -> list[DiscoveredDoc
     legislation = filter_legislative_acts(rows)
     acts = extract_candidate_acts(legislation)
     fetchable = filter_fetchable_acts(acts)
+    if kept := config.TOPIC_BASIS_ARTICLES.get(topic):
+        fetchable = filter_acts_by_basis_article(fetchable, config.TOPIC_BASE_ACTS[topic], kept)
+    if excluded := config.TOPIC_EXCLUDED_BASIS_ARTICLES.get(topic):
+        fetchable = exclude_acts_by_basis_article(fetchable, excluded)
     return [
         DiscoveredDocument(
             topic=topic,

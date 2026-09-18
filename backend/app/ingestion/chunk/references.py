@@ -37,8 +37,11 @@ POINT = r"(?:,\s*point\s+\((?P<point>[0-9a-z]+)\))?"
 """The point a division mention may end on: 'Article 3, point (e)', how a definition is
 borrowed, from this act or another."""
 
-ARTICLE_REF = re.compile(rf"Articles?\s+(\d+[a-z]?)(?:\((\d+[a-z]?)\))?{POINT}")
-ARTICLE_TAIL = re.compile(rf"\s*(?:,|and)\s+(\d{{1,3}}[a-z]?)\b(?:\((\d+[a-z]?)\))?{POINT}")
+PARAGRAPH = r"(?:\((\d+(?:-?[a-z]+)?)\))?"
+"""The paragraph a mention may carry: '(2)', '(3a)', or '(3-d)' for one inserted ahead of 3a."""
+
+ARTICLE_REF = re.compile(rf"Articles?\s+(\d+[a-z]{{0,2}}){PARAGRAPH}{POINT}")
+ARTICLE_TAIL = re.compile(rf"\s*(?:,|and)\s+(\d{{1,3}}[a-z]{{0,2}})\b{PARAGRAPH}{POINT}")
 ANNEX_REF = re.compile(rf"Annexe?s?\s+([IVXLC]+|\d+){POINT}")
 ANNEX_TAIL = re.compile(rf"\s*(?:,|and)\s+([IVXLC]{{1,4}}|\d{{1,2}})\b{POINT}")
 

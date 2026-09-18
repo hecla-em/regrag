@@ -1,0 +1,386 @@
+{
+  "results": {
+    "bindings": [
+      {
+        "c": {
+          "value": "32009R0748"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02009R0748-20150213"
+        },
+        "basis": {
+          "value": "A18BIP3PTA)"
+        }
+      },
+      {
+        "c": {
+          "value": "32019R1122"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02013R0389-20190722"
+        },
+        "basis": {
+          "value": "A19P3"
+        }
+      },
+      {
+        "c": {
+          "value": "32023D2895"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02023D2895-20240101"
+        },
+        "basis": {
+          "value": "A12P3-d"
+        }
+      },
+      {
+        "c": {
+          "value": "32023D2895"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02023D2895-20240101"
+        },
+        "basis": {
+          "value": "A12P3-c"
+        }
+      },
+      {
+        "c": {
+          "value": "32023D2895"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02023D2895-20250101"
+        },
+        "basis": {
+          "value": "A12P3-d"
+        }
+      },
+      {
+        "c": {
+          "value": "32023D2895"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02023D2895-20250101"
+        },
+        "basis": {
+          "value": "A12P3-c"
+        }
+      },
+      {
+        "c": {
+          "value": "32024D0411"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02024D0411-20260101"
+        },
+        "basis": {
+          "value": "A03gfP2PTA)"
+        }
+      },
+      {
+        "c": {
+          "value": "32023R2599"
+        },
+        "force": {
+          "value": "1"
+        },
+        "basis": {
+          "value": "A03gfP4"
+        }
+      },
+      {
+        "c": {
+          "value": "32023R2297"
+        },
+        "force": {
+          "value": "1"
+        },
+        "basis": {
+          "value": "A03gaP2"
+        }
+      },
+      {
+        "c": {
+          "value": "32024R2620"
+        },
+        "force": {
+          "value": "1"
+        },
+        "basis": {
+          "value": "A12P3bL2"
+        }
+      },
+      {
+        "c": {
+          "value": "32010D0670"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02010D0670-20150207"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20130701"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20151029"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20041113"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20131219"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20090625"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "01996L0061-20031025"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20090202"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20090420"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20140430"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20180408"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20171229"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20200101"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20210101"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20230301"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20230121"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20230605"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      },
+      {
+        "c": {
+          "value": "32003L0087"
+        },
+        "force": {
+          "value": "1"
+        },
+        "cons": {
+          "value": "02003L0087-20240301"
+        },
+        "basis": {
+          "value": "P1"
+        }
+      }
+    ]
+  }
+}

@@ -385,9 +385,378 @@
       ]
     },
     {
-      "id": "adjacent-regime-ets-allowance-surrender",
-      "kind": "out_of_corpus",
-      "question": "How many EU ETS allowances does a shipping company have to surrender for its 2025 emissions, and by what date?"
+      "id": "ets-scope-third-country-voyage",
+      "kind": "in_corpus",
+      "question": "If my ship sails from Rotterdam to Singapore, what share of that voyage's emissions do I need EU ETS allowances for?",
+      "answer": "Half. Surrender requirements apply to 50 % of the emissions from a voyage between a port of call under a Member State's jurisdiction and one outside it, in either direction. They apply to 100 % of emissions from voyages between two Member State ports and to 100 % of emissions within a Member State port of call.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "content_hashes": [
+            "55c0156f0c8f",
+            "3840c56d84aa",
+            "8c607c8c560c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-surrender-2025-share-and-deadline",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "How many EU ETS allowances does a shipping company have to surrender for its 2025 emissions, and by what date?",
+      "answer": "Allowances covering 70 % of its verified 2025 emissions that fall under the surrender requirement, surrendered by 30 September 2026. The phase-in is 40 % of verified emissions reported for 2024, 70 % for 2025 and 100 % for 2026 and every year after, and Article 12(3) sets 30 September each year as the deadline for the preceding calendar year's emissions.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "6646b1604525",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "7d6eece1ea90",
+            "e40994f0cac2",
+            "90c4b72b30a8",
+            "45a96014952d",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "5f19a92a14cc",
+            "a8a44e7708f7",
+            "c6793b8263b1",
+            "2d5c9d188297"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-cost-pass-through-charterer",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our charterer buys the fuel and decides the route and speed. Can we recover the EU ETS allowance cost from them, and who stays liable for surrendering?",
+      "answer": "Yes. Where another entity has taken on ultimate responsibility for buying the fuel, operating the ship, or both under a contractual arrangement, the shipping company is entitled to reimbursement from that entity for the costs of surrendering allowances. Operation of the ship means determining the cargo carried or the route and the speed. The shipping company nevertheless remains the entity responsible for surrendering allowances and for overall compliance.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gc",
+          "content_hashes": [
+            "122f19aa126a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-administering-authority-non-eu-company",
+      "kind": "in_corpus",
+      "question": "Which Member State administers a shipping company under the EU ETS if the company is registered outside the EU?",
+      "answer": "The Member State with the greatest estimated number of port calls from the company's voyages within the ETS scope over the preceding four monitoring years. If the company made no such voyage in those four years, it is the Member State where one of its ships started or ended its first voyage within the scope. A company registered in a Member State is administered by that Member State.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gf",
+          "content_hashes": [
+            "47b6b3b3ce5a",
+            "ae1df915cc15",
+            "1804519bdb1a",
+            "2f7d17d0c359"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-ice-class-derogation",
+      "kind": "in_corpus",
+      "question": "Do ice-class ships get any relief on the EU ETS allowances they must surrender?",
+      "answer": "Yes. Shipping companies may surrender 5 % fewer allowances than the verified emissions released until 31 December 2030 from ice-class ships, provided the ships have ice class IA or IA Super, or an equivalent ice class established on the basis of HELCOM Recommendation 25/7.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "6646b1604525",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "7d6eece1ea90",
+            "e40994f0cac2",
+            "90c4b72b30a8",
+            "45a96014952d",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "5f19a92a14cc",
+            "a8a44e7708f7",
+            "c6793b8263b1",
+            "2d5c9d188297"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-small-island-ferry-derogation",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "multi_part"
+      ],
+      "question": "Are ferry voyages to small islands exempt from EU ETS surrender obligations, and where are the islands listed?",
+      "answer": "They can be. At a Member State's request the Commission provides, by implementing act, that no action is taken against shipping companies for emissions released until 31 December 2030 from voyages by passenger ships other than cruise ships, and by ro-pax ships, between a port of an island with no road or rail link to the mainland and fewer than 200 000 permanent residents and a port of the same Member State, and from those ships' activities in port for such voyages. The islands and ports are listed in Annex I to Commission Implementing Decision (EU) 2023/2895.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "6646b1604525",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "7d6eece1ea90",
+            "e40994f0cac2",
+            "90c4b72b30a8",
+            "45a96014952d",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "5f19a92a14cc",
+            "a8a44e7708f7",
+            "c6793b8263b1",
+            "2d5c9d188297"
+          ]
+        },
+        {
+          "celex": "32023D2895",
+          "article": "1",
+          "content_hashes": [
+            "c47f6dd827fa"
+          ]
+        },
+        {
+          "celex": "32023D2895",
+          "annex": "I",
+          "content_hashes": [
+            "22b1775df1cb",
+            "21d19c1a1184"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-shortfall-penalty-and-expulsion",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "What happens if a shipping company does not surrender enough EU ETS allowances?",
+      "answer": "It pays an excess emissions penalty of EUR 100 for each tonne of CO2 equivalent not covered, and paying does not release it from surrendering allowances for those excess emissions the following year. If it fails to meet its surrender obligations for two or more consecutive reporting periods and other enforcement has failed, the competent authority of the Member State of the port of entry may, after hearing the company, issue an expulsion order. Every Member State except the flag State then refuses the company's ships entry to its ports until the obligations are met, and a ship flying a Member State's flag is detained by that State.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "16",
+          "content_hashes": [
+            "bf883e3695c6",
+            "e0fce46900e2",
+            "5317d32b52ed",
+            "11c8f426d6ef",
+            "e009ce86c2b0",
+            "74d62ed9f475",
+            "948964eefeb3",
+            "563ae507e813",
+            "760731b7faed",
+            "0a4907b69e76",
+            "3c8249ea7e8f",
+            "838c00b63541",
+            "53cd87d74a6c",
+            "4d90bbcf46c9"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-shipping-company-definition",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "MRV borrows its definition of 'company' from Article 3, point (w) of Directive 2003/87/EC — what does that provision say?",
+      "answer": "Article 3, point (w) of Directive 2003/87/EC defines 'shipping company' as the shipowner or any other organisation or person, such as the manager or the bareboat charterer, that has assumed the responsibility for the operation of the ship from the shipowner and that, on assuming such responsibility, has agreed to take over all the duties and responsibilities imposed by the ISM Code, set out in Annex I to Regulation (EC) No 336/2006.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "3",
+          "content_hashes": [
+            "4baf2fda8354",
+            "802dee62f372"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3",
+          "content_hashes": [
+            "451fe52df3d5",
+            "11ccfd5b8bee",
+            "1261afc40213",
+            "c9a6efcc1da5",
+            "3db2e4db4163",
+            "37ab169db45a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-transhipment-port-of-call",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "For the EU ETS, does a container ship's stop at Tanger Med count as a port of call?",
+      "answer": "No. The Directive's definition of port of call excludes stops of containerships in a neighbouring container transhipment port listed in the implementing act adopted under Article 3ga(2). Commission Implementing Regulation (EU) 2023/2297 lists two such ports: East Port Said in Egypt and Tanger Med in Morocco.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3",
+          "content_hashes": [
+            "451fe52df3d5",
+            "11ccfd5b8bee",
+            "1261afc40213",
+            "c9a6efcc1da5",
+            "3db2e4db4163",
+            "37ab169db45a"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "content_hashes": [
+            "55c0156f0c8f",
+            "3840c56d84aa",
+            "8c607c8c560c"
+          ]
+        },
+        {
+          "celex": "32023R2297",
+          "annex": "",
+          "content_hashes": [
+            "be2f3217af9d"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-monitoring-relies-on-mrv",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Does the EU ETS have its own monitoring and verification rules for ship emissions, or does it rely on the MRV Regulation?",
+      "answer": "It relies on MRV. The administering authority ensures that a shipping company monitors and reports the relevant parameters and submits aggregated emissions data at company level in accordance with Chapter II of Regulation (EU) 2015/757, and that this data is verified under the verification and accreditation rules in Chapter III of that Regulation. Under Article 11a of Regulation (EU) 2015/757 the verified aggregated data at company level goes to the administering authority by 31 March each year.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gd",
+          "content_hashes": [
+            "8f97f117e414"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3ge",
+          "content_hashes": [
+            "692d02b9397e"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "11a",
+          "content_hashes": [
+            "32009779302c",
+            "16abb4e268d6",
+            "1404172536b5",
+            "b1b95b25e43c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-vs-fueleu-penalties",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "How does the penalty for an EU ETS allowance shortfall compare with the FuelEU penalty for a compliance deficit?",
+      "answer": "The ETS penalty is EUR 100 for each tonne of CO2 equivalent for which allowances were not surrendered, and the company must still surrender the missing allowances the following year. The FuelEU penalty is worked out from the ship's compliance deficit, converted to VLSFO-equivalent tonnes and multiplied by EUR 2,400 per tonne, and it is multiplied by 1 + (n − 1)/10 when the ship has a deficit for two or more consecutive reporting periods.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "16",
+          "content_hashes": [
+            "bf883e3695c6",
+            "e0fce46900e2",
+            "5317d32b52ed",
+            "11c8f426d6ef",
+            "e009ce86c2b0",
+            "74d62ed9f475",
+            "948964eefeb3",
+            "563ae507e813",
+            "760731b7faed",
+            "0a4907b69e76",
+            "3c8249ea7e8f",
+            "838c00b63541",
+            "53cd87d74a6c",
+            "4d90bbcf46c9"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "23",
+          "content_hashes": [
+            "df3cd9e19ad5",
+            "d72d419e0d1d",
+            "407656d8e29a",
+            "61f40a77eac6",
+            "81ab6e346afb",
+            "b8dbfb610622",
+            "d170a9df22e6",
+            "e88d4e4384f5",
+            "6b353d5a0ea6",
+            "94bfd6e5c0eb",
+            "d80f8434371b"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "IV",
+          "content_hashes": [
+            "4c45bb6b3c77",
+            "48d5c06d7685",
+            "2e7d19156425",
+            "0d2f6acb2912",
+            "087166f2e373",
+            "90d05abf522e",
+            "b5f0023d0bfd",
+            "5ab19d4aacb0",
+            "4bdb182f7035"
+          ]
+        }
+      ]
     },
     {
       "id": "adjacent-regime-imo-cii-rating",
@@ -1026,14 +1395,6 @@
       "id": "adjacent-regime-imo-net-zero-framework",
       "kind": "out_of_corpus",
       "question": "Under the IMO Net-Zero Framework, what does a ship pay per tonne of CO2 equivalent if it misses the direct compliance target?"
-    },
-    {
-      "id": "definition-outside-corpus-ets-company",
-      "kind": "out_of_corpus",
-      "traits": [
-        "multi_hop"
-      ],
-      "question": "MRV borrows its definition of 'company' from Article 3, point (w) of Directive 2003/87/EC — what does that provision say?"
     },
     {
       "id": "external-statistic-paris-mou-detentions",

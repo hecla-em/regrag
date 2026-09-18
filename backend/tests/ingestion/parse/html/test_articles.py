@@ -68,3 +68,24 @@ def test_amendment_markers_are_stripped_but_wrapped_text_survives(mrv: ParsedDoc
     text = article_4.children[1].text
     assert "►" not in text and "◄" not in text and "▼" not in text
     assert "greenhouse gas" in text
+
+
+ETS_ARTICLE = (
+    '<html><body><div class="eli-subdivision" id="art_3ga">'
+    '<p class="title-article-norm">Article 3ga</p>'
+    '<div class="eli-title"><p class="stitle-article-norm">Scope</p></div>'
+    '<div class="norm"><span class="no-parag">3.  </span>'
+    '<div class="norm inline-element">Surrender applies.</div></div>'
+    '<div class="norm"><span class="no-parag">3-e.  </span>'
+    '<div class="norm inline-element">By way of derogation.</div></div>'
+    "</div></body></html>"
+)
+
+
+def test_an_article_number_keeps_every_letter_of_its_suffix():
+    assert parse_eurlex_html(ETS_ARTICLE)[0].number == "3ga"
+
+
+def test_a_paragraph_inserted_before_another_keeps_its_hyphened_number():
+    paragraphs = parse_eurlex_html(ETS_ARTICLE)[0].children
+    assert [p.number for p in paragraphs] == ["3", "3-e"]
