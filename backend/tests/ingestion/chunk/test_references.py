@@ -29,6 +29,18 @@ def test_extracts_letter_suffixed_article_number() -> None:
     )
 
 
+def test_extracts_an_article_number_with_a_two_letter_suffix() -> None:
+    references = extract_references("the list referred to in Article 3gf(2) and 3ga")
+    assert [(r.article, r.paragraph) for r in references] == [("3gf", "2"), ("3ga", None)]
+
+
+def test_extracts_a_hyphened_paragraph_number() -> None:
+    references = extract_references("the ports referred to in Article 12(3-d)")
+    assert references == (
+        Reference(raw="Article 12(3-d)", instrument=None, article="12", paragraph="3-d"),
+    )
+
+
 def test_extracts_internal_annex_reference() -> None:
     references = extract_references("using the methods set out in Annex I")
     assert references == (Reference(raw="Annex I", instrument=None, annex="I"),)

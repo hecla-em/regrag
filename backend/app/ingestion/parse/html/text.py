@@ -16,9 +16,9 @@ WHITESPACE_RE = re.compile(r"\s+")
 AMENDMENT_MARKER_RE = re.compile(r"[▼►]\s*[A-Z]+\d*|◄")
 EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)")
 
-ARTICLE_NUMBER_RE = re.compile(r"Article\s+(\d+[a-z]?)", re.IGNORECASE)
+ARTICLE_NUMBER_RE = re.compile(r"Article\s+(\d+[a-z]*)", re.IGNORECASE)
 ANNEX_NUMBER_RE = re.compile(r"ANNEX\s+([IVXLC]+|\d+)", re.IGNORECASE)
-LEADING_NUMBER_RE = re.compile(r"^(\d+[a-z]?)\.\s*")
+LEADING_NUMBER_RE = re.compile(r"^(\d+(?:-?[a-z]+)?)\.\s*")
 
 
 def replace_formula_images(tree: HTMLParser) -> None:
