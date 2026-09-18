@@ -1,0 +1,37 @@
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+
+app = 'regrag'
+primary_region = 'lhr'
+
+[build]
+
+[deploy]
+  release_command = 'alembic upgrade head'
+
+[env]
+  ENVIRONMENT = 'prod'
+  DB_PORT = '5432'
+  DB_NAME = 'regrag'
+  PGSSLMODE = 'verify-full'
+  PGSSLROOTCERT = '/etc/ssl/certs/ca-certificates.crt'
+  CORS_ORIGINS = '["https://faqs.hecla-em.com"]'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ['app']
+
+  [[http_service.checks]]
+    method = 'GET'
+    path = '/health'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
