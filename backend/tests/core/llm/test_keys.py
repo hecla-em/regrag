@@ -13,8 +13,8 @@ from app.core.llm.keys import api_key_for
 @pytest.mark.parametrize(
     ("model", "setting"),
     [
-        ("anthropic/claude-haiku-4-5", "ANTHROPIC_API_KEY"),
-        ("openai/gpt-5", "OPENAI_API_KEY"),
+        ("openrouter/google/gemini-2.5-flash", "OPENROUTER_API_KEY"),
+        ("openrouter/anthropic/claude-sonnet-5", "OPENROUTER_API_KEY"),
         ("voyage/voyage-4-lite", "VOYAGE_API_KEY"),
         ("voyage/rerank-2.5", "VOYAGE_API_KEY"),
     ],
@@ -27,14 +27,15 @@ def test_a_model_is_called_with_the_key_of_the_provider_it_names(model, setting,
 
 
 def test_an_unset_key_is_passed_as_empty_and_left_for_the_provider_to_refuse(monkeypatch):
-    monkeypatch.setattr(config, "OPENAI_API_KEY", SecretStr(""))
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", SecretStr(""))
 
-    assert api_key_for("openai/gpt-5") == ""
+    assert api_key_for("openrouter/google/gemini-2.5-flash") == ""
 
 
 def test_a_provider_with_no_setting_is_a_code_change_and_says_so():
-    with pytest.raises(AttributeError, match="GEMINI_API_KEY"):
-        api_key_for("gemini/gemini-2.5-pro")
+    """Naming a provider directly rather than through OpenRouter needs a key added for it."""
+    with pytest.raises(AttributeError, match="ANTHROPIC_API_KEY"):
+        api_key_for("anthropic/claude-sonnet-5")
 
 
 def test_a_parameter_the_model_refuses_is_dropped_rather_than_raised():

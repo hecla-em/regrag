@@ -199,10 +199,12 @@ EMBED_DIMENSIONS = 1024
 class ProviderConfig(BaseConfig):
     """One key per provider a model may name, under litellm's own variable names so the env
     file reads the same as it would for litellm itself. Empty is unset: the provider refuses
-    the call."""
+    the call.
 
-    ANTHROPIC_API_KEY: SecretStr = SecretStr("")
-    OPENAI_API_KEY: SecretStr = SecretStr("")
+    Every model the graph and the judge call is reached through OpenRouter, so a model swap
+    stays a setting rather than an account. Voyage is named directly because OpenRouter
+    serves no embedding or rerank endpoint."""
+
     VOYAGE_API_KEY: SecretStr = SecretStr("")
     OPENROUTER_API_KEY: SecretStr = SecretStr("")
 
@@ -400,7 +402,7 @@ class JudgeConfig(BaseConfig):
     EVAL_JUDGE_CONCURRENCY: cases judged at once; llm_retry absorbs the rate limits.
     """
 
-    EVAL_JUDGE_MODEL: str = "anthropic/claude-sonnet-5"
+    EVAL_JUDGE_MODEL: str = "openrouter/anthropic/claude-sonnet-5"
     EVAL_JUDGE_TIMEOUT: int = 120
     EVAL_JUDGE_MAX_TOKENS: int = 8192
     EVAL_JUDGE_CONCURRENCY: int = 4

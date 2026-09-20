@@ -74,16 +74,16 @@ def judge_answers(monkeypatch: pytest.MonkeyPatch):
 async def test_a_judge_call_asks_for_the_verdicts_shape_and_drops_what_the_model_rejects(
     judge_answers, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(config, "EVAL_JUDGE_MODEL", "anthropic/claude-sonnet-5")
+    monkeypatch.setattr(config, "EVAL_JUDGE_MODEL", "openrouter/anthropic/claude-sonnet-5")
     calls = judge_answers(DECLINED)
 
     verdict = await call_judge_model(REFUSAL_PROMPT, "user turn", RefusalVerdict)
 
     assert verdict == DECLINED
     [call] = calls
-    assert call["model"] == "anthropic/claude-sonnet-5"
+    assert call["model"] == "openrouter/anthropic/claude-sonnet-5"
     assert call["response_format"] is RefusalVerdict
-    assert call["api_key"] == config.ANTHROPIC_API_KEY.get_secret_value()
+    assert call["api_key"] == config.OPENROUTER_API_KEY.get_secret_value()
     assert call["messages"] == [
         {"role": "system", "content": REFUSAL_PROMPT},
         {"role": "user", "content": "user turn"},
@@ -262,7 +262,7 @@ async def test_a_run_is_judged_case_by_case_a_few_at_a_time(
 # The real seam, run only with a key in the environment
 
 
-@pytest.mark.skipif(not config.ANTHROPIC_API_KEY.get_secret_value(), reason="needs a provider key")
+@pytest.mark.skipif(not config.OPENROUTER_API_KEY.get_secret_value(), reason="needs a provider key")
 async def test_the_judge_model_returns_a_verdict_in_the_asked_shape() -> None:
     message = build_refusal_message(
         "How many ETS allowances must a company surrender for 2025?",

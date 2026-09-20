@@ -155,7 +155,7 @@ def test_the_env_file_is_absolute_so_the_working_directory_cannot_change_it(env,
 
 def test_every_provider_key_is_a_secret_that_defaults_to_unset():
     """Empty is unset: the provider refuses the call, and no test can reach one by accident."""
-    for name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "VOYAGE_API_KEY", "OPENROUTER_API_KEY"):
+    for name in ("VOYAGE_API_KEY", "OPENROUTER_API_KEY"):
         assert ProviderConfig.model_fields[name].annotation is SecretStr
         assert getattr(ProviderConfig(), name).get_secret_value() == ""
 
@@ -271,7 +271,7 @@ def test_assess_defaults():
 def test_the_judge_is_a_different_model_from_the_one_that_answers():
     """A model grading its own answers grades its own habits; the default judge sits a
     tier above the chat model. Recorded on every run, since it changes what a score means."""
-    assert JudgeConfig().EVAL_JUDGE_MODEL == "anthropic/claude-sonnet-5"
+    assert JudgeConfig().EVAL_JUDGE_MODEL == "openrouter/anthropic/claude-sonnet-5"
     assert JudgeConfig().EVAL_JUDGE_MODEL != ChatConfig().CHAT_MODEL
     assert JudgeConfig().EVAL_JUDGE_CONCURRENCY == 4
     assert "EVAL_JUDGE_MODEL" in get_config_snapshot(EVAL_CONFIG_SECTIONS)
@@ -310,7 +310,7 @@ def test_a_snapshot_records_the_requested_sections_whole(monkeypatch):
 
 def test_a_snapshot_leaves_out_the_secrets(monkeypatch):
     """The snapshot is printed and pasted around; a secret is not a knob a run reproduces."""
-    monkeypatch.setattr(config, "ANTHROPIC_API_KEY", SecretStr("sk-never-recorded"))
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", SecretStr("sk-never-recorded"))
 
     snapshot = get_config_snapshot()
 

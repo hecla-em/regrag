@@ -63,7 +63,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/getting-started/installation/),
 ```bash
 uv sync
 pre-commit install          # from the repo root
-cp .env.example .env.dev    # then set VOYAGE_API_KEY and ANTHROPIC_API_KEY
+cp .env.example .env.dev    # then set VOYAGE_API_KEY and OPENROUTER_API_KEY
 ```
 
 Start the database and Redis, migrate and run the API:
@@ -102,6 +102,6 @@ uv run evals tune              # sweep retrieval settings against the same cases
 Each is an argparse entry point that self-documents: `--help` prints what it
 does and every flag it takes.
 
-`ingest` needs `VOYAGE_API_KEY`, `evals run` also needs `ANTHROPIC_API_KEY`, and
+`ingest` needs `VOYAGE_API_KEY`, `evals run` also needs `OPENROUTER_API_KEY`, and
 re-running `ingest` is cheap — unchanged documents are neither downloaded nor
 re-embedded.

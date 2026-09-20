@@ -7,13 +7,13 @@ from app.core.config import config
 
 
 def test_the_client_carries_the_chat_settings(monkeypatch):
-    monkeypatch.setattr(config, "CHAT_MODEL", "openai/gpt-5")
+    monkeypatch.setattr(config, "CHAT_MODEL", "openrouter/openai/gpt-5")
     monkeypatch.setattr(config, "CHAT_MAX_TOKENS", 321)
     monkeypatch.setattr(config, "CHAT_TIMEOUT", 21)
 
     client = chat_model(streaming=False)
 
-    assert client.model == "openai/gpt-5"
+    assert client.model == "openrouter/openai/gpt-5"
     assert client.max_tokens == 321
     assert client.request_timeout == 21
     assert client.temperature == config.CHAT_TEMPERATURE
@@ -23,10 +23,10 @@ def test_the_client_carries_the_chat_settings(monkeypatch):
 def test_the_client_carries_the_key_of_the_provider_the_model_names(monkeypatch):
     """A model at another provider must work as a setting, so the key is looked up from the
     model rather than pinned to one provider's variable."""
-    monkeypatch.setattr(config, "CHAT_MODEL", "openai/gpt-5")
-    monkeypatch.setattr(config, "OPENAI_API_KEY", SecretStr("sk-openai"))
+    monkeypatch.setattr(config, "CHAT_MODEL", "openrouter/openai/gpt-5")
+    monkeypatch.setattr(config, "OPENROUTER_API_KEY", SecretStr("sk-openrouter"))
 
-    assert chat_model().api_key == "sk-openai"
+    assert chat_model().api_key == "sk-openrouter"
 
 
 def test_the_answer_streams_and_asks_for_its_usage():
