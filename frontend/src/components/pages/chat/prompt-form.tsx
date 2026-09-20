@@ -3,6 +3,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
+/** Kept short enough to sit on one line in the composer. */
 const SAMPLE_QUESTIONS = [
 	"What is the greenhouse gas intensity limit under FuelEU Maritime?",
 	"When must a company monitor energy used on board?",
@@ -10,7 +11,7 @@ const SAMPLE_QUESTIONS = [
 	"How is the compliance balance of a ship calculated?",
 	"What are the penalties for a compliance deficit?",
 	"When must ships use onshore power supply at berth?",
-	"What share of a voyage's emissions must a shipping company surrender EU ETS allowances for?",
+	"What share of a voyage's emissions needs EU ETS allowances?",
 	"Which authority administers a shipping company under the EU ETS?",
 ]
 
