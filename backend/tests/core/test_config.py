@@ -278,6 +278,7 @@ def test_the_judge_is_a_different_model_from_the_one_that_answers():
     assert JudgeConfig().EVAL_JUDGE_MODEL == "anthropic/claude-sonnet-5"
     assert JudgeConfig().EVAL_JUDGE_MODEL != ChatConfig().CHAT_MODEL
     assert JudgeConfig().EVAL_JUDGE_CONCURRENCY == 4
+    assert JudgeConfig().EVAL_JUDGE_MIN_COVERAGE == 0.9
     assert "EVAL_JUDGE_MODEL" in get_config_snapshot(EVAL_CONFIG_SECTIONS)
 
 
