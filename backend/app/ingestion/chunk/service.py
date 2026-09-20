@@ -20,7 +20,6 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
-from sqlalchemy.sql.selectable import LateralFromClause
 
 from app.ingestion.chunk.models import Chunk, ChunkCounts, ChunkQuery
 from app.ingestion.chunk.schemas import DocumentChunk
@@ -174,12 +173,6 @@ async def count_chunks(session: AsyncSession, *, has_embedding: bool) -> int:
     return await session.scalar(stmt) or 0
 
 
-def _references() -> LateralFromClause:
-    """The stored references unnested, one row each, typed so JSONB keys read off them."""
-    elements = func.jsonb_array_elements(DocumentChunk.references)
-    return elements.table_valued(column("value", JSONB)).lateral()
-
-
 async def cited_celexes(session: AsyncSession) -> set[str]:
     """Every act a topic's own text cites a division of: the far end of a followable reference.
 
@@ -187,7 +180,8 @@ async def cited_celexes(session: AsyncSession) -> set[str]:
     and a hop document's own citations are not read: each run would otherwise follow the
     citation graph one step further than the last.
     """
-    reference = _references()
+    elements = func.jsonb_array_elements(DocumentChunk.references)
+    reference = elements.table_valued(column("value", JSONB)).lateral()
     instrument = reference.c.value["instrument"].astext
     stmt = (
         select(instrument)

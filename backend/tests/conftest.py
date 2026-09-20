@@ -384,12 +384,12 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path.endswith("/sparql"):
                 query = request.url.params["query"]
-                for topic, base_celex in config.TOPIC_BASE_ACTS.items():
-                    if f"celex/{base_celex}>" in query and topic in sparql:
-                        return sparql[topic]
-                if CITED_TOPIC in sparql:
+                if "VALUES ?target" in query:
                     return sparql[CITED_TOPIC]
-                raise AssertionError(f"no query served: {query[:80]}")
+                for topic, base_celex in config.TOPIC_BASE_ACTS.items():
+                    if f"celex/{base_celex}>" in query:
+                        return sparql[topic]
+                raise AssertionError(f"no base act in query: {query[:80]}")
             celex = request.url.path.rsplit("/", 1)[-1]
             calls.append(celex)
             return docs[celex]

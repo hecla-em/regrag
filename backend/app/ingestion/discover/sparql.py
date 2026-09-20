@@ -18,9 +18,9 @@ PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX ann: <http://publications.europa.eu/ontology/annotation#>
 SELECT DISTINCT ?c ?force ?cons ?title ?basis WHERE {
   { ?act cdm:resource_legal_based_on_resource_legal ?base .
-    ?base owl:sameAs <${resource}$celex> . }
+    ?base owl:sameAs <http://publications.europa.eu/resource/celex/$celex> . }
   UNION
-  { ?act owl:sameAs <${resource}$celex> . }
+  { ?act owl:sameAs <http://publications.europa.eu/resource/celex/$celex> . }
   ?act cdm:resource_legal_id_celex ?c .
   OPTIONAL { ?act cdm:resource_legal_in-force ?force }
   OPTIONAL { ?consact cdm:act_consolidated_consolidates_resource_legal ?act .
@@ -80,7 +80,7 @@ async def _run_query(client: httpx.AsyncClient, query: str) -> list[ActsQueryRow
 @http_retry
 async def run_acts_by_topic_query(client: httpx.AsyncClient, celex: str) -> list[ActsQueryRow]:
     """Ask CELLAR for one topic's acts; the query returns the base act too, so it must come back."""
-    query = _ACTS_BY_TOPIC_QUERY.substitute(resource=_CELEX_RESOURCE, celex=celex)
+    query = _ACTS_BY_TOPIC_QUERY.substitute(celex=celex)
     rows = await _run_query(client, query)
     if not any(row.celex == celex for row in rows):
         raise MalformedDiscoveryError(f"base act {celex} missing from discovery results")

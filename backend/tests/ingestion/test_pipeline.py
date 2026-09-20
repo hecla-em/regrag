@@ -828,11 +828,12 @@ HOP_ACT = (
 
 def citing_docs(hop: str = SMALL_ACT) -> dict[str, httpx.Response]:
     """An mrv corpus whose seed cites Regulation 765/2008, plus that act itself."""
-    return {
-        "32015R0757": httpx.Response(200, content=CITING_ACT.encode()),
-        "32023R2449": small_act(),
-        "32008R0765": httpx.Response(200, content=hop.encode()),
-    }
+    return mrv_docs(
+        {
+            "32015R0757": httpx.Response(200, content=CITING_ACT.encode()),
+            "32008R0765": httpx.Response(200, content=hop.encode()),
+        }
+    )
 
 
 CITED_SPARQL_JSON = payload(binding("32008R0765", force="1"))
@@ -901,6 +902,27 @@ async def test_the_hop_is_off_by_default(db_session, local_store, corpus_client)
     report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
 
     assert report.discovered == 2
+
+
+async def test_turning_the_hop_off_leaves_what_it_brought_in_alone(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    """Off has to mean out of scope: read as a topic this run names, every hop row a previous
+    run made would read as dropped by a discovery that no longer asks for it."""
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(),
+    )
+    await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", False)
+    off, _ = corpus_client({"mrv": MRV_SPARQL}, citing_docs())
+    report = await ingest(db_session, client=off, topics=["mrv"], store=local_store)
+
+    assert report.ok
+    assert report.dropped == []
+    assert await chunk_rows(db_session, "32008R0765")
 
 
 async def test_a_single_topic_run_keeps_another_topic_cited_act(

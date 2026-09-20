@@ -105,20 +105,6 @@ async def _ingest_documents(
         result.documents.append(outcome)
 
 
-async def _discover_cited_acts(
-    session: AsyncSession, client: httpx.AsyncClient
-) -> list[DiscoveredDocument]:
-    """The hop: the acts the corpus cites a division of and does not already hold.
-
-    Read across the whole corpus whatever topics this run names, so every run rewrites every
-    row the sentinel topic has and the standing-corpus cut stays true for it.
-    """
-    if not config.FOLLOW_CITED_ACTS:
-        return []
-    cited = await cited_celexes(session)
-    return await discover_cited_acts(client, cited - await seed_celexes(session))
-
-
 async def ingest(
     session: AsyncSession,
     *,
@@ -130,9 +116,15 @@ async def ingest(
 
     Discovery makes two passes: the topics, then the acts their text cites. The second reads
     references that do not exist until the first pass is chunked, so the drop diff waits for
-    both — a smaller citation set would otherwise read as a mass repeal.
+    both — a smaller citation set would otherwise read as a mass repeal. It reads across the
+    whole corpus whatever topics this run names, so every run rewrites every row the sentinel
+    topic has and the standing-corpus cut stays true for it.
+
+    With the hop off the sentinel topic is out of scope entirely, or the rows a previous run
+    made under it would read as dropped by a discovery that no longer returns them.
     """
-    scope = [*topics, CITED_TOPIC]
+    follow_cited = config.FOLLOW_CITED_ACTS
+    scope = [*topics, CITED_TOPIC] if follow_cited else list(topics)
     async with _recorded_run(session) as (run, result):
         existing = await previous_corpus(session, scope)
         seeds = await discover_topics(client, topics)
@@ -140,7 +132,10 @@ async def ingest(
             session, seeds, existing=existing, client=client, run=run, store=store, result=result
         )
 
-        cited = await _discover_cited_acts(session, client)
+        cited: list[DiscoveredDocument] = []
+        if follow_cited:
+            held = await seed_celexes(session)
+            cited = await discover_cited_acts(client, await cited_celexes(session) - held)
         await _ingest_documents(
             session, cited, existing=existing, client=client, run=run, store=store, result=result
         )

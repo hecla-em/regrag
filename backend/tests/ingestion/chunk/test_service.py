@@ -1,7 +1,5 @@
 """Chunk persistence: reconciling a document's chunks by content hash."""
 
-from typing import Any
-
 import pytest
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -408,26 +406,29 @@ async def test_update_chunks_is_one_round_trip(db_engine, db_session, ingest_run
     assert updates == [True]
 
 
-def cites(*references: Reference, **overrides: Any) -> Chunk:
-    """A chunk carrying the cross-references the hop reads."""
-    return chunk(references=references, **overrides)
-
-
 async def test_cited_celexes_are_the_instruments_a_division_is_cited_of(
     db_session: AsyncSession, ingest_run: IngestRun
 ):
     await sync(
         db_session,
         ingest_run,
-        cites(
-            Reference(
-                raw="Article 7 of Directive (EU) 2018/2001", instrument="32018L2001", article="7"
-            )
+        chunk(
+            references=[
+                Reference(
+                    raw="Article 7 of Directive (EU) 2018/2001",
+                    instrument="32018L2001",
+                    article="7",
+                )
+            ]
         ),
-        cites(
-            Reference(
-                raw="Annex II to Regulation (EC) No 765/2008", instrument="32008R0765", annex="II"
-            ),
+        chunk(
+            references=[
+                Reference(
+                    raw="Annex II to Regulation (EC) No 765/2008",
+                    instrument="32008R0765",
+                    annex="II",
+                )
+            ],
             article="5",
         ),
     )
@@ -441,7 +442,7 @@ async def test_an_instrument_named_whole_is_not_cited(
     await sync(
         db_session,
         ingest_run,
-        cites(Reference(raw="Regulation (EU) 2020/852", instrument="32020R0852")),
+        chunk(references=[Reference(raw="Regulation (EU) 2020/852", instrument="32020R0852")]),
     )
     assert await cited_celexes(db_session) == set()
 
@@ -449,7 +450,7 @@ async def test_an_instrument_named_whole_is_not_cited(
 async def test_a_division_of_this_act_is_not_a_citation_of_another(
     db_session: AsyncSession, ingest_run: IngestRun
 ):
-    await sync(db_session, ingest_run, cites(Reference(raw="Article 7", article="7")))
+    await sync(db_session, ingest_run, chunk(references=[Reference(raw="Article 7", article="7")]))
     assert await cited_celexes(db_session) == set()
 
 
@@ -460,10 +461,12 @@ async def test_what_a_hop_document_cites_is_not_cited(
     await sync(
         db_session,
         ingest_run,
-        cites(
-            Reference(
-                raw="Article 7 of Directive 2010/75/EU", instrument="32010L0075", article="7"
-            ),
+        chunk(
+            references=[
+                Reference(
+                    raw="Article 7 of Directive 2010/75/EU", instrument="32010L0075", article="7"
+                )
+            ],
             topic=CITED_TOPIC,
             celex="32018L2001",
         ),

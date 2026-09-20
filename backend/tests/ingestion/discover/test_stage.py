@@ -3,7 +3,6 @@
 import httpx
 import pytest
 
-from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.discover.stage import (
     discover_cited_acts,
     discover_topics,
@@ -66,10 +65,9 @@ async def test_discover_cited_acts_gives_them_the_sentinel_topic():
         documents = await discover_cited_acts(client, {"32018L2001", "32013R0525"})
 
     assert documents == [
-        DiscoveredDocument(
-            topic=CITED_TOPIC,
-            source="eurlex",
+        discovered_document(
             celex="32018L2001",
+            topic=CITED_TOPIC,
             candidates=("02018L2001-20240716",),
             title="Directive (EU) 2018/2001",
         )
