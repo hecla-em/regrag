@@ -901,3 +901,28 @@ async def test_the_hop_is_off_by_default(db_session, local_store, corpus_client)
     report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
 
     assert report.discovered == 2
+
+
+async def test_a_single_topic_run_keeps_another_topic_cited_act(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    """The hop reads the whole corpus, so the topics a run leaves out keep what they cite."""
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(),
+    )
+    await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    fueleu = httpx.Response(200, json=payload(binding("32023R1805", force="1")))
+    other, _ = corpus_client(
+        {"fueleu": fueleu, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        {"32023R1805": small_act(), "32008R0765": small_act()},
+    )
+    report = await ingest(db_session, client=other, topics=["fueleu"], store=local_store)
+
+    assert report.ok
+    assert await chunk_rows(db_session, "32008R0765")
+    assert await chunk_rows(db_session, "32015R0757")
+    standing = await get_raw_documents(db_session, RawDocsQuery())
+    assert "32008R0765" in standing
