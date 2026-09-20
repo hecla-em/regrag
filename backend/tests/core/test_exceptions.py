@@ -11,6 +11,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import NotFoundError, RateLimitedError, describe
+from app.core.storage import StorageError
 
 
 class _Payload(BaseModel):
@@ -31,6 +32,11 @@ router = APIRouter()
 @router.get("/boom-domain")
 def boom_domain() -> None:
     raise NotFoundError("Regulation", "fueleu")
+
+
+@router.get("/boom-storage")
+def boom_storage() -> None:
+    raise StorageError("read", "raw/32023R1805.html")
 
 
 @router.get("/boom-rate-limited")
@@ -88,6 +94,30 @@ def assert_error_shape(response: Response, status_code: int, error: str) -> dict
 def test_domain_error(client: TestClient) -> None:
     body = assert_error_shape(client.get("/boom-domain"), 404, "NotFoundError")
     assert body["message"] == "Regulation 'fueleu' not found"
+
+
+def test_a_domain_error_is_logged_at_the_level_it_names(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The caller's mistake is a warning. A fault on our side is an error, which Sentry sends."""
+    client.get("/boom-domain")
+    client.get("/boom-storage")
+
+    lines = [r for r in caplog.records if " on GET " in r.getMessage()]
+    levels = {line.getMessage().split(" ")[0]: line.levelno for line in lines}
+    assert levels == {"NotFoundError": logging.WARNING, "StorageError": logging.ERROR}
+
+
+def test_log_message_names_the_error_a_domain_error_was_raised_from() -> None:
+    try:
+        try:
+            raise TimeoutError("provider text")
+        except TimeoutError as exc:
+            raise NotFoundError("Regulation", "fueleu") from exc
+    except NotFoundError as error:
+        assert error.log_message == "Regulation 'fueleu' not found (TimeoutError)"
+
+    assert NotFoundError("Regulation", "fueleu").log_message == "Regulation 'fueleu' not found"
 
 
 def test_rate_limited_error_says_when_to_retry(client: TestClient) -> None:
