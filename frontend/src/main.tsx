@@ -13,6 +13,14 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 	})
 }
 
+if (import.meta.env.VITE_UMAMI_WEBSITE_ID) {
+	const umami = document.createElement("script")
+	umami.src = "https://analytics.hecla-em.com/script.js"
+	umami.defer = true
+	umami.dataset.websiteId = import.meta.env.VITE_UMAMI_WEBSITE_ID
+	document.head.appendChild(umami)
+}
+
 const router = createRouter({ routeTree })
 
 declare module "@tanstack/react-router" {
