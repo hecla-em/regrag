@@ -55,9 +55,13 @@ def test_rate_limits_default_on_with_the_address_ceiling_above_the_client_allowa
     assert limits.RATE_LIMIT_PER_CLIENT < limits.RATE_LIMIT_PER_IP
 
 
-def test_the_build_is_the_image_fly_runs_or_local(monkeypatch):
+def test_the_build_is_the_image_fly_runs_then_the_actions_commit_or_local(monkeypatch):
     monkeypatch.delenv("FLY_IMAGE_REF", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
     assert AppConfig().BUILD_ID == "local"
+
+    monkeypatch.setenv("GITHUB_SHA", "d460f4d40288f311239b218fb620bd3fe8bf4334")
+    assert AppConfig().BUILD_ID == "d460f4d40288f311239b218fb620bd3fe8bf4334"
 
     monkeypatch.setenv("FLY_IMAGE_REF", "registry.fly.io/regrag:deployment-01J")
     assert AppConfig().BUILD_ID == "registry.fly.io/regrag:deployment-01J"
