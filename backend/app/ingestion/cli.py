@@ -5,16 +5,14 @@ import asyncio
 import sys
 
 import httpx
-import sentry_sdk
 from pydantic import ValidationError
-from sentry_sdk.crons import MonitorStatus, capture_checkin
 from sentry_sdk.types import MonitorConfig
 
 from app.core.config import config
 from app.core.db.session import get_session
 from app.core.http import http_client
 from app.core.logger import setup_logging
-from app.core.sentry import configure_sentry
+from app.core.sentry import monitor_cron_job
 from app.core.storage import StorageError, get_object_store
 from app.ingestion.exceptions import DiscoveryError
 from app.ingestion.models import IngestRunResult
@@ -51,6 +49,7 @@ async def _ingest(topics: list[str]) -> IngestRunResult:
             return await ingest(session, client=client, topics=topics, store=store)
 
 
+@monitor_cron_job(MONITOR_SLUG, MONITOR_CONFIG)
 def run_ingest(topics: list[str]) -> int:
     """One run's exit code: 0 when every document got through, 1 when any failed or it aborted."""
     try:
@@ -62,23 +61,6 @@ def run_ingest(topics: list[str]) -> int:
     return 0 if report.ok else 1
 
 
-def run_monitored_ingest(topics: list[str]) -> int:
-    """The run as a Sentry cron check-in. The status follows the exit code, as a failed
-    document raises nothing. Flushed here because the process exits straight after."""
-    check_in_id = capture_checkin(
-        monitor_slug=MONITOR_SLUG, status=MonitorStatus.IN_PROGRESS, monitor_config=MONITOR_CONFIG
-    )
-    status = MonitorStatus.ERROR
-    try:
-        exit_code = run_ingest(topics)
-        if exit_code == 0:
-            status = MonitorStatus.OK
-        return exit_code
-    finally:
-        capture_checkin(monitor_slug=MONITOR_SLUG, check_in_id=check_in_id, status=status)
-        sentry_sdk.flush()
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -88,5 +70,4 @@ def main(argv: list[str] | None = None) -> int:
         known = ", ".join(sorted(config.TOPIC_BASE_ACTS))
         parser.error(f"unknown topics: {', '.join(unknown)} (known: {known})")
     setup_logging()
-    configure_sentry()
-    return run_monitored_ingest(topics)
+    return run_ingest(topics)
