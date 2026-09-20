@@ -15,6 +15,9 @@ job exists so a lost PlanetScale account or cluster does not take the backups wi
   — see [Restore](#restore).
 - **Retention:** a 30-day R2 lifecycle rule deletes old objects, configured in
   Cloudflare rather than the workflow.
+- **Connection:** every script here takes its database from `DB_*` via
+  `scripts/db/pg-env.sh`, which translates those into the `PG*` variables libpq reads. The
+  port, TLS and trust-root rules below are all set in that one file.
 
 The dump covers the whole `regrag` logical database. Most of it is the corpus, which
 `ingest` rebuilds from CELLAR anyway — what could not be recovered any other way is the
@@ -25,7 +28,7 @@ chat ledger and the eval runs. Dumping everything is still simpler than picking 
 - **Port.** `DB_PORT` is the direct PlanetScale port, **5432**. `pg_dump` cannot run over a
   transaction pooler, which has no prepared-statement support, even though the
   application's driver connects over one fine.
-- **TLS.** `backup.sh` picks its `sslmode` default from `ENVIRONMENT` the way
+- **TLS.** `pg-env.sh` picks its `sslmode` default from `ENVIRONMENT` the way
   `core/config.py` does: `verify-full` for prod, so credentials are never sent in the clear
   to a host that failed to prove itself, and `prefer` elsewhere, which the compose database
   accepts. `DB_SSLMODE` overrides it either way.
@@ -71,6 +74,21 @@ Notes:
   backup token inline as above.
 - For a local dump with no upload, into the working directory:
   `UPLOAD=false ENVIRONMENT=dev bash scripts/db/backup.sh`.
+
+## A psql prompt
+
+`scripts/db/psql.sh` connects with the same variables and the same TLS rules as the backup,
+so an ad-hoc query needs no hand-translated flags. Sessions are **read-only** unless you pass
+`WRITABLE=1` — the chat ledger is the one table nothing can rebuild.
+
+```bash
+set -a; source backend/.env.prod; set +a
+scripts/db/psql.sh
+scripts/db/psql.sh -c 'select count(*) from chat_requests'
+```
+
+Any psql argument passes straight through, and the banner naming the host, database and
+sslmode goes to stderr, so `-c` output stays pipeable.
 
 ## List available backups
 

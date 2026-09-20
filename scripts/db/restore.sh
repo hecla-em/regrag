@@ -8,8 +8,10 @@
 # R2 access (needed unless --file is used):
 #   R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
 #
-# Target = the compose database by default (local dev values, not prod secrets). Set these
-# to restore elsewhere. The confirmation prompt always shows the resolved target:
+# Target = the compose database by default (local dev values, not prod secrets). Deliberately
+# TARGET_* rather than the DB_* of pg-env.sh: a shell that sourced .env.prod must not be able
+# to aim a --clean restore at prod. Set these to restore elsewhere, and the confirmation
+# prompt always shows the resolved target:
 #   TARGET_DB_HOST  default 127.0.0.1
 #   TARGET_DB_PORT  default 5432
 #   TARGET_DB_USER  default postgres
