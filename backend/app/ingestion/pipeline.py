@@ -77,9 +77,16 @@ async def _ingest_document(
             parsed = parse_document(fetched.raw, fetched.html)
             chunks = await chunk_and_store_document(session, parsed, ingest_run_id=run.id)
     except DocumentFailed as failure:
-        return DocumentOutcome(celex=failure.celex, failed=failure.stage, error=failure.reason)
+        return DocumentOutcome(
+            celex=failure.celex,
+            topic=document.topic,
+            failed=failure.stage,
+            error=failure.reason,
+        )
     await session.commit()
-    return DocumentOutcome(celex=document.celex, change=fetched.change, chunks=chunks)
+    return DocumentOutcome(
+        celex=document.celex, topic=document.topic, change=fetched.change, chunks=chunks
+    )
 
 
 async def _ingest_documents(

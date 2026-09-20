@@ -840,9 +840,8 @@ CITED_SPARQL_JSON = payload(binding("32008R0765", force="1"))
 
 
 async def test_the_hop_stores_the_act_a_chunk_cites_a_division_of(
-    db_session, local_store, corpus_client, monkeypatch
+    db_session, local_store, corpus_client
 ):
-    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
     client, _ = corpus_client(
         {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
         citing_docs(),
@@ -856,12 +855,9 @@ async def test_the_hop_stores_the_act_a_chunk_cites_a_division_of(
     assert stored["32008R0765"] == CITED_TOPIC
 
 
-async def test_the_hop_does_not_follow_what_it_brought_in(
-    db_session, local_store, corpus_client, monkeypatch
-):
+async def test_the_hop_does_not_follow_what_it_brought_in(db_session, local_store, corpus_client):
     """The cited acts cite further acts. Reading their citations too would follow the graph one
     step further every run, and the closure of that is most of EU law."""
-    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
 
     def run_client():
         return corpus_client(
@@ -876,10 +872,7 @@ async def test_the_hop_does_not_follow_what_it_brought_in(
     assert "32010L0075" not in {row.celex for row in await chunk_rows(db_session)}
 
 
-async def test_a_cited_act_nothing_cites_any_more_is_pruned(
-    db_session, local_store, corpus_client, monkeypatch
-):
-    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+async def test_a_cited_act_nothing_cites_any_more_is_pruned(db_session, local_store, corpus_client):
     client, _ = corpus_client(
         {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
         citing_docs(),
@@ -896,12 +889,58 @@ async def test_a_cited_act_nothing_cites_any_more_is_pruned(
     assert await chunk_rows(db_session, "32008R0765") == []
 
 
-async def test_the_hop_is_off_by_default(db_session, local_store, corpus_client):
-    client, _ = corpus_client({"mrv": MRV_SPARQL}, citing_docs())
+async def test_the_hop_is_on_by_default(db_session, local_store, corpus_client):
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(),
+    )
 
     report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
 
-    assert report.discovered == 2
+    assert report.discovered == 3
+
+
+FLAT_ACT = (
+    '<html><body><p class="oj-ti-art">Article 1</p>'
+    '<p class="oj-normal">1. Member States shall set national targets.</p>'
+    "</body></html>"
+)
+"""A consolidation rendered without the eli-subdivision wrappers the parser looks for, which is
+how 32018R0842 comes back and what the hop has to survive one of."""
+
+
+async def test_a_hop_document_that_will_not_parse_does_not_fail_the_run(
+    db_session, local_store, corpus_client
+):
+    """A cited act is followed opportunistically, not asked for. Judged on it, one unparseable
+    act would skip the prune and exit 1 on every run that followed the citation."""
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(hop=FLAT_ACT),
+    )
+
+    report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert list(report.failures[Stage.PARSE]) == ["32008R0765"]
+    assert report.ok
+    assert report.corpus_complete
+    assert report.status is IngestRunStatus.SUCCESS
+
+
+async def test_a_seed_that_will_not_parse_still_fails_the_run(
+    db_session, local_store, corpus_client
+):
+    """Only the hop is forgiven: a topic's own act failing still means the corpus is incomplete."""
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        mrv_docs({"32023R2449": httpx.Response(200, content=FLAT_ACT.encode())}),
+    )
+
+    report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert list(report.failures[Stage.PARSE]) == ["32023R2449"]
+    assert not report.ok
+    assert not report.corpus_complete
 
 
 async def test_turning_the_hop_off_leaves_what_it_brought_in_alone(
@@ -909,7 +948,6 @@ async def test_turning_the_hop_off_leaves_what_it_brought_in_alone(
 ):
     """Off has to mean out of scope: read as a topic this run names, every hop row a previous
     run made would read as dropped by a discovery that no longer asks for it."""
-    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
     client, _ = corpus_client(
         {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
         citing_docs(),
@@ -926,10 +964,9 @@ async def test_turning_the_hop_off_leaves_what_it_brought_in_alone(
 
 
 async def test_a_single_topic_run_keeps_another_topic_cited_act(
-    db_session, local_store, corpus_client, monkeypatch
+    db_session, local_store, corpus_client
 ):
     """The hop reads the whole corpus, so the topics a run leaves out keep what they cite."""
-    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
     client, _ = corpus_client(
         {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
         citing_docs(),
