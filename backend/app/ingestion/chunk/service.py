@@ -4,12 +4,26 @@ from collections import Counter
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from typing import Any, cast
 
-from sqlalchemy import ColumnElement, CursorResult, Row, delete, func, select, tuple_, update
+from sqlalchemy import (
+    ColumnElement,
+    CursorResult,
+    Row,
+    column,
+    delete,
+    func,
+    or_,
+    select,
+    true,
+    tuple_,
+    update,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
 from app.ingestion.chunk.models import Chunk, ChunkCounts, ChunkQuery
 from app.ingestion.chunk.schemas import DocumentChunk
+from app.ingestion.enums import CITED_TOPIC
 from app.ingestion.exceptions import EmptyChunkSetError
 
 ContentKey = tuple[str, int]
@@ -157,3 +171,36 @@ async def count_chunks(session: AsyncSession, *, has_embedding: bool) -> int:
     """How many chunks carry a vector, or lack one."""
     stmt = select(func.count()).select_from(DocumentChunk).where(_has_embedding(has_embedding))
     return await session.scalar(stmt) or 0
+
+
+async def cited_celexes(session: AsyncSession) -> set[str]:
+    """Every act a topic's own text cites a division of: the far end of a followable reference.
+
+    An instrument named whole, as a recital names one, addresses no division and is left out,
+    and a hop document's own citations are not read: each run would otherwise follow the
+    citation graph one step further than the last.
+    """
+    elements = func.jsonb_array_elements(DocumentChunk.references)
+    reference = elements.table_valued(column("value", JSONB)).lateral()
+    instrument = reference.c.value["instrument"].astext
+    stmt = (
+        select(instrument)
+        .select_from(DocumentChunk)
+        .join(reference, true())
+        .where(
+            DocumentChunk.topic != CITED_TOPIC,
+            instrument.is_not(None),
+            or_(
+                reference.c.value["article"].astext.is_not(None),
+                reference.c.value["annex"].astext.is_not(None),
+            ),
+        )
+        .distinct()
+    )
+    return set(await session.scalars(stmt))
+
+
+async def seed_celexes(session: AsyncSession) -> set[str]:
+    """The acts the corpus holds under a topic of its own, as against those a hop brought in."""
+    stmt = select(DocumentChunk.celex).where(DocumentChunk.topic != CITED_TOPIC).distinct()
+    return set(await session.scalars(stmt))

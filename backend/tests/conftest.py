@@ -47,7 +47,7 @@ from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.discover.models import ActsQueryRow, DiscoveredDocument
 from app.ingestion.discover.sparql import run_acts_by_topic_query
 from app.ingestion.embed.batch import embed_batch
-from app.ingestion.enums import IngestRunStatus, SectionKind
+from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
 from app.ingestion.fetch.download import _download_version_html
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.storage import write_document
@@ -374,7 +374,10 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
 
 @pytest.fixture
 def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
-    """Transport serving SPARQL payloads per topic and HTML responses per celex."""
+    """Transport serving SPARQL payloads per topic and HTML responses per celex.
+
+    A test that registers no cited payload cites nothing, so the hop runs and finds no acts.
+    """
 
     def _make(
         sparql: dict[str, httpx.Response], docs: dict[str, httpx.Response]
@@ -384,8 +387,10 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path.endswith("/sparql"):
                 query = request.url.params["query"]
+                if "VALUES ?target" in query:
+                    return sparql.get(CITED_TOPIC, httpx.Response(200, json=payload()))
                 for topic, base_celex in config.TOPIC_BASE_ACTS.items():
-                    if base_celex in query:
+                    if f"celex/{base_celex}>" in query:
                         return sparql[topic]
                 raise AssertionError(f"no base act in query: {query[:80]}")
             celex = request.url.path.rsplit("/", 1)[-1]

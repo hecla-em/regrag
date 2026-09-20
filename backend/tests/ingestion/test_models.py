@@ -13,7 +13,7 @@ def failed_doc(
     stage: Stage = Stage.PARSE, celex: str = "b", error: str = "ParseError: no body"
 ) -> DocumentOutcome:
     """A document outcome as the loop records a stage failure."""
-    return DocumentOutcome(celex=celex, failed=stage, error=error)
+    return DocumentOutcome(celex=celex, topic="mrv", failed=stage, error=error)
 
 
 @pytest.fixture
@@ -21,10 +21,12 @@ def run() -> IngestRunResult:
     """A run that discovered two documents, fetched both, and chunked one of them."""
     result = IngestRunResult(run_id=7, corpus_version="2026-08-05-abc1234", discovered=2)
     result.documents.append(
-        DocumentOutcome(celex="a", change=DocChange.NEW, chunks=ChunkCounts(added=12, kept=30))
+        DocumentOutcome(
+            celex="a", topic="mrv", change=DocChange.NEW, chunks=ChunkCounts(added=12, kept=30)
+        )
     )
     result.documents.append(
-        DocumentOutcome(celex="b", change=DocChange.REUSED, chunks=ChunkCounts())
+        DocumentOutcome(celex="b", topic="mrv", change=DocChange.REUSED, chunks=ChunkCounts())
     )
     return result
 
@@ -176,6 +178,8 @@ def test_summary_lists_what_discovery_dropped_and_what_each_stage_failed() -> No
 
 def test_updated_chunks_are_summed_across_documents(run: IngestRunResult) -> None:
     run.documents.append(
-        DocumentOutcome(celex="d", change=DocChange.UPDATED, chunks=ChunkCounts(updated=4))
+        DocumentOutcome(
+            celex="d", topic="mrv", change=DocChange.UPDATED, chunks=ChunkCounts(updated=4)
+        )
     )
     assert run.chunks.updated == 4
