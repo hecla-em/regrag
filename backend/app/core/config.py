@@ -64,6 +64,7 @@ class AppConfig(BaseConfig):
     PROJECT_NAME: str = "RegRag"
     FRONTEND_URL: str = "http://localhost:5173"
     BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
+    SENTRY_DSN: str | None = None
 
 
 class StorageBackend(StrEnum):

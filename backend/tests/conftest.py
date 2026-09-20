@@ -3,6 +3,7 @@
 import pkgutil
 from collections.abc import AsyncGenerator, Callable, Generator
 from contextlib import asynccontextmanager
+from functools import partial
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
@@ -10,6 +11,7 @@ from typing import Any
 
 import httpx
 import pytest
+import sentry_sdk
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
@@ -18,6 +20,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata
 from redis.asyncio import Redis
+from sentry_sdk.envelope import Envelope
+from sentry_sdk.transport import Transport
+from sentry_sdk.types import Event
 from sqlalchemy import URL, create_engine, delete, select, text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -33,6 +38,7 @@ from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
 from app.core.db.session import async_session_factory
 from app.core.llm.models import Usage
 from app.core.redis import redis_client
+from app.core.sentry import configure_sentry
 from app.core.storage import LocalObjectStore
 from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
@@ -294,6 +300,36 @@ def client(app: FastAPI) -> Generator[TestClient, None, None]:
     and the Redis pool and engine are drained on it before the next test opens its own."""
     with TestClient(app) as client:
         yield client
+
+
+class RecordingTransport(Transport):
+    """Keeps what Sentry would have sent, so a test reads it and nothing leaves."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.events: list[Event] = []
+        self.check_ins: list[dict[str, Any]] = []
+
+    def capture_envelope(self, envelope: Envelope) -> None:
+        for item in envelope.items:
+            if event := item.get_event():
+                self.events.append(event)
+            elif item.type == "check_in" and (check_in := item.payload.json):
+                self.check_ins.append(check_in)
+
+
+@pytest.fixture
+def sentry(monkeypatch: pytest.MonkeyPatch) -> Generator[RecordingTransport, None, None]:
+    """Sentry configured as in prod, and again by any code under test that configures it,
+    with what it sends kept on the transport instead."""
+    transport = RecordingTransport()
+    monkeypatch.setattr(config, "SENTRY_DSN", "https://public@sentry.invalid/1")
+    monkeypatch.setattr(sentry_sdk, "init", partial(sentry_sdk.init, transport=transport))
+    configure_sentry()
+    try:
+        yield transport
+    finally:
+        sentry_sdk.get_global_scope().set_client(None)
 
 
 @pytest.fixture
