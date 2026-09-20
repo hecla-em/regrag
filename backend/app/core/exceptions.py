@@ -35,15 +35,28 @@ class ErrorCode(StrEnum):
 
 
 class DomainError(Exception):
-    """Base for application errors that map to HTTP responses via one handler."""
+    """Base for application errors that map to HTTP responses via one handler.
+
+    log_level: WARNING for what the caller did, ERROR for a fault on our side. Sentry is
+        sent every ERROR line, so this is also whether the error raises an alert.
+    """
 
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: ClassVar[StrEnum] = ErrorCode.INTERNAL
+    log_level: ClassVar[int] = logging.WARNING
 
     def __init__(self, message: str, headers: Mapping[str, str] | None = None):
         self.message = message
         self.headers = headers
         super().__init__(message)
+
+    @property
+    def log_message(self) -> str:
+        """The message for the log, naming the class of the error this was raised from.
+        Only the class: a provider's own text can quote what it was sent."""
+        if self.__cause__ is None:
+            return self.message
+        return f"{self.message} ({type(self.__cause__).__name__})"
 
 
 class NotFoundError(DomainError):
@@ -162,7 +175,9 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
 async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     """Map any DomainError subclass to a JSON response using its status_code."""
     name, message = describe(exc)
-    logger.warning("%s on %s %s: %s", name, request.method, request.url.path, message)
+    logger.log(
+        exc.log_level, "%s on %s %s: %s", name, request.method, request.url.path, exc.log_message
+    )
     return error_response(exc.status_code, error=name, message=message, headers=exc.headers)
 
 

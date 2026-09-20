@@ -70,6 +70,46 @@ async def test_failed_stream_records_what_it_reached(monkeypatch, recorded_reque
     assert state.usage() is None
 
 
+async def test_a_provider_failure_is_logged_as_an_error_naming_what_the_provider_raised(
+    monkeypatch, recorded_requests, caplog
+):
+    """Every LLMError that gets here left a visitor without an answer, retries spent, so it
+    is an ERROR line and Sentry hears of it. No traceback: the provider's text stays local."""
+
+    async def failing_search(session, request):
+        try:
+            raise ConnectionRefusedError("I am Jane Example")
+        except ConnectionRefusedError as exc:
+            raise LLMError("embedding call failed") from exc
+
+    install_search(monkeypatch, failing_search)
+
+    events = await collect_events(ChatQuery(question="q"))
+
+    assert isinstance(events[-1], ErrorEvent)
+    assert events[-1].data.message == "embedding call failed"
+    [line] = [r for r in caplog.records if "chat stream failed" in r.getMessage()]
+    assert line.levelno == logging.ERROR
+    assert line.getMessage() == (
+        "chat stream failed: embedding call failed (ConnectionRefusedError)"
+    )
+    assert line.exc_info is None
+
+
+async def test_a_refusal_is_logged_as_a_warning(monkeypatch, recorded_requests, caplog):
+    monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
+
+    async def spent_the_cap(session, since):
+        return 2.0
+
+    monkeypatch.setattr("app.chat.stream.spent_since", spent_the_cap)
+
+    await collect_events(ChatQuery(question="q"))
+
+    [line] = [r for r in caplog.records if "chat stream failed" in r.getMessage()]
+    assert line.levelno == logging.WARNING
+
+
 async def test_unexpected_failure_is_recorded_by_its_type_and_sent_as_the_generic_error(
     monkeypatch, recorded_requests
 ):
