@@ -114,6 +114,7 @@ def test_a_run_with_failed_documents_checks_in_to_the_nightly_monitor_as_an_erro
     assert (started["status"], finished["status"]) == ("in_progress", "error")
     assert started["monitor_slug"] == cli.MONITOR_SLUG
     assert started["monitor_config"]["schedule"] == {"type": "crontab", "value": "0 3 * * *"}
+    assert started["monitor_config"]["checkin_margin"] == 480
     [event] = sentry.events
     assert event["logentry"]["params"] == [1, {"fetch": ["32023R2917"]}]
 
