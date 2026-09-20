@@ -317,6 +317,8 @@ class IngestConfig(BaseConfig):
     TOPIC_EXCLUDED_BASIS_ARTICLES: the same kind of pattern, for acts the corpus leaves out. ETS
         drops the lists of shipping companies adopted under Article 3gf(2), 2024/411 and any
         that replace it: 200k characters of names that crowd out the rules.
+    FOLLOW_CITED_ACTS: whether a run makes a second discovery pass over the acts the topics'
+        own text cites a division of. Off by default until the corpus is measured with it on.
     CRAWL_DELAYS: seconds between requests per host; eur-lex publishes 10 in robots.txt.
     MAX_DROP_RATIO: fraction of the previous corpus that may vanish before discovery aborts.
     MIN_SUSPICIOUS_DROPS: dropped documents below this never abort, however small the corpus.
@@ -334,6 +336,7 @@ class IngestConfig(BaseConfig):
     }
     TOPIC_BASIS_ARTICLES: dict[str, str] = {"ets": r"A03g[a-g]|A12P3-[b-e]"}
     TOPIC_EXCLUDED_BASIS_ARTICLES: dict[str, str] = {"ets": r"A03gfP2"}
+    FOLLOW_CITED_ACTS: bool = False
     CRAWL_DELAYS: dict[str, float] = {"eur-lex.europa.eu": 10.0, "publications.europa.eu": 1.0}
     MAX_DROP_RATIO: float = 0.2
     MIN_SUSPICIOUS_DROPS: int = 3
