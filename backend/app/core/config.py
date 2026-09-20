@@ -241,10 +241,10 @@ class ChatConfig(BaseConfig):
     CHAT_THINKING_ENABLED: whether the answer call reasons before it writes; the other nodes
         never do. Off by default to hold cost down, though on it lifted judged correctness 0.70
         to 0.86 and faithfulness 0.91 to 0.95 over two runs each, for about 2.7s and 30% more
-        spend per answer (HEC-329), all measured on Anthropic. The provider
-        insists on a temperature of 1 while it thinks, so CHAT_TEMPERATURE is set aside.
-        The budget is passed in Anthropic's shape, which a model at another provider drops
-        rather than refuses, so turning this on off Anthropic reasons not at all, quietly.
+        spend per answer (HEC-329). The provider insists on a temperature of 1 while it
+        thinks, so CHAT_TEMPERATURE is set aside. The budget is passed in Anthropic's shape,
+        which any other provider drops rather than refuses: on a model that is not Anthropic's
+        this switch buys nothing and says nothing.
     CHAT_THINKING_BUDGET: the most tokens the answer call may reason in, on top of
         CHAT_MAX_TOKENS; 1024 is Anthropic's floor, and 2048 scored no better.
     """
