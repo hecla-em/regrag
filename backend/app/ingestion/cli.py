@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import logging
 import sys
 
 import httpx
@@ -17,6 +18,8 @@ from app.core.storage import StorageError, get_object_store
 from app.ingestion.exceptions import DiscoveryError
 from app.ingestion.models import IngestRunResult
 from app.ingestion.pipeline import ingest
+
+logger = logging.getLogger(__name__)
 
 MONITOR_SLUG = "nightly-ingest"
 # The schedule and the job timeout in .github/workflows/ingest.yml. The margin is wide
@@ -51,14 +54,20 @@ async def _ingest(topics: list[str]) -> IngestRunResult:
 
 @monitor_cron_job(MONITOR_SLUG, MONITOR_CONFIG)
 def run_ingest(topics: list[str]) -> int:
-    """One run's exit code: 0 when every document got through, 1 when any failed or it aborted."""
+    """One run's exit code: 0 when every document got through, 1 when any failed or it aborted.
+    Either failure is logged as an error, so Sentry holds why beside the check-in."""
     try:
         report = asyncio.run(_ingest(topics))
     except (DiscoveryError, StorageError, httpx.HTTPError, ValidationError) as exc:
+        logger.exception("ingest aborted")
         print(f"ingest aborted: {exc}", file=sys.stderr)
         return 1
     print(report.summary())
-    return 0 if report.ok else 1
+    if report.ok:
+        return 0
+    failed = {stage.value: sorted(lost) for stage, lost in report.failures.items() if lost}
+    logger.error("ingest run %s finished with failures: %s", report.run_id, failed)
+    return 1
 
 
 def main(argv: list[str] | None = None) -> int:

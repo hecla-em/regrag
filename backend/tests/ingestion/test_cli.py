@@ -114,6 +114,20 @@ def test_a_run_with_failed_documents_checks_in_to_the_nightly_monitor_as_an_erro
     assert (started["status"], finished["status"]) == ("in_progress", "error")
     assert started["monitor_slug"] == cli.MONITOR_SLUG
     assert started["monitor_config"]["schedule"] == {"type": "crontab", "value": "0 3 * * *"}
+    [event] = sentry.events
+    assert event["logentry"]["params"] == [1, {"fetch": ["32023R2917"]}]
+
+
+def test_an_aborted_run_sends_why_it_aborted(monkeypatch, sentry):
+    async def _boom(topics):
+        raise MalformedDiscoveryError("mrv: malformed SPARQL response")
+
+    monkeypatch.setattr(cli, "_ingest", _boom)
+
+    assert main([]) == 1
+
+    [event] = sentry.events
+    assert event["exception"]["values"][0]["type"] == "MalformedDiscoveryError"
 
 
 async def test_ingest_hands_the_pipeline_a_paced_client(monkeypatch):

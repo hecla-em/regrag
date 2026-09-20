@@ -1,5 +1,6 @@
+import * as Sentry from "@sentry/react"
 import { useCallback, useEffect, useReducer, useRef } from "react"
-import { describeError, streamChat } from "@/api/client"
+import { ApiError, describeError, streamChat } from "@/api/client"
 import {
 	activeThread,
 	NO_THREADS,
@@ -37,6 +38,8 @@ export function useChatThreads() {
 			send({ type: "settle" })
 		} catch (error) {
 			if (controller.signal.aborted) return
+			// An ApiError is the server's own refusal, which it logged. Anything else broke here.
+			if (!(error instanceof ApiError)) Sentry.captureException(error)
 			send({ type: "fail", error: describeError(error) })
 		}
 	}, [])

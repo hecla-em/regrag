@@ -34,7 +34,7 @@ from app.chat.graph.nodes.decompose import call_decompose_model
 from app.chat.graph.nodes.rewrite import call_rewrite_model
 from app.chat.graph.nodes.synthesize import synthesize
 from app.core.clock import utc_now
-from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, R2Config, config
+from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, Environment, R2Config, config
 from app.core.db.session import async_session_factory
 from app.core.llm.models import Usage
 from app.core.redis import redis_client
@@ -323,6 +323,7 @@ def sentry(monkeypatch: pytest.MonkeyPatch) -> Generator[RecordingTransport, Non
     """Sentry configured as in prod, and again by any code under test that configures it,
     with what it sends kept on the transport instead."""
     transport = RecordingTransport()
+    monkeypatch.setattr(config, "ENVIRONMENT", Environment.PROD)
     monkeypatch.setattr(config, "SENTRY_DSN", "https://public@sentry.invalid/1")
     monkeypatch.setattr(sentry_sdk, "init", partial(sentry_sdk.init, transport=transport))
     configure_sentry()

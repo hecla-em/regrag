@@ -32,6 +32,12 @@ def test_nothing_is_configured_without_a_dsn(monkeypatch) -> None:
     assert not sentry_sdk.is_initialized()
 
 
+def test_nothing_is_configured_outside_prod(monkeypatch) -> None:
+    monkeypatch.setattr(config, "SENTRY_DSN", "https://public@sentry.invalid/1")
+    configure_sentry()
+    assert not sentry_sdk.is_initialized()
+
+
 def test_a_logged_exception_becomes_an_event_without_a_capture_call(sentry) -> None:
     try:
         raise RuntimeError("pool exhausted")
@@ -45,6 +51,16 @@ def test_a_logged_exception_becomes_an_event_without_a_capture_call(sentry) -> N
 def test_a_warning_sends_nothing(sentry) -> None:
     logging.getLogger("app.test").warning("chat stream failed: %s", "Too many questions")
     assert sentry.events == []
+
+
+def test_log_lines_before_an_error_are_not_sent_with_it(sentry) -> None:
+    """They quote model and provider text, which is written from the question."""
+    logger = logging.getLogger("app.test")
+    logger.warning("rewrite answered off its schema: %s", "input_value='Jane Example'")
+    logger.error("chat stream failed unexpectedly")
+
+    [event] = sentry.events
+    assert "Jane Example" not in str(event)
 
 
 def test_a_monitored_job_checks_in_as_started_then_ok(sentry) -> None:

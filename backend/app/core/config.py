@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import certifi
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -58,12 +58,15 @@ class AppConfig(BaseConfig):
 
     BUILD_ID: which release is running, read from the image reference Fly sets on every
         machine, so it changes with each deploy and is shared by a release's machines.
+        A GitHub Actions job has no image, so there it is the commit.
     """
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
     FRONTEND_URL: str = "http://localhost:5173"
-    BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
+    BUILD_ID: str = Field(
+        default="local", validation_alias=AliasChoices("FLY_IMAGE_REF", "GITHUB_SHA")
+    )
     SENTRY_DSN: str | None = None
 
 
@@ -158,6 +161,7 @@ class PostgresConfig(BaseConfig):
             "pool_pre_ping": self.DB_POOL_PRE_PING,
             "pool_recycle": self.DB_POOL_RECYCLE,
             "pool_timeout": self.DB_POOL_TIMEOUT,
+            "hide_parameters": True,
             "connect_args": {
                 "connect_timeout": self.DB_CONNECT_TIMEOUT,
                 "options": f"-c statement_timeout={self.DB_COMMAND_TIMEOUT * 1000}",

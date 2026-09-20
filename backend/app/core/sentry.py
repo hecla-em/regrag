@@ -2,19 +2,20 @@
 scheduled job's run becomes a cron check-in."""
 
 import functools
+import logging
 from collections.abc import Callable
-from typing import Any
 
 import sentry_sdk
 from sentry_sdk.crons import MonitorStatus, capture_checkin
 from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.types import MonitorConfig
+from sentry_sdk.integrations.logging import LoggingIntegration
+from sentry_sdk.types import Event, Hint, MonitorConfig
 
-from app.core.config import config
+from app.core.config import Environment, config
 from app.core.logger import request_id_var
 
 
-def _before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any]:
+def _before_send(event: Event, hint: Hint) -> Event:
     request_id = request_id_var.get()
     if request_id:
         event.setdefault("tags", {})["request_id"] = request_id
@@ -22,9 +23,9 @@ def _before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any]:
 
 
 def configure_sentry() -> None:
-    """Start Sentry when a DSN is set. The request body and frame locals both hold the
-    question, so neither is sent."""
-    if not config.SENTRY_DSN:
+    """Start Sentry in prod when a DSN is set. The request body, frame locals and the log
+    lines before an error can all hold the question, so none of them is sent."""
+    if config.ENVIRONMENT != Environment.PROD or not config.SENTRY_DSN:
         return
 
     sentry_sdk.init(
@@ -36,8 +37,9 @@ def configure_sentry() -> None:
         include_local_variables=False,
         integrations=[
             FastApiIntegration(transaction_style="endpoint"),
+            LoggingIntegration(level=None, event_level=logging.ERROR),
         ],
-        before_send=_before_send,  # ty: ignore[invalid-argument-type]
+        before_send=_before_send,
     )
 
 
