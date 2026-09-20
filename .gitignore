@@ -9,3 +9,6 @@ docs/superpowers/
 
 # Local corpus spike data
 /data/
+
+# Database dumps from scripts/db/backup.sh
+*.dump

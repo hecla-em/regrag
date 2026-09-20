@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Restore a regrag dump into a TARGET database. DESTRUCTIVE — never defaults to prod.
 #
-# Source (pick one; default is the latest R2 backup):
+# Source (pick one, default is the latest R2 backup):
 #   (no flag)        download + restore the most recent daily/ backup from R2
 #   --key  <r2key>   restore a specific R2 object, e.g. daily/regrag-prod-YYYYMMDD-HHMMSS.dump
 #   --file <path>    restore a local .dump file (no R2 access needed)
@@ -9,13 +9,13 @@
 #   R2_ACCOUNT_ID R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_BUCKET
 #
 # Target = the compose database by default (local dev values, not prod secrets). Set these
-# to restore elsewhere; the confirmation prompt always shows the resolved target:
+# to restore elsewhere. The confirmation prompt always shows the resolved target:
 #   TARGET_DB_HOST  default 127.0.0.1
 #   TARGET_DB_PORT  default 5432
 #   TARGET_DB_USER  default postgres
 #   TARGET_DB_PASS  default postgres
 #   TARGET_DB_NAME  default regrag_restore_test   (must already exist, on an image with pgvector)
-#   FORCE=1         skip the interactive confirmation (automated tests only)
+#   FORCE=1         skip the interactive confirmation, for unattended runs
 #
 # Full recovery runbook: docs/backups.md
 set -euo pipefail
@@ -36,18 +36,24 @@ TARGET_DB_USER="${TARGET_DB_USER:-postgres}"
 TARGET_DB_PASS="${TARGET_DB_PASS:-postgres}"
 TARGET_DB_NAME="${TARGET_DB_NAME:-regrag_restore_test}"
 
-if [[ -z "$SOURCE_FILE" ]]; then
-  : "${R2_ACCOUNT_ID:?}" "${R2_ACCESS_KEY_ID:?}" "${R2_SECRET_ACCESS_KEY:?}" "${R2_BUCKET:?}"
+if [[ -n "$SOURCE_FILE" ]]; then
+  [[ -f "$SOURCE_FILE" ]] || { echo "Restore source not found: $SOURCE_FILE" >&2; exit 2; }
+else
+  : "${R2_ACCOUNT_ID:?R2_ACCOUNT_ID is required to download a backup}"
+  : "${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID is required to download a backup}"
+  : "${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY is required to download a backup}"
+  : "${R2_BUCKET:?R2_BUCKET is required to download a backup}"
   export AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
   export AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
   endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
   if [[ -z "$R2_KEY" ]]; then
-    latest="$(aws s3 ls "s3://${R2_BUCKET}/daily/" \
-      --region auto --endpoint-url "$endpoint" \
-      | awk '{print $4}' | grep -E '\.dump$' | sort | tail -1)"
-    [[ -n "$latest" ]] || { echo "No backups found in s3://${R2_BUCKET}/daily/" >&2; exit 1; }
-    R2_KEY="daily/${latest}"
+    R2_KEY="$(aws s3api list-objects-v2 \
+      --bucket "$R2_BUCKET" --prefix "daily/" \
+      --query 'sort_by(Contents || `[]`, &LastModified)[-1].Key' --output text \
+      --region auto --endpoint-url "$endpoint")"
+    [[ -n "$R2_KEY" && "$R2_KEY" != "None" ]] ||
+      { echo "No backups found in s3://${R2_BUCKET}/daily/" >&2; exit 1; }
     echo "Latest backup: ${R2_KEY}"
   fi
 
@@ -55,11 +61,6 @@ if [[ -z "$SOURCE_FILE" ]]; then
   echo "Downloading s3://${R2_BUCKET}/${R2_KEY}"
   aws s3 cp "s3://${R2_BUCKET}/${R2_KEY}" "$SOURCE_FILE" \
     --region auto --endpoint-url "$endpoint"
-fi
-
-if [[ ! -f "$SOURCE_FILE" ]]; then
-  echo "Restore source not found: $SOURCE_FILE" >&2
-  exit 2
 fi
 
 echo "About to restore '${SOURCE_FILE}'"

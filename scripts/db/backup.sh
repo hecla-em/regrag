@@ -7,10 +7,15 @@
 #   R2_ACCOUNT_ID R2_ACCESS_KEY_ID                  R2 (S3 API) credentials, only when
 #   R2_SECRET_ACCESS_KEY R2_BUCKET                  UPLOAD=true
 # Optional env:
-#   DB_SSLMODE       default verify-full, so prod credentials are never sent in the clear;
-#                    set disable for the compose database, which serves no TLS
-#   UPLOAD           default true; set false to dump locally with no R2 upload
-#   OUT_DIR          default "."; directory the .dump file is written to
+#   ENVIRONMENT      default prod. Names the dump and picks the sslmode default, the way
+#                    core/config.py does
+#   DB_SSLMODE       default verify-full for prod, otherwise prefer
+#   DB_SSLROOTCERT   default system, the OS trust store. libpq would otherwise look for
+#                    ~/.postgresql/root.crt, which no CI runner has
+#   UPLOAD           default true. Set false to dump into the working directory with no
+#                    R2 upload
+#
+# Full recovery runbook: docs/backups.md
 set -euo pipefail
 
 : "${DB_HOST:?DB_HOST is required}"
@@ -19,35 +24,42 @@ set -euo pipefail
 : "${DB_PASS:?DB_PASS is required}"
 : "${DB_NAME:?DB_NAME is required}"
 
+ENVIRONMENT="${ENVIRONMENT:-prod}"
 UPLOAD="${UPLOAD:-true}"
-OUT_DIR="${OUT_DIR:-.}"
 
 timestamp="$(date -u +%Y%m%d-%H%M%S)"
-filename="regrag-prod-${timestamp}.dump"
-filepath="${OUT_DIR%/}/${filename}"
+filename="regrag-${ENVIRONMENT}-${timestamp}.dump"
 
 export PGPASSWORD="$DB_PASS"
-export PGSSLMODE="${DB_SSLMODE:-verify-full}"
+if [[ "$ENVIRONMENT" == "prod" ]]; then
+  export PGSSLMODE="${DB_SSLMODE:-verify-full}"
+else
+  export PGSSLMODE="${DB_SSLMODE:-prefer}"
+fi
+# What certifi.where() is to the application: the roots the server is checked against. libpq
+# rejects it alongside the weaker modes, which check no certificate at all.
+if [[ "$PGSSLMODE" == verify-* ]]; then
+  export PGSSLROOTCERT="${DB_SSLROOTCERT:-system}"
+fi
 
-echo "Dumping ${DB_NAME} from ${DB_HOST}:${DB_PORT} (sslmode=${PGSSLMODE}) -> ${filepath}"
+echo "Dumping ${DB_NAME} from ${DB_HOST}:${DB_PORT} (sslmode=${PGSSLMODE}) -> ${filename}"
 pg_dump \
   --host="$DB_HOST" \
   --port="$DB_PORT" \
   --username="$DB_USER" \
   --dbname="$DB_NAME" \
   --format=custom \
-  --compress=9 \
   --no-owner \
   --no-privileges \
-  --file="$filepath"
+  --file="$filename"
 
-# A dump that pg_restore cannot read its way through is worth catching now, not on the day
-# it is needed.
-pg_restore --list "$filepath" > /dev/null
-echo "Dump complete and readable ($(du -h "$filepath" | cut -f1))"
+# Cheap sanity check on the archive's table of contents. It reads the header rather than the
+# whole dump, so it catches an unreadable archive, not a truncated one.
+pg_restore --list "$filename" > /dev/null
+echo "Dump complete, table of contents readable ($(du -h "$filename" | cut -f1))"
 
 if [[ "$UPLOAD" != "true" ]]; then
-  echo "UPLOAD=$UPLOAD — skipping R2 upload. File at $filepath"
+  echo "UPLOAD=$UPLOAD — skipping R2 upload. File at $filename"
   exit 0
 fi
 
@@ -60,7 +72,7 @@ key="daily/${filename}"
 echo "Uploading to s3://${R2_BUCKET}/${key}"
 AWS_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" \
 AWS_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
-aws s3 cp "$filepath" "s3://${R2_BUCKET}/${key}" \
+aws s3 cp "$filename" "s3://${R2_BUCKET}/${key}" \
   --region auto \
   --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 

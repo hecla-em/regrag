@@ -9,8 +9,10 @@ job exists so a lost PlanetScale account or cluster does not take the backups wi
 - **Workflow:** `.github/workflows/backup.yml` — daily at 02:00 UTC, an hour before the
   ingest run, plus manual `workflow_dispatch`.
 - **Dump + upload:** `scripts/db/backup.sh` writes `daily/regrag-prod-<timestamp>.dump`
-  to the `regrag-db-backups` R2 bucket, after reading the dump back with `pg_restore
-  --list` so a truncated file fails the job rather than sitting in the bucket.
+  to the `regrag-db-backups` R2 bucket, after checking the archive's table of contents with
+  `pg_restore --list` so an unreadable dump fails the job rather than sitting in the bucket.
+  That reads the archive header, not the whole file, so it does not prove the dump restores
+  — see [Restore](#restore).
 - **Retention:** a 30-day R2 lifecycle rule deletes old objects, configured in
   Cloudflare rather than the workflow.
 
@@ -23,9 +25,14 @@ chat ledger and the eval runs. Dumping everything is still simpler than picking 
 - **Port.** `DB_PORT` is the direct PlanetScale port, **5432**. `pg_dump` cannot run over a
   transaction pooler, which has no prepared-statement support, even though the
   application's driver connects over one fine.
-- **TLS.** `backup.sh` defaults `sslmode` to `verify-full`, matching what the application
-  uses in prod, so credentials are never sent in the clear to a host that failed to prove
-  itself. Dumping the compose database needs `DB_SSLMODE=disable` — it serves no TLS.
+- **TLS.** `backup.sh` picks its `sslmode` default from `ENVIRONMENT` the way
+  `core/config.py` does: `verify-full` for prod, so credentials are never sent in the clear
+  to a host that failed to prove itself, and `prefer` elsewhere, which the compose database
+  accepts. `DB_SSLMODE` overrides it either way.
+- **Trust roots.** `sslrootcert` is set to `system`, the OS trust store, which is what
+  `certifi.where()` gives the application. Without it libpq looks for
+  `~/.postgresql/root.crt`, which no CI runner has, and `verify-full` fails before the dump
+  starts. Needs a client of PostgreSQL 16 or newer.
 - **Client version.** The workflow installs `postgresql-client-17` to match the server:
   `pg_dump` refuses a server newer than itself, and a dump written by a newer `pg_dump`
   cannot be read by an older `pg_restore`.
@@ -57,12 +64,13 @@ R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
 
 Notes:
 
-- The filename is always prefixed `regrag-prod-`, whatever the source — when dumping dev,
-  rename it yourself so it is not mistaken for a prod backup.
+- The filename carries `ENVIRONMENT` (`regrag-prod-…`, `regrag-dev-…`), which defaults to
+  `prod`. Set `ENVIRONMENT=dev` when dumping anything else, so the file cannot be mistaken
+  for a prod backup.
 - The `.env.*` files hold the raw-docs R2 credentials, not the backup ones. Pass the
   backup token inline as above.
-- For a local dump with no upload: `UPLOAD=false bash scripts/db/backup.sh`, optionally
-  with `OUT_DIR=/some/dir`. Against compose, add `DB_SSLMODE=disable`.
+- For a local dump with no upload, into the working directory:
+  `UPLOAD=false ENVIRONMENT=dev bash scripts/db/backup.sh`.
 
 ## List available backups
 
@@ -72,6 +80,9 @@ aws s3 ls s3://regrag-db-backups/daily/ --region auto \
 ```
 
 ## Restore
+
+These steps round-trip a dev dump through the compose database, but have not been
+exercised against a real prod dump — expect to debug them the first time.
 
 Restore is **destructive** and never targets prod by default — restore into a fresh
 database, verify it, then promote. `restore.sh` asks you to type the target database name
