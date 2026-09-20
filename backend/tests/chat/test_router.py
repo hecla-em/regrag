@@ -268,3 +268,25 @@ def test_a_failed_chat_stream_is_reported_with_its_request_id_and_without_the_qu
     assert event["exception"]["values"][0]["type"] == "RuntimeError"
     assert event["tags"]["request_id"] == request_id
     assert "Jane Example" not in json.dumps(event, default=str)
+
+
+def test_a_provider_failure_is_reported_without_the_provider_text_or_the_question(
+    client, monkeypatch, sentry
+):
+    async def failing_search(session, request):
+        try:
+            raise ConnectionRefusedError(f"could not embed: {request}")
+        except ConnectionRefusedError as exc:
+            raise LLMError("embedding call failed") from exc
+
+    install_search(monkeypatch, failing_search)
+
+    with client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
+        request_id = response.headers["X-Request-ID"]
+        response.read()
+
+    [event] = sentry.events
+    assert event["logentry"]["params"] == ["embedding call failed (ConnectionRefusedError)"]
+    assert event["tags"]["request_id"] == request_id
+    assert "exception" not in event
+    assert "Jane Example" not in json.dumps(event, default=str)

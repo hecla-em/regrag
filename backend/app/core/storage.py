@@ -1,5 +1,6 @@
 """Object storage behind one S3-compatible interface: R2 in prod, local files in dev and tests."""
 
+import logging
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -21,6 +22,7 @@ class StorageError(DomainError):
 
     status_code = status.HTTP_502_BAD_GATEWAY
     code = ErrorCode.STORAGE
+    log_level = logging.ERROR
 
     def __init__(self, operation: str, key: str, reason: object | None = None):
         detail = f": {reason}" if reason is not None else ""

@@ -22,12 +22,12 @@ from app.ingestion.pipeline import ingest
 logger = logging.getLogger(__name__)
 
 MONITOR_SLUG = "nightly-ingest"
-# The schedule and the job timeout in .github/workflows/ingest.yml. The margin is wide
-# because GitHub often starts a scheduled run late.
+# The schedule and the job timeout in .github/workflows/ingest.yml. The margin is eight
+# hours because GitHub starts this scheduled run about five hours late every night.
 MONITOR_CONFIG: MonitorConfig = {
     "schedule": {"type": "crontab", "value": "0 3 * * *"},
     "timezone": "UTC",
-    "checkin_margin": 60,
+    "checkin_margin": 480,
     "max_runtime": 60,
     "failure_issue_threshold": 1,
     "recovery_threshold": 1,

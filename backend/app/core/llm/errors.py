@@ -40,6 +40,7 @@ class LLMError(DomainError):
 
     status_code = status.HTTP_502_BAD_GATEWAY
     code = ErrorCode.LLM
+    log_level = logging.ERROR
 
     def __init__(self, message: str, *, transient: bool = False):
         super().__init__(message)
