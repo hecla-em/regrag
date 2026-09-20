@@ -7,10 +7,11 @@ import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
 
+from app.core.config import config
 from app.core.storage import StorageError
 from app.ingestion import pipeline
 from app.ingestion.celex import consolidated_stem
-from app.ingestion.enums import DocChange, IngestRunStatus, Stage
+from app.ingestion.enums import CITED_TOPIC, DocChange, IngestRunStatus, Stage
 from app.ingestion.exceptions import CorpusShrankError, MalformedDiscoveryError, ParseError
 from app.ingestion.fetch import stage as fetch_stage
 from app.ingestion.fetch.models import RawDocsQuery
@@ -805,3 +806,98 @@ async def test_a_run_where_every_document_fails_still_reports_the_later_stages(
         "failed": {},
     }
     assert not report.ok
+
+
+CITING_ACT = (
+    '<html><body><div class="eli-subdivision" id="art_1">'
+    '<p class="oj-ti-art">Article 1</p>'
+    '<p class="oj-normal">1. Verifiers shall be accredited under Article 4 of '
+    "Regulation (EC) No 765/2008.</p>"
+    "</div></body></html>"
+)
+"""One act citing a division of another, which is what the hop follows."""
+
+HOP_ACT = (
+    '<html><body><div class="eli-subdivision" id="art_1">'
+    '<p class="oj-ti-art">Article 1</p>'
+    '<p class="oj-normal">1. Permits shall meet Article 15 of Directive 2010/75/EU.</p>'
+    "</div></body></html>"
+)
+"""What a hop document cites in its turn, which no run may follow."""
+
+
+def citing_docs(hop: str = SMALL_ACT) -> dict[str, httpx.Response]:
+    """An mrv corpus whose seed cites Regulation 765/2008, plus that act itself."""
+    return {
+        "32015R0757": httpx.Response(200, content=CITING_ACT.encode()),
+        "32023R2449": small_act(),
+        "32008R0765": httpx.Response(200, content=hop.encode()),
+    }
+
+
+CITED_SPARQL_JSON = payload(binding("32008R0765", force="1"))
+
+
+async def test_the_hop_stores_the_act_a_chunk_cites_a_division_of(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(),
+    )
+
+    report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert report.ok
+    assert report.discovered == 3
+    stored = {row.celex: row.topic for row in await chunk_rows(db_session)}
+    assert stored["32008R0765"] == CITED_TOPIC
+
+
+async def test_the_hop_does_not_follow_what_it_brought_in(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    """The cited acts cite further acts. Reading their citations too would follow the graph one
+    step further every run, and the closure of that is most of EU law."""
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+
+    def run_client():
+        return corpus_client(
+            {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+            citing_docs(hop=HOP_ACT),
+        )[0]
+
+    first = await ingest(db_session, client=run_client(), topics=["mrv"], store=local_store)
+    second = await ingest(db_session, client=run_client(), topics=["mrv"], store=local_store)
+
+    assert (first.discovered, second.discovered) == (3, 3)
+    assert "32010L0075" not in {row.celex for row in await chunk_rows(db_session)}
+
+
+async def test_a_cited_act_nothing_cites_any_more_is_pruned(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    monkeypatch.setattr(config, "FOLLOW_CITED_ACTS", True)
+    client, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=CITED_SPARQL_JSON)},
+        citing_docs(),
+    )
+    await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+    assert await chunk_rows(db_session, "32008R0765")
+
+    silent, _ = corpus_client(
+        {"mrv": MRV_SPARQL, CITED_TOPIC: httpx.Response(200, json=payload())}, citing_docs()
+    )
+    report = await ingest(db_session, client=silent, topics=["mrv"], store=local_store)
+
+    assert report.ok
+    assert await chunk_rows(db_session, "32008R0765") == []
+
+
+async def test_the_hop_is_off_by_default(db_session, local_store, corpus_client):
+    client, _ = corpus_client({"mrv": MRV_SPARQL}, citing_docs())
+
+    report = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert report.discovered == 2
