@@ -1,5 +1,5 @@
 """Evals CLI: `uv run evals check | stamp | run [--case ID] [--trait TRAIT] [--verbose]
-[--no-retrieval] [--no-store] | compare BASE OTHER | tune`."""
+[--no-retrieval] [--no-store] [--no-model-check] | compare BASE OTHER | tune`."""
 
 import argparse
 import asyncio
@@ -12,7 +12,13 @@ from app.core.config import config
 from app.core.db.session import get_session
 from app.core.exceptions import NotFoundError
 from app.core.llm.cache import enable_call_cache
+from app.core.llm.errors import LLMError
 from app.core.logger import setup_logging
+from app.evals.capabilities import (
+    check_model_capabilities,
+    format_capabilities,
+    unsupported_capabilities,
+)
 from app.evals.dataset.check import check_against_corpus, stale_case_ids
 from app.evals.dataset.cli import (
     add_selection_arguments,
@@ -63,6 +69,11 @@ def register_run_command(commands: Any) -> None:
         action="store_true",
         help="print the run without storing it in eval_runs",
     )
+    run.add_argument(
+        "--no-model-check",
+        action="store_true",
+        help="score the model without first checking it honours what the nodes bind to it",
+    )
 
 
 def register_compare_command(commands: Any) -> None:
@@ -107,6 +118,27 @@ async def score_dataset(
     return result, run.id
 
 
+def check_model(retrieval: bool) -> int:
+    """Print what the selected model showed of the capabilities the run ahead leans on, and
+    say whether it may be scored: a missing binding is dropped rather than raised, so a run
+    on it would score the node as switched off and read as a finding about the model."""
+    try:
+        checks = asyncio.run(check_model_capabilities(retrieval=retrieval))
+    except LLMError as exc:
+        print(f"{config.CHAT_MODEL} could not be probed: {exc}")
+        return 1
+
+    print("\n".join(format_capabilities(checks)), end="\n\n")
+    missing = unsupported_capabilities(checks)
+    if not missing:
+        return 0
+    print(
+        f"not scoring {config.CHAT_MODEL}: it dropped {', '.join(missing)}. "
+        "Pass --no-model-check to score it anyway.\n"
+    )
+    return 1
+
+
 def run_evals(
     selection: CaseSelection,
     verbose: bool = False,
@@ -114,12 +146,15 @@ def run_evals(
     judge: bool = True,
     retrieval: bool = True,
     store: bool = True,
+    model_check: bool = True,
 ) -> int:
     """Score the dataset, print what it measured, the cases first when asked for, and store
-    the run unless told not to."""
+    the run unless told not to. The model is checked before a case is paid for."""
     dataset = EvalDataset.load(selection=selection)
     if cached:
         enable_call_cache(config.EVAL_CACHE_DIR)
+    if model_check and (failed := check_model(retrieval)):
+        return failed
 
     result, run_id = asyncio.run(
         score_dataset(dataset, judge=judge, retrieval=retrieval, store=store)
@@ -166,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                 judge=not args.no_judge,
                 retrieval=not args.no_retrieval,
                 store=not args.no_store,
+                model_check=not args.no_model_check,
             )
 
         if args.command == "compare":

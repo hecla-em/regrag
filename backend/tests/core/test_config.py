@@ -155,7 +155,7 @@ def test_the_env_file_is_absolute_so_the_working_directory_cannot_change_it(env,
 
 def test_every_provider_key_is_a_secret_that_defaults_to_unset():
     """Empty is unset: the provider refuses the call, and no test can reach one by accident."""
-    for name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "VOYAGE_API_KEY"):
+    for name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "VOYAGE_API_KEY", "OPENROUTER_API_KEY"):
         assert ProviderConfig.model_fields[name].annotation is SecretStr
         assert getattr(ProviderConfig(), name).get_secret_value() == ""
 
@@ -244,7 +244,7 @@ def test_combined_config_carries_the_retrieval_tunables():
 
 def test_chat_defaults():
     chat = ChatConfig()
-    assert chat.CHAT_MODEL == "anthropic/claude-haiku-4-5"
+    assert chat.CHAT_MODEL == "openrouter/google/gemini-2.5-flash"
     assert chat.CHAT_TIMEOUT == 60
     assert chat.CHAT_MAX_TOKENS == 2048
     assert chat.CHAT_TEMPERATURE == 0.0

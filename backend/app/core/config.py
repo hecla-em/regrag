@@ -204,6 +204,7 @@ class ProviderConfig(BaseConfig):
     ANTHROPIC_API_KEY: SecretStr = SecretStr("")
     OPENAI_API_KEY: SecretStr = SecretStr("")
     VOYAGE_API_KEY: SecretStr = SecretStr("")
+    OPENROUTER_API_KEY: SecretStr = SecretStr("")
 
 
 class EmbeddingConfig(BaseConfig):
@@ -238,13 +239,15 @@ class ChatConfig(BaseConfig):
     CHAT_THINKING_ENABLED: whether the answer call reasons before it writes; the other nodes
         never do. Off by default to hold cost down, though on it lifted judged correctness 0.70
         to 0.86 and faithfulness 0.91 to 0.95 over two runs each, for about 2.7s and 30% more
-        spend per answer (HEC-329). The provider
+        spend per answer (HEC-329), all measured on Anthropic. The provider
         insists on a temperature of 1 while it thinks, so CHAT_TEMPERATURE is set aside.
+        The budget is passed in Anthropic's shape, which a model at another provider drops
+        rather than refuses, so turning this on off Anthropic reasons not at all, quietly.
     CHAT_THINKING_BUDGET: the most tokens the answer call may reason in, on top of
         CHAT_MAX_TOKENS; 1024 is Anthropic's floor, and 2048 scored no better.
     """
 
-    CHAT_MODEL: str = "anthropic/claude-haiku-4-5"
+    CHAT_MODEL: str = "openrouter/google/gemini-2.5-flash"
     CHAT_TIMEOUT: int = 60
     CHAT_MAX_TOKENS: int = 2048
     CHAT_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=1.0)
