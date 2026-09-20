@@ -5,6 +5,7 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from pydantic import SecretStr
 
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.core.config import config
@@ -268,3 +269,19 @@ def test_a_failed_chat_stream_is_reported_with_its_request_id_and_without_the_qu
     assert event["exception"]["values"][0]["type"] == "RuntimeError"
     assert event["tags"]["request_id"] == request_id
     assert "Jane Example" not in json.dumps(event, default=str)
+
+
+def test_a_question_with_no_browser_check_is_refused_before_any_model_call(
+    client, two_results, monkeypatch, answer_model
+):
+    """What a curl to the prod endpoint gets once the check is on: the refusal comes from
+    the route dependency, so the graph never runs and nothing is spent."""
+    monkeypatch.setattr(config, "TURNSTILE_SECRET_KEY", SecretStr("0x-the-secret"))
+    monkeypatch.setattr(config, "TURNSTILE_ENABLED", True)
+
+    response = client.post("/chat", json={"question": "What is FuelEU?"})
+
+    assert response.status_code == 403
+    assert response.json()["error"] == "TurnstileFailedError"
+    assert answer_model.received == []
+    assert two_results == []

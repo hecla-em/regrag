@@ -26,12 +26,14 @@ export type TurnFailure =
 	| "thread_full"
 	| "rate_limited"
 	| "paused"
+	| "unverified"
 	| "unexpected"
 
 const FAILURES_BY_ERROR: Record<string, TurnFailure> = {
 	ThreadFullError: "thread_full",
 	RateLimitedError: "rate_limited",
 	SpendCapReachedError: "paused",
+	TurnstileFailedError: "unverified",
 } satisfies Partial<Record<ChatErrorResponse["error"], TurnFailure>>
 
 /** Why a turn failed, as far as the reader is told: the refusals they can act on, or anything else. */

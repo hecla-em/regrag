@@ -1,5 +1,6 @@
 import { createParser, type EventSourceMessage } from "eventsource-parser"
 import { readClientId } from "@/lib/client-id"
+import { mintToken } from "@/lib/turnstile"
 import type {
 	ChatQuery,
 	ChatStreamEvent,
@@ -70,11 +71,15 @@ export async function* streamChat(
 	body: ChatQuery,
 	signal: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
+	const token = await mintToken()
 	const response = await apiFetch("/chat", {
 		method: "POST",
 		headers: {
 			"content-type": "application/json",
 			"X-Client-ID": readClientId(),
+			// A token the widget could not mint is no header at all, which the backend
+			// refuses when its own check is on and ignores when it is off.
+			...(token === null ? {} : { "CF-Turnstile-Response": token }),
 		},
 		body: JSON.stringify(body),
 		signal,

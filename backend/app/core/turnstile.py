@@ -1,0 +1,63 @@
+"""The Cloudflare Turnstile check on a question, made as a route dependency."""
+
+import logging
+from typing import Annotated, Any
+
+import httpx
+from fastapi import Header, Request
+
+from app.core.config import config
+from app.core.exceptions import TurnstileFailedError
+from app.core.http import http_client
+from app.core.middleware import client_ip
+
+logger = logging.getLogger(__name__)
+
+SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+
+TURNSTILE_ACTION = "chat"
+"""What the widget stamps on every token it mints, and what a token must come back stamped
+with. A sitekey is public, so without this a token minted against another widget of the
+account would pass here."""
+
+MAX_TOKEN_LENGTH = 2048
+"""Cloudflare's cap on a token. A longer one is junk and is refused without a call."""
+
+TurnstileHeader = Annotated[str | None, Header(max_length=MAX_TOKEN_LENGTH)]
+"""The token a browser sends with every question, bounded so junk costs no outbound call."""
+
+
+async def ask_cloudflare(token: str, ip: str | None) -> dict[str, Any] | None:
+    """Cloudflare's verdict on a token, or None when it could not be asked: unreachable,
+    erroring, or answering with something that is not the verdict."""
+    form = {"secret": config.TURNSTILE_SECRET_KEY.get_secret_value(), "response": token}
+    if ip:
+        form["remoteip"] = ip
+    try:
+        async with http_client(timeout=config.TURNSTILE_TIMEOUT) as client:
+            response = await client.post(SITEVERIFY_URL, data=form)
+            response.raise_for_status()
+            return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("turnstile check failed, letting the question through: %s", exc)
+        return None
+
+
+async def verify_turnstile(request: Request, cf_turnstile_response: TurnstileHeader = None) -> None:
+    """Refuse the question unless Cloudflare vouches for the token the widget minted for it.
+    A check that cannot be made lets the question through, as the rate limiter does when
+    Redis is gone: the limit and the spend cap are the backstops, and Cloudflare being
+    unreachable should not take chat down."""
+    if not config.TURNSTILE_ENABLED:
+        return
+    if not config.TURNSTILE_SECRET_KEY.get_secret_value():
+        logger.error("TURNSTILE_ENABLED is set with no secret key, so questions go unchecked")
+        return
+    if not cf_turnstile_response:
+        raise TurnstileFailedError()
+    verdict = await ask_cloudflare(cf_turnstile_response, client_ip(request))
+    if verdict is None:
+        return
+    if not verdict.get("success") or verdict.get("action") != TURNSTILE_ACTION:
+        logger.warning("turnstile refused the question: %s", verdict.get("error-codes"))
+        raise TurnstileFailedError()

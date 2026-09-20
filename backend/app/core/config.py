@@ -197,6 +197,25 @@ class RateLimitConfig(BaseConfig):
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
+class TurnstileConfig(BaseConfig):
+    """The Cloudflare Turnstile check on /chat, which proves a question came from a browser
+    rather than a script. Its own section for the same reason R2Config is: one vendor's
+    credentials, which belong together and with nothing else.
+
+    TURNSTILE_ENABLED: the check's off switch, off so dev, tests and evals need no token.
+    TURNSTILE_SECRET_KEY: the widget's secret half, which signs the siteverify call. The
+        sitekey is the public half, built into the frontend. Empty is unset, and the
+        check then lets every question through rather than refuse every one under a secret
+        Cloudflare will not recognise.
+    TURNSTILE_TIMEOUT: seconds to wait for siteverify. A check that waits longer than this
+        lets the question through, as the rate limiter does when Redis is gone.
+    """
+
+    TURNSTILE_ENABLED: bool = False
+    TURNSTILE_SECRET_KEY: SecretStr = SecretStr("")
+    TURNSTILE_TIMEOUT: float = Field(default=5.0, gt=0.0)
+
+
 EMBED_DIMENSIONS = 1024
 """Width of the document_chunks.embedding column: not a setting, changing it needs a migration."""
 
@@ -413,6 +432,7 @@ class Config(
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    TurnstileConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -435,6 +455,7 @@ _CONFIG_SECTIONS = (
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    TurnstileConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

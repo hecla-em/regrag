@@ -19,6 +19,7 @@ const FAILURE_MESSAGES: Record<TurnFailure, string> = {
 	thread_full: "Maximum chat turns reached.",
 	rate_limited: "Too many questions. Try again in a minute.",
 	paused: "Chat is paused for today. Try again tomorrow.",
+	unverified: "Couldn't verify your browser. Reload the page and ask again.",
 	unexpected: "That answer didn't come through.",
 }
 

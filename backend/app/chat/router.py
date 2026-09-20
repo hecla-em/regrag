@@ -12,17 +12,19 @@ from app.chat.stream import stream_chat_events
 from app.core.models import ErrorResponse
 from app.core.ratelimit import ClientIdHeader, rate_limit
 from app.core.redis import RedisDep
+from app.core.turnstile import verify_turnstile
 
 router = APIRouter(tags=["chat"])
 
 CHAT_RESPONSES: dict[int | str, dict[str, Any]] = {
     status.HTTP_200_OK: {"model": ChatEvent},
+    status.HTTP_403_FORBIDDEN: {"model": ErrorResponse},
     status.HTTP_429_TOO_MANY_REQUESTS: {"model": ErrorResponse},
 }
 """What a frame's data holds, for the OpenAPI schema: FastAPI cannot read it from the
 yielded ServerSentEvent, and the response class files it under text/event-stream. The
-rate limit refuses before the stream opens with a JSON error, which FastAPI files under the
-same media type."""
+rate limit and the browser check refuse before the stream opens with a JSON error, which
+FastAPI files under the same media type."""
 
 
 async def rate_limit_question(
@@ -37,7 +39,9 @@ async def rate_limit_question(
     "/chat",
     response_class=EventSourceResponse,
     responses=CHAT_RESPONSES,
-    dependencies=[Depends(rate_limit_question)],
+    # In order: the limit is a Redis round trip and the check an outbound call to
+    # Cloudflare, so a flood is turned away before it becomes a flood of those.
+    dependencies=[Depends(rate_limit_question), Depends(verify_turnstile)],
 )
 async def chat(query: ChatQuery) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
