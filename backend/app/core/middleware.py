@@ -16,6 +16,9 @@ from app.core.logger import request_id_var
 
 logger = logging.getLogger(__name__)
 
+# Fly polls /health every 30s. Logging it buries the requests that mean something.
+QUIET_PATHS = frozenset({"/health"})
+
 
 async def request_id_middleware(request: Request, call_next):
     """Bind a server-generated request ID for the request's lifetime."""
@@ -61,6 +64,8 @@ async def access_log_middleware(request: Request, call_next):
     after the headers go out, so that is the first point its duration is known."""
     start = time.perf_counter()
     response = await call_next(request)
+    if request.scope["path"] in QUIET_PATHS:
+        return response
     body = response.body_iterator
 
     async def logged_body() -> AsyncIterator[bytes]:
