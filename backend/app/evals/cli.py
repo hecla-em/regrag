@@ -167,7 +167,7 @@ def run_evals(
         print(f"\nstored as eval run {run_id}")
     elif store:
         print("\nthe run was not stored: see the error above")
-    failed = result.metrics.counts.errors or result.judge_never_answered
+    failed = result.metrics.counts.errors or result.judge_never_answered or result.judged_too_few
     return 1 if failed or (store and run_id is None) else 0
 
 

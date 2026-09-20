@@ -14,8 +14,10 @@ from app.core.health import router as health_router
 from app.core.logger import setup_logging
 from app.core.middleware import register_middleware
 from app.core.redis import redis_client
+from app.core.sentry import configure_sentry
 
 setup_logging()
+configure_sentry()
 
 
 @asynccontextmanager

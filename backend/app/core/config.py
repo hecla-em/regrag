@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import certifi
-from pydantic import Field, SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -58,12 +58,16 @@ class AppConfig(BaseConfig):
 
     BUILD_ID: which release is running, read from the image reference Fly sets on every
         machine, so it changes with each deploy and is shared by a release's machines.
+        A GitHub Actions job has no image, so there it is the commit.
     """
 
     ENVIRONMENT: Environment = ENVIRONMENT
     PROJECT_NAME: str = "RegRag"
     FRONTEND_URL: str = "http://localhost:5173"
-    BUILD_ID: str = Field(default="local", validation_alias="FLY_IMAGE_REF")
+    BUILD_ID: str = Field(
+        default="local", validation_alias=AliasChoices("FLY_IMAGE_REF", "GITHUB_SHA")
+    )
+    SENTRY_DSN: str | None = None
 
 
 class StorageBackend(StrEnum):
@@ -157,6 +161,7 @@ class PostgresConfig(BaseConfig):
             "pool_pre_ping": self.DB_POOL_PRE_PING,
             "pool_recycle": self.DB_POOL_RECYCLE,
             "pool_timeout": self.DB_POOL_TIMEOUT,
+            "hide_parameters": True,
             "connect_args": {
                 "connect_timeout": self.DB_CONNECT_TIMEOUT,
                 "options": f"-c statement_timeout={self.DB_COMMAND_TIMEOUT * 1000}",
@@ -398,9 +403,14 @@ class JudgeConfig(BaseConfig):
     EVAL_JUDGE_MAX_TOKENS: the cap on one verdict, well above the answer's, since a verdict
         is critique first. One cut short parses as nothing and leaves the case unjudged.
     EVAL_JUDGE_CONCURRENCY: cases judged at once; llm_retry absorbs the rate limits.
+    EVAL_JUDGE_MIN_COVERAGE: the share of answered cases the judge must come back on before
+        a run counts. Below it the scores are drawn from a subset and do not compare with a
+        full run, so the run is printed and stored but fails. A handful of cases lost to a
+        provider is tolerable; a fifth of the dataset is a different measurement.
     """
 
     EVAL_JUDGE_MODEL: str = "openrouter/anthropic/claude-sonnet-5"
+    EVAL_JUDGE_MIN_COVERAGE: float = Field(default=0.9, gt=0.0, le=1.0)
     EVAL_JUDGE_TIMEOUT: int = 120
     EVAL_JUDGE_MAX_TOKENS: int = 8192
     EVAL_JUDGE_CONCURRENCY: int = 4

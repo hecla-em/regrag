@@ -89,18 +89,17 @@ export function ChatPage() {
 
 				<div
 					className={cn(
-						"mx-auto w-full max-w-3xl px-4 pt-2 pb-4 md:px-6.5",
+						"mx-auto w-full max-w-3xl px-4 pt-2 md:px-6.5",
 						isHero && "md:w-[calc(100%-6rem)]",
 					)}
 				>
 					<PromptForm isBusy={isBusy} onSubmit={ask} onStop={stop} />
-					<p className="mt-4 text-center text-footnote-foreground text-xs">
-						Answers are generated from the official EU texts and may be wrong.
-						<br />
-						They are not legal advice, so check the cited article.
-					</p>
 				</div>
 				{isHero && <div aria-hidden="true" className="floor-grid flex-1" />}
+				<p className="mx-auto w-full max-w-3xl px-4 py-3 text-center text-footnote-foreground text-xs md:px-6.5">
+					Answers are AI-generated and not legal advice, so check the cited
+					article. Questions are stored, so avoid personal details.
+				</p>
 			</SidebarInset>
 		</SidebarProvider>
 	)

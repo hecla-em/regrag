@@ -1,6 +1,7 @@
 """Health endpoint and its response model."""
 
 import asyncio
+import logging
 from collections.abc import Awaitable
 from enum import StrEnum
 from typing import Any
@@ -13,6 +14,8 @@ from app import __version__
 from app.core.db.session import SessionDep
 from app.core.models import AppModel
 from app.core.redis import RedisDep
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceStatus(StrEnum):
@@ -30,18 +33,20 @@ class HealthResponse(AppModel):
     database: ServiceStatus
     redis: ServiceStatus
 
+    @property
+    def failed_services(self) -> list[str]:
+        """Names of the ServiceStatus fields reporting an error."""
+        return [
+            name
+            for name, field in type(self).model_fields.items()
+            if field.annotation is ServiceStatus and getattr(self, name) is ServiceStatus.ERROR
+        ]
+
     @computed_field
     @property
     def status(self) -> HealthStatus:
         """Overall status: ok only while every ServiceStatus field reports ok."""
-        services = (
-            getattr(self, name)
-            for name, field in type(self).model_fields.items()
-            if field.annotation is ServiceStatus
-        )
-        if all(service is ServiceStatus.OK for service in services):
-            return HealthStatus.OK
-        return HealthStatus.DEGRADED
+        return HealthStatus.DEGRADED if self.failed_services else HealthStatus.OK
 
 
 router = APIRouter(tags=["health"])
@@ -62,4 +67,8 @@ async def get_health(db: SessionDep, redis: RedisDep) -> HealthResponse:
         probe_service(db.execute(text("SELECT 1"))),
         probe_service(redis.ping()),
     )
-    return HealthResponse(database=database, redis=redis_status)
+    health = HealthResponse(database=database, redis=redis_status)
+    if health.failed_services:
+        # The access log skips /health, so this is the only sign a check went bad.
+        logger.warning("Health check degraded: %s unreachable", ", ".join(health.failed_services))
+    return health

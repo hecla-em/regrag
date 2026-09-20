@@ -18,6 +18,17 @@ def access_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
     return [r for r in caplog.records if r.name == middleware.logger.name]
 
 
+@pytest.fixture
+def logged_path(app: FastAPI) -> str:
+    """A route the access log does not skip, for the tests about the line itself."""
+
+    @app.get("/probe")
+    def probe() -> dict[str, str]:
+        return {"status": "ok"}
+
+    return "/probe"
+
+
 def test_every_response_carries_request_id(client: TestClient) -> None:
     response = client.get("/health")
     uuid.UUID(hex=response.headers["X-Request-ID"])
@@ -35,50 +46,63 @@ def test_incoming_request_id_is_ignored(client: TestClient) -> None:
     assert response.headers["X-Request-ID"] != incoming
 
 
-def test_access_log_line(client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
-    client.get("/health")
+def test_access_log_line(
+    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    client.get(logged_path)
     [record] = access_records(caplog)
-    assert "GET /health 200" in record.getMessage()
+    assert "GET /probe 200" in record.getMessage()
 
 
 def test_access_log_records_the_connecting_address(
-    client: TestClient, caplog: pytest.LogCaptureFixture
+    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
-    client.get("/health")
+    client.get(logged_path)
     [record] = access_records(caplog)
     assert record.__dict__["client_ip"] == "testclient"
 
 
 def test_access_log_prefers_the_address_fly_forwards_in_prod(
-    client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+    client: TestClient,
+    logged_path: str,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Behind Fly's proxy the connecting address is the proxy. The header names the client."""
     monkeypatch.setattr(config, "ENVIRONMENT", Environment.PROD)
-    client.get("/health", headers={"Fly-Client-IP": "203.0.113.9"})
+    client.get(logged_path, headers={"Fly-Client-IP": "203.0.113.9"})
     [record] = access_records(caplog)
     assert record.__dict__["client_ip"] == "203.0.113.9"
 
 
 def test_access_log_ignores_the_fly_header_off_fly(
-    client: TestClient, caplog: pytest.LogCaptureFixture
+    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Off Fly nothing strips the header, so a caller could name any address."""
-    client.get("/health", headers={"Fly-Client-IP": "203.0.113.9"})
+    client.get(logged_path, headers={"Fly-Client-IP": "203.0.113.9"})
     [record] = access_records(caplog)
     assert record.__dict__["client_ip"] == "testclient"
 
 
 def test_access_log_skips_cors_preflight(
-    client: TestClient, caplog: pytest.LogCaptureFixture
+    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     response = client.options(
-        "/health",
+        logged_path,
         headers={
             "Origin": config.FRONTEND_URL,
             "Access-Control-Request-Method": "GET",
         },
     )
     assert response.status_code == 200
+    assert access_records(caplog) == []
+
+
+def test_access_log_skips_the_health_check(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Fly polls /health every 30s. Logging it buries the requests that mean something."""
+    client.get("/health")
     assert access_records(caplog) == []
 
 

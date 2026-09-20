@@ -41,7 +41,7 @@ def _error_event(exc: Exception) -> ErrorEvent:
     """The error event for a failed stream, logged like the JSON handlers log theirs."""
     error, message = describe(exc)
     if isinstance(exc, DomainError):
-        logger.warning("chat stream failed: %s", message)
+        logger.log(exc.log_level, "chat stream failed: %s", exc.log_message)
     else:
         logger.exception("chat stream failed unexpectedly")
     body = ChatErrorResponse(error=error, message=message, request_id=request_id_var.get())

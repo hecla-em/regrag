@@ -17,6 +17,9 @@ from tests.chat.conftest import (
 )
 from tests.conftest import install_chat_model, install_search
 
+PERSONAL_QUESTION = "I am Jane Example, does FuelEU apply to me?"
+"""Up here, away from the test that asks it: Sentry sends the source lines around a frame."""
+
 
 def read_events(response: httpx.Response) -> list[tuple[str, Any]]:
     """Parse the SSE body into (event, payload) pairs, ignoring pings."""
@@ -247,3 +250,43 @@ def test_a_repeated_question_is_answered_from_the_cache(cached_client, two_resul
     assert [name for name, _ in events] == ["sources", "text", "done"]
     assert first_payload(events, "text") == "Answered [1]."
     assert len(answer_model.received) == 1
+
+
+def test_a_failed_chat_stream_is_reported_with_its_request_id_and_without_the_question(
+    client, monkeypatch, sentry
+):
+    async def exploding_search(session, request):
+        raise RuntimeError("pool exhausted")
+
+    install_search(monkeypatch, exploding_search)
+
+    with client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
+        request_id = response.headers["X-Request-ID"]
+        response.read()
+
+    [event] = sentry.events
+    assert event["exception"]["values"][0]["type"] == "RuntimeError"
+    assert event["tags"]["request_id"] == request_id
+    assert "Jane Example" not in json.dumps(event, default=str)
+
+
+def test_a_provider_failure_is_reported_without_the_provider_text_or_the_question(
+    client, monkeypatch, sentry
+):
+    async def failing_search(session, request):
+        try:
+            raise ConnectionRefusedError(f"could not embed: {request}")
+        except ConnectionRefusedError as exc:
+            raise LLMError("embedding call failed") from exc
+
+    install_search(monkeypatch, failing_search)
+
+    with client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
+        request_id = response.headers["X-Request-ID"]
+        response.read()
+
+    [event] = sentry.events
+    assert event["logentry"]["params"] == ["embedding call failed (ConnectionRefusedError)"]
+    assert event["tags"]["request_id"] == request_id
+    assert "exception" not in event
+    assert "Jane Example" not in json.dumps(event, default=str)
