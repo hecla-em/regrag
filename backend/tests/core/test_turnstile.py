@@ -21,6 +21,7 @@ router = APIRouter()
 
 TOKEN = "0.minted-by-the-widget"
 SECRET = "0x-the-secret"
+FRONTEND_HOST = "faqs.hecla-em.com"
 
 
 @router.post("/verified", dependencies=[Depends(verify_turnstile)])
@@ -30,9 +31,11 @@ def verified() -> dict[str, bool]:
 
 @pytest.fixture(autouse=True)
 def verified_route_behind_fly(app: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The route to check, reached as in prod, where the Fly header names the caller."""
+    """The route to check, reached as in prod, where the Fly header names the caller and
+    chat is served from the one frontend a token may be minted on."""
     app.include_router(router)
     monkeypatch.setattr(config, "ENVIRONMENT", Environment.PROD)
+    monkeypatch.setattr(config, "FRONTEND_URL", f"https://{FRONTEND_HOST}")
     monkeypatch.setattr(config, "TURNSTILE_SECRET_KEY", SecretStr(SECRET))
     monkeypatch.setattr(config, "TURNSTILE_ENABLED", True)
 
@@ -51,8 +54,8 @@ def siteverify(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[dict[str, 
 
         monkeypatch.setattr(
             turnstile,
-            "http_client",
-            lambda **kwargs: httpx.AsyncClient(transport=httpx.MockTransport(handler)),
+            "turnstile_client",
+            httpx.AsyncClient(transport=httpx.MockTransport(handler)),
         )
         return asked
 
@@ -61,7 +64,7 @@ def siteverify(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[dict[str, 
 
 def verdict(**fields: Any) -> Callable[[httpx.Request], httpx.Response]:
     """Cloudflare's reply to a check, vouching for the token unless the test says otherwise."""
-    body = {"success": True, "action": TURNSTILE_ACTION, "hostname": "faqs.hecla-em.com"}
+    body = {"success": True, "action": TURNSTILE_ACTION, "hostname": FRONTEND_HOST}
     return lambda request: httpx.Response(200, json=body | fields)
 
 
@@ -90,6 +93,15 @@ def test_a_token_stamped_for_another_widget_is_turned_away(client: TestClient, s
     """A sitekey is public, so a token minted against another of this account's widgets is
     one a script can get. The action the widget stamps is what tells them apart."""
     siteverify(verdict(action="signup"))
+
+    assert_error_shape(ask(client), 403, "TurnstileFailedError")
+
+
+def test_a_token_minted_on_another_page_is_turned_away(client: TestClient, siteverify) -> None:
+    """The widget's domains take in localhost so the check can be exercised in dev, and a
+    sitekey is public. A token minted anywhere but the frontend this deployment serves is
+    one a script can get for itself."""
+    siteverify(verdict(hostname="localhost"))
 
     assert_error_shape(ask(client), 403, "TurnstileFailedError")
 
@@ -128,7 +140,7 @@ def test_the_check_carries_the_secret_and_the_callers_address(
 
 
 def test_cloudflare_unreachable_lets_the_question_through(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog
+    client: TestClient, siteverify, caplog
 ) -> None:
     """A check that cannot be made must not take chat down: the rate limit and the spend
     cap are still behind it."""
@@ -136,11 +148,7 @@ def test_cloudflare_unreachable_lets_the_question_through(
     def refuse_to_connect(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("no route to challenges.cloudflare.com")
 
-    monkeypatch.setattr(
-        turnstile,
-        "http_client",
-        lambda **kwargs: httpx.AsyncClient(transport=httpx.MockTransport(refuse_to_connect)),
-    )
+    siteverify(refuse_to_connect)
 
     with caplog.at_level(logging.WARNING, logger=turnstile.logger.name):
         assert ask(client).status_code == 200

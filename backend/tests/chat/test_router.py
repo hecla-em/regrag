@@ -285,3 +285,17 @@ def test_a_question_with_no_browser_check_is_refused_before_any_model_call(
     assert response.json()["error"] == "TurnstileFailedError"
     assert answer_model.received == []
     assert two_results == []
+
+
+def test_a_malformed_question_is_turned_away_before_the_browser_check(
+    client, monkeypatch, answer_model
+):
+    """The guards take the question, so a body that never parses costs neither a rate-limit
+    slot nor an outbound call to Cloudflare."""
+    monkeypatch.setattr(config, "TURNSTILE_SECRET_KEY", SecretStr("0x-the-secret"))
+    monkeypatch.setattr(config, "TURNSTILE_ENABLED", True)
+
+    response = client.post("/chat", json={"not-a-question": "hello"})
+
+    assert response.status_code == 422
+    assert answer_model.received == []

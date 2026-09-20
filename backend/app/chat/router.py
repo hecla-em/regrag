@@ -12,7 +12,7 @@ from app.chat.stream import stream_chat_events
 from app.core.models import ErrorResponse
 from app.core.ratelimit import ClientIdHeader, rate_limit
 from app.core.redis import RedisDep
-from app.core.turnstile import verify_turnstile
+from app.core.turnstile import TurnstileHeader, verify_turnstile
 
 router = APIRouter(tags=["chat"])
 
@@ -27,21 +27,25 @@ rate limit and the browser check refuse before the stream opens with a JSON erro
 FastAPI files under the same media type."""
 
 
-async def rate_limit_question(
-    query: ChatQuery, request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None
+async def guard_question(
+    query: ChatQuery,
+    request: Request,
+    redis: RedisDep,
+    x_client_id: ClientIdHeader = None,
+    cf_turnstile_response: TurnstileHeader = None,
 ) -> None:
-    """Rate limit once the question has parsed, so a malformed one costs no slot: FastAPI
-    resolves route dependencies before the body, and a raise inside the stream is too late."""
+    """Both guards, taking the question so a malformed one costs neither: FastAPI resolves
+    route dependencies before the body, and a raise inside the stream is too late. The limit
+    goes first, being a Redis round trip against an outbound call to Cloudflare."""
     await rate_limit(request, redis, x_client_id)
+    await verify_turnstile(request, cf_turnstile_response)
 
 
 @router.post(
     "/chat",
     response_class=EventSourceResponse,
     responses=CHAT_RESPONSES,
-    # In order: the limit is a Redis round trip and the check an outbound call to
-    # Cloudflare, so a flood is turned away before it becomes a flood of those.
-    dependencies=[Depends(rate_limit_question), Depends(verify_turnstile)],
+    dependencies=[Depends(guard_question)],
 )
 async def chat(query: ChatQuery) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the

@@ -106,6 +106,17 @@ describe("mintToken", () => {
 		expect(await minting).toBeNull()
 	})
 
+	it("gives up on a mint the next question supersedes", async () => {
+		const { mintToken } = await loadTurnstile()
+		const widget = fakeWidget(undefined, "0.second")
+
+		const superseded = mintToken(widget.open)
+		const current = mintToken(widget.open)
+
+		expect(await superseded).toBeNull()
+		expect(await current).toBe("0.second")
+	})
+
 	it("mints nothing when the widget cannot be rendered, and tries again next question", async () => {
 		const { mintToken } = await loadTurnstile()
 		const widget = fakeWidget("0.token")
