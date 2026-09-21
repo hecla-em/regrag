@@ -13,7 +13,7 @@ from sentry_sdk.types import MonitorConfig
 
 from app.core.clock import utc_now
 from app.core.config import config
-from app.core.db.backup import dump_database, get_backup_store, name_dump, upload_dump
+from app.core.db.backup import DUMP_PREFIX, dump_database, get_backup_store, name_dump
 from app.core.logger import setup_logging
 from app.core.sentry import monitor_cron_job
 from app.core.storage import StorageError
@@ -60,27 +60,34 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-@monitor_cron_job(MONITOR_SLUG, MONITOR_CONFIG)
 def run_backup(upload: bool) -> int:
     """One run's exit code: 0 once the dump is written and, unless told not to, stored."""
     path = Path(name_dump(config.ENVIRONMENT, utc_now()))
+    key = f"{DUMP_PREFIX}/{path.name}"
     try:
         store = get_backup_store() if upload else None
         dump_database(path)
-        stored_as = upload_dump(store, path) if store else None
+        if store:
+            store.put_file(key, path)
     except (subprocess.CalledProcessError, OSError, StorageError, ValidationError) as exc:
         logger.exception("backup aborted")
         print(f"backup aborted: {exc}", file=sys.stderr)
         return 1
-    print(f"backup stored: {stored_as}" if stored_as else f"backup written: {path}")
+    print(f"backup stored: {key}" if store else f"backup written: {path}")
     return 0
+
+
+@monitor_cron_job(MONITOR_SLUG, MONITOR_CONFIG)
+def run_stored_backup() -> int:
+    """Only a run that stores its dump checks in, so a local dump never clears a failed night."""
+    return run_backup(upload=True)
 
 
 def run_shell(writable: bool, psql_args: list[str]) -> int:
     """Replace this process with psql on the configured database, read-only unless asked."""
     libpq = {**os.environ, **config.LIBPQ_ENVIRONMENT}
     if not writable:
-        libpq["PGOPTIONS"] = f"{READ_ONLY_OPTIONS} {libpq.get('PGOPTIONS', '')}".strip()
+        libpq["PGOPTIONS"] = READ_ONLY_OPTIONS
     access = "writable" if writable else "read-only"
     target = f"{config.DB_USER}@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
     print(f"psql {target} ({config.ENVIRONMENT.value}, {access})", file=sys.stderr)
@@ -99,4 +106,6 @@ def main(argv: list[str] | None = None) -> int:
     if psql_args:
         parser.error(f"unrecognized arguments: {' '.join(psql_args)}")
     setup_logging()
-    return run_backup(upload=not args.no_upload)
+    if args.no_upload:
+        return run_backup(upload=False)
+    return run_stored_backup()

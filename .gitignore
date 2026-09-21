@@ -10,5 +10,5 @@ docs/superpowers/
 # Local corpus spike data
 /data/
 
-# Database dumps from scripts/db/backup.sh
+# Database dumps from `uv run db backup`
 *.dump

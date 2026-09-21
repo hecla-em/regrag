@@ -22,17 +22,11 @@ def dump_database(path: Path) -> None:
     libpq = {**os.environ, **config.LIBPQ_ENVIRONMENT}
     dump = ["pg_dump", "--format=custom", "--no-owner", "--no-privileges", f"--file={path}"]
     subprocess.run(dump, env=libpq, check=True)
-    subprocess.run(["pg_restore", "--list", str(path)], stdout=subprocess.DEVNULL, check=True)
+    check = ["pg_restore", "--list", str(path)]
+    subprocess.run(check, env=libpq, stdout=subprocess.DEVNULL, check=True)
 
 
 def get_backup_store() -> S3ObjectStore:
     """The R2 credentials pointed at the backups bucket rather than the one R2_BUCKET names,
     read now so a missing one fails before the dump."""
     return r2_object_store(R2Config(R2_BUCKET=config.BACKUP_BUCKET))
-
-
-def upload_dump(store: S3ObjectStore, path: Path) -> str:
-    """The key the dump was stored under."""
-    key = f"{DUMP_PREFIX}/{path.name}"
-    store.put_file(key, path)
-    return key

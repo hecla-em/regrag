@@ -139,11 +139,15 @@ class PostgresConfig(BaseConfig):
     DB_COMMAND_TIMEOUT: int = 30
 
     @property
+    def LIBPQ_TLS(self) -> dict[str, str]:
+        """libpq's TLS keywords, none where the server serves no TLS."""
+        if not self.DB_SSLMODE:
+            return {}
+        return {"sslmode": self.DB_SSLMODE.value, "sslrootcert": certifi.where()}
+
+    @property
     def SQLALCHEMY_DATABASE_URI(self) -> URL:
         """What alembic and the app engine both connect with, its password masked when printed."""
-        tls = {}
-        if self.DB_SSLMODE:
-            tls = {"sslmode": self.DB_SSLMODE.value, "sslrootcert": certifi.where()}
         return URL.create(
             "postgresql+psycopg",
             username=self.DB_USER,
@@ -151,22 +155,19 @@ class PostgresConfig(BaseConfig):
             host=self.DB_HOST,
             port=self.DB_PORT,
             database=self.DB_NAME,
-            query=tls,
+            query=self.LIBPQ_TLS,
         )
 
     @property
     def LIBPQ_ENVIRONMENT(self) -> dict[str, str]:
         """What pg_dump and psql connect with: the URI's database and TLS, as libpq variables."""
-        tls = {}
-        if self.DB_SSLMODE:
-            tls = {"PGSSLMODE": self.DB_SSLMODE.value, "PGSSLROOTCERT": certifi.where()}
         return {
             "PGHOST": self.DB_HOST,
             "PGPORT": str(self.DB_PORT),
             "PGUSER": self.DB_USER,
             "PGPASSWORD": self.DB_PASS.get_secret_value(),
             "PGDATABASE": self.DB_NAME,
-            **tls,
+            **{f"PG{keyword.upper()}": value for keyword, value in self.LIBPQ_TLS.items()},
         }
 
     @property
