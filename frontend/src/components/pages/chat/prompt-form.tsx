@@ -3,14 +3,15 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
-/** Kept short enough to sit on one line in the composer. */
+/** Kept short enough to sit on one line in the composer. Each names its act, as the corpus holds several. */
 const SAMPLE_QUESTIONS = [
 	"What is the greenhouse gas intensity limit under FuelEU Maritime?",
-	"When must a company monitor energy used on board?",
-	"Which ships fall outside the scope of the regulation?",
-	"How is the compliance balance of a ship calculated?",
-	"What are the penalties for a compliance deficit?",
-	"When must ships use onshore power supply at berth?",
+	"Which ships fall outside the scope of FuelEU Maritime?",
+	"How is a ship's compliance balance calculated under FuelEU Maritime?",
+	"What is the FuelEU Maritime penalty for a compliance deficit?",
+	"When must ships use onshore power supply under FuelEU Maritime?",
+	"Which ships must report CO2 emissions under the MRV Regulation?",
+	"What must a monitoring plan contain under the MRV Regulation?",
 	"What share of a voyage's emissions needs EU ETS allowances?",
 	"Which authority administers a shipping company under the EU ETS?",
 ]
