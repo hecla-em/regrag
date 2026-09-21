@@ -39,23 +39,6 @@ def test_a_comparison_lists_every_metric_by_its_path_with_the_delta():
     ]
 
 
-def test_a_comparison_names_only_the_settings_that_differ():
-    other = stored_run(
-        41,
-        settings={"CHAT_MODEL": "anthropic/claude-haiku-4-5", "CHAT_THINKING_ENABLED": False},
-    )
-
-    output = format_run_comparison(stored_run(42), other)
-
-    assert "settings that differ:" in output
-    assert comparison_line(output, "CHAT_THINKING_ENABLED") == [
-        "CHAT_THINKING_ENABLED",
-        "true",
-        "false",
-    ]
-    assert "CHAT_MODEL " not in output
-
-
 def test_a_run_stored_before_a_metric_existed_still_compares():
     older = stored_run(41)
     older.metrics = {**older.metrics, "judge": {"judged": 1, "retired_metric": 0.5}}

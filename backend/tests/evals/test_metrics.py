@@ -8,6 +8,7 @@ from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement, CorrectnessVerdict
 from app.evals.metrics import (
     compute_assess_refusal_rate,
+    compute_case_counts,
     compute_cited_references,
     compute_context_metrics,
     compute_correctness,
@@ -17,7 +18,6 @@ from app.evals.metrics import (
     compute_gate_refusal_rate,
     compute_markers_in_context,
     compute_mean_step_ms,
-    compute_metrics,
     compute_model_refusal_rate,
     compute_raw_recall,
     count_assess_false_refusals,
@@ -30,6 +30,7 @@ from app.evals.metrics import (
     score_reference_citation_rate,
     score_reference_recall,
 )
+from app.evals.models import CaseCounts, EvalCaseResult
 from app.retrieval.models import ReferenceTarget
 from tests.conftest import retrieved_chunk, search_result
 from tests.evals.conftest import (
@@ -46,100 +47,93 @@ from tests.evals.conftest import (
 ARTICLE_4 = ReferenceTarget(celex="32023R1805", article="4")
 ARTICLE_20 = ReferenceTarget(celex="32023R1805", article="20")
 ANNEX_IV = ReferenceTarget(celex="32023R1805", annex="IV")
+UNNUMBERED_ANNEX = ReferenceTarget(celex="32023R1805", annex="")
+OTHER_CHUNK = {"id": 3, "article": "99", "citation": "Article 99"}
 
 
-def test_recall_counts_a_gold_article_the_chunks_cover() -> None:
-    assert score_reference_recall((ARTICLE_4,), (retrieved_chunk(),)) == 1.0
+@pytest.mark.parametrize(
+    ("targets", "chunk", "recall"),
+    [
+        pytest.param((ARTICLE_4,), {}, 1.0, id="a chunk of the article covers it"),
+        pytest.param(
+            (ARTICLE_4, ARTICLE_20), {}, 0.5, id="recall is the share of references retrieved"
+        ),
+        pytest.param(
+            (ReferenceTarget(celex="32023R1805", article="4a"),),
+            {"article": "4A"},
+            1.0,
+            id="an article matches whatever its case",
+        ),
+        pytest.param(
+            (ANNEX_IV,), {"article": None, "annex": "IV"}, 1.0, id="an annex needs no article"
+        ),
+        pytest.param(
+            (ANNEX_IV,), {"article": None, "annex": "iv"}, 0.0, id="an annex matches exactly"
+        ),
+        pytest.param(
+            (UNNUMBERED_ANNEX,),
+            {"article": None, "annex": ""},
+            1.0,
+            id="an unnumbered annex matches an unnumbered annex",
+        ),
+        pytest.param(
+            (UNNUMBERED_ANNEX,),
+            {"article": None, "annex": None},
+            0.0,
+            id="an unnumbered annex is not a chunk outside every annex",
+        ),
+        pytest.param(
+            (ARTICLE_4,), {"celex": "32015R0757"}, 0.0, id="the same article of another act"
+        ),
+    ],
+)
+def test_recall_matches_a_reference_as_follow_does(
+    targets: tuple[ReferenceTarget, ...], chunk: dict, recall: float
+) -> None:
+    """Article case-folded, annex verbatim and "" apart from None, or `check` calls a
+    reference stale that `run` calls recalled."""
+    assert score_reference_recall(targets, (retrieved_chunk(**chunk),)) == recall
 
 
-def test_recall_is_the_share_of_gold_references_retrieved() -> None:
-    assert score_reference_recall((ARTICLE_4, ARTICLE_20), (retrieved_chunk(),)) == 0.5
+@pytest.mark.parametrize(
+    ("answer", "targets", "rate"),
+    [
+        pytest.param("Half [1].", (ARTICLE_4,), 1.0, id="every authored reference cited"),
+        pytest.param("Both [1][3].", (ARTICLE_4,), 1.0, id="a further citation is not penalised"),
+        pytest.param(
+            "One [1].", (ARTICLE_4, ARTICLE_20), 0.5, id="the share of authored references cited"
+        ),
+        pytest.param("Elsewhere [3].", (ARTICLE_4,), 0.0, id="none of them cited"),
+        pytest.param("Anything [1].", (), None, id="unmeasured when the case names none"),
+    ],
+)
+def test_the_citation_rate_is_scored_over_the_authored_references(
+    answer: str, targets: tuple[ReferenceTarget, ...], rate: float | None
+) -> None:
+    sources = (
+        retrieved_chunk(),
+        retrieved_chunk(id=2, article="20", citation="Article 20"),
+        retrieved_chunk(**OTHER_CHUNK),
+    )
+
+    assert score_reference_citation_rate(answer, sources, targets) == rate
 
 
-def test_recall_matches_an_article_whatever_its_case() -> None:
-    gold = ReferenceTarget(celex="32023R1805", article="4a")
-    chunk = retrieved_chunk(article="4A")
-
-    assert score_reference_recall((gold,), (chunk,)) == 1.0
-
-
-def test_recall_matches_an_annex_target_that_has_no_article() -> None:
-    chunk = retrieved_chunk(article=None, annex="IV", citation="Annex IV")
-
-    assert score_reference_recall((ANNEX_IV,), (chunk,)) == 1.0
-
-
-def test_an_unnumbered_annex_does_not_match_a_chunk_outside_every_annex() -> None:
-    """Locator documents "" as the act's one unnumbered annex — a different fact from None,
-    which no truthiness test may fold together."""
-    unnumbered = ReferenceTarget(celex="32023R1805", annex="")
-    outside = retrieved_chunk(article=None, annex=None, citation="Preamble")
-
-    assert score_reference_recall((unnumbered,), (outside,)) == 0.0
-    assert score_reference_recall((unnumbered,), (retrieved_chunk(article=None, annex=""),)) == 1.0
-
-
-def test_recall_compares_an_annex_exactly_as_follow_does() -> None:
-    """`follow._targeted` case-folds the article but matches the annex exactly, so scoring
-    must too — otherwise `check` calls a reference stale that `run` calls recalled."""
-    chunk = retrieved_chunk(article=None, annex="iv", citation="Annex iv")
-
-    assert score_reference_recall((ANNEX_IV,), (chunk,)) == 0.0
-
-
-def test_recall_does_not_match_the_right_division_of_another_act() -> None:
-    chunk = retrieved_chunk(celex="32015R0757", article="4")
-
-    assert score_reference_recall((ARTICLE_4,), (chunk,)) == 0.0
-
-
-def test_every_authored_reference_cited_scores_one() -> None:
-    sources = (retrieved_chunk(),)
-
-    assert score_reference_citation_rate("Half of it [1].", sources, (ARTICLE_4,)) == 1.0
-
-
-def test_citing_a_further_relevant_article_is_not_penalised() -> None:
-    """The authored set names the references an answer must lean on, not every chunk that
-    may support it, so an extra citation must not read as a wrong one."""
-    sources = (retrieved_chunk(), retrieved_chunk(id=2, article="99", citation="Article 99"))
-
-    assert score_reference_citation_rate("Both [1][2].", sources, (ARTICLE_4,)) == 1.0
-
-
-def test_the_reference_citation_rate_is_the_share_of_authored_references_cited() -> None:
-    sources = (retrieved_chunk(), retrieved_chunk(id=2, article="20", citation="Article 20"))
-
-    assert score_reference_citation_rate("One [1].", sources, (ARTICLE_4, ARTICLE_20)) == 0.5
-
-
-def test_an_answer_citing_none_of_the_authored_references_scores_zero() -> None:
-    sources = (retrieved_chunk(id=2, article="99", citation="Article 99"),)
-
-    assert score_reference_citation_rate("Elsewhere [1].", sources, (ARTICLE_4,)) == 0.0
-
-
-def test_the_reference_citation_rate_is_unmeasured_when_a_case_names_no_reference() -> None:
-    assert score_reference_citation_rate("Anything [1].", (retrieved_chunk(),), ()) is None
-
-
-def test_validity_is_one_when_every_marker_addresses_a_given_block() -> None:
-    assert score_citation_validity("Half of it [1].", (retrieved_chunk(),)) == 1.0
-
-
-def test_a_marker_past_the_end_of_the_context_counts_against_validity() -> None:
-    """The model cited a block it was never given, so the citation is wrong, not skipped."""
-    assert score_citation_validity("Claims [1] and [7].", (retrieved_chunk(),)) == 0.5
-
-
-def test_citation_validity_is_unmeasured_when_the_answer_cites_nothing() -> None:
-    assert score_citation_validity("No markers here.", (retrieved_chunk(),)) is None
+@pytest.mark.parametrize(
+    ("answer", "validity"),
+    [
+        pytest.param("Half of it [1].", 1.0, id="every marker addresses a given block"),
+        pytest.param("Claims [1] and [7].", 0.5, id="a marker past the context counts against it"),
+        pytest.param("No markers here.", None, id="unmeasured when the answer cites nothing"),
+    ],
+)
+def test_citation_validity_is_the_share_of_markers_addressing_a_given_block(
+    answer: str, validity: float | None
+) -> None:
+    assert score_citation_validity(answer, (retrieved_chunk(),)) == validity
 
 
 # Run metrics: each a plain function over the run's results
-
-
-OTHER_CHUNK = {"id": 2, "article": "99", "citation": "Article 99"}
 
 
 def test_raw_and_expanded_recall_are_scored_apart() -> None:
@@ -165,22 +159,30 @@ def test_hit_rate_and_recall_diverge_on_a_half_served_multi_reference_case() -> 
     assert compute_expanded_recall(results) == 0.75
 
 
-def test_an_errored_case_is_counted_but_left_out_of_the_scores() -> None:
-    """A provider blip must not read as a retrieval regression."""
-    results = (eval_result(), eval_result(eval_case(id="boom"), hits=(), sources=(), error="x"))
-
-    assert count_errors(results) == 1
-    assert compute_expanded_hit_rate(results) == 1.0
+ERRORED = eval_result(
+    eval_case(id="boom"), judgement=failed_judgement(), hits=(), sources=(), error="x"
+)
 
 
-def test_an_errored_case_still_counts_toward_the_kind_it_was_authored_as() -> None:
-    """The dataset's shape is what it is; an error is reported beside the counts rather
-    than by shrinking them, so a run stays comparable to a clean one."""
-    boom = eval_result(eval_case(id="boom"), hits=(), sources=(), error="x")
+@pytest.mark.parametrize(
+    ("measure", "value"),
+    [
+        pytest.param(count_errors, 1, id="it is counted as an error"),
+        pytest.param(
+            compute_case_counts,
+            CaseCounts(cases=2, in_corpus=2, out_of_corpus=0, errors=1),
+            id="it still counts toward the kind it was authored as",
+        ),
+        pytest.param(compute_expanded_hit_rate, 1.0, id="its empty retrieval is not a miss"),
+        pytest.param(count_judged, 1, id="it is not judged whatever it carries"),
+        pytest.param(compute_correctness, 1.0, id="its failed verdict is not a failed answer"),
+    ],
+)
+def test_an_errored_case_is_counted_but_left_out_of_the_averages(measure, value) -> None:
+    """A provider blip must not read as a regression, and the dataset's shape is what it is."""
+    results = (eval_result(judgement=passed_judgement()), ERRORED)
 
-    counts = compute_metrics((eval_result(), boom)).counts
-
-    assert (counts.cases, counts.in_corpus, counts.out_of_corpus, counts.errors) == (2, 2, 0, 1)
+    assert measure(results) == value
 
 
 def test_a_kind_absent_from_the_run_scores_none_rather_than_zero() -> None:
@@ -191,13 +193,70 @@ def test_a_kind_absent_from_the_run_scores_none_rather_than_zero() -> None:
     assert compute_gate_refusal_rate((eval_result(),)) is None
 
 
-def test_a_refusal_is_read_from_the_node_path_not_the_wording() -> None:
-    """The graph says which node answered; synthesize ran for the second case, so the model
-    declined in its own words — the judge's to score, not the gate's."""
-    declined = eval_result(answer="The context provided does not cover ETS allowances.")
+RETRIEVAL_ONLY = (ChatStepResult(step=ChatNode.RETRIEVE, ms=80),)
+"""The path of a run cut short before the graph routes, which records no refusal."""
 
-    assert compute_gate_refusal_rate((refused_result(),)) == 1.0
-    assert count_false_refusals((declined,)) == 0
+
+@pytest.mark.parametrize(
+    ("result", "refused"),
+    [
+        pytest.param(
+            eval_result(out_of_corpus_case(), answer="The context does not cover allowances."),
+            False,
+            id="an answer declining in its own words is the judge's to score",
+        ),
+        pytest.param(
+            eval_result(out_of_corpus_case(), sources=()),
+            False,
+            id="an answer synthesized over empty sources was not refused",
+        ),
+        pytest.param(
+            refused_result(sources=(retrieved_chunk(),)),
+            True,
+            id="a recorded refusal over sources was",
+        ),
+        pytest.param(
+            refused_result(steps=RETRIEVAL_ONLY, refusal=None, answer=""),
+            True,
+            id="a retrieval-only run records none, so its empty sources are the mark",
+        ),
+    ],
+)
+def test_a_gate_refusal_is_read_off_the_record_not_the_sources_or_the_wording(
+    result: EvalCaseResult, refused: bool
+) -> None:
+    """The metric observes the branch the graph took, as recomputing the route would score
+    a routing bug as the refusal it should have been."""
+    assert compute_gate_refusal_rate((result,)) == float(refused)
+
+
+@pytest.mark.parametrize(
+    ("result", "refusal_rates", "false_refusals"),
+    [
+        pytest.param(
+            assess_refused_result(), (0.0, 1.0), (0, 0), id="out of corpus, refused by assess"
+        ),
+        pytest.param(refused_result(), (1.0, 0.0), (0, 0), id="out of corpus, refused at the gate"),
+        pytest.param(
+            assess_refused_result(eval_case()), (None, None), (0, 1), id="in corpus, by assess"
+        ),
+        pytest.param(
+            refused_result(eval_case()), (None, None), (1, 0), id="in corpus, at the gate"
+        ),
+    ],
+)
+def test_a_refusal_is_scored_to_the_gate_or_to_assess_and_never_both(
+    result: EvalCaseResult,
+    refusal_rates: tuple[float | None, float | None],
+    false_refusals: tuple[int, int],
+) -> None:
+    """Gate first, assess second in each pair: the two say which of them shut a question out."""
+    results = (result,)
+    rates = (compute_gate_refusal_rate(results), compute_assess_refusal_rate(results))
+    counts = (count_false_refusals(results), count_assess_false_refusals(results))
+
+    assert rates == refusal_rates
+    assert counts == false_refusals
 
 
 def test_an_in_corpus_refusal_over_hits_holding_the_reference_is_the_gate_too_tight() -> None:
@@ -206,16 +265,6 @@ def test_an_in_corpus_refusal_over_hits_holding_the_reference_is_the_gate_too_ti
 
     assert count_false_refusals((too_tight, genuine_miss)) == 2
     assert count_refusals_of_a_found_reference((too_tight, genuine_miss)) == 1
-
-
-def test_a_run_cut_short_is_read_off_empty_sources_rather_than_a_refusal() -> None:
-    """A retrieval-only run stops before the graph routes, so it records no refusal to read;
-    the gate's mark is the empty context it left."""
-    retrieval_only = refused_result(
-        steps=(ChatStepResult(step=ChatNode.RETRIEVE, ms=80),), refusal=None, answer=""
-    )
-
-    assert compute_gate_refusal_rate([retrieval_only]) == 1.0
 
 
 def test_a_case_answered_without_retrieval_never_met_the_gate_or_the_loop() -> None:
@@ -231,29 +280,6 @@ def test_a_case_answered_without_retrieval_never_met_the_gate_or_the_loop() -> N
     assert compute_assess_refusal_rate((from_memory,)) is None
 
 
-def test_a_refusal_after_assess_is_the_loops_not_the_gates() -> None:
-    """The gate acts before any model call; a refusal assess asked for is scored apart, so
-    the two rates say which of the two shut the question out."""
-    results = (assess_refused_result(),)
-
-    assert compute_gate_refusal_rate(results) == 0.0
-    assert compute_assess_refusal_rate(results) == 1.0
-
-
-def test_a_gate_refusal_is_not_the_loops() -> None:
-    results = (refused_result(),)
-
-    assert compute_assess_refusal_rate(results) == 0.0
-    assert count_assess_false_refusals((refused_result(eval_case()),)) == 0
-
-
-def test_an_in_corpus_case_assess_refused_is_a_false_refusal_of_the_loops() -> None:
-    results = (assess_refused_result(eval_case()),)
-
-    assert count_assess_false_refusals(results) == 1
-    assert count_false_refusals(results) == 0
-
-
 def test_citation_metrics_average_over_the_cases_that_measure() -> None:
     """A refusal cites nothing, so it is unmeasured rather than a zero dragging the mean."""
     results = (eval_result(answer="Yes [1] and [9]."), eval_result(), refused_result())
@@ -265,7 +291,7 @@ def test_citation_metrics_average_over_the_cases_that_measure() -> None:
 def test_a_case_that_wrote_no_answer_leaves_the_citation_rate_unmeasured() -> None:
     """A retrieval-only or gate-refused in-corpus case has nothing to cite with, so it is
     unmeasured rather than a zero that reads as an answer citing nothing."""
-    retrieval_only = eval_result(steps=(ChatStepResult(step=ChatNode.RETRIEVE, ms=80),), answer="")
+    retrieval_only = eval_result(steps=RETRIEVAL_ONLY, answer="")
     refused = refused_result(eval_case())
 
     assert compute_cited_references((retrieval_only, refused)) is None
@@ -276,20 +302,6 @@ def test_node_ms_is_averaged_over_the_cases_that_ran_the_node() -> None:
     results = (eval_result(), refused_result())
 
     assert compute_mean_step_ms(results) == {"retrieve": 90, "synthesize": 900, "refuse": 0}
-
-
-def test_a_run_that_synthesized_over_empty_sources_is_not_counted_refused() -> None:
-    """The metric observes the branch the graph took; recomputing the route would score a
-    routing bug as the refusal it should have been."""
-    routed_wrong = eval_result(sources=())
-
-    assert count_false_refusals((routed_wrong,)) == 0
-
-
-def test_a_run_that_refused_over_sources_is_counted_refused() -> None:
-    refused_anyway = refused_result(sources=(retrieved_chunk(),))
-
-    assert compute_gate_refusal_rate((refused_anyway,)) == 1.0
 
 
 def test_context_cost_averages_scored_in_corpus_cases_only() -> None:
@@ -335,13 +347,6 @@ def test_model_refusal_rate_is_scored_over_the_judged_out_of_corpus_answers() ->
 
     assert compute_model_refusal_rate(results) == 0.5
     assert compute_gate_refusal_rate(results) == 1 / 3
-
-
-def test_an_errored_case_is_not_judged_whatever_it_carries() -> None:
-    results = (eval_result(judgement=passed_judgement(), error="TimeoutError"),)
-
-    assert count_judged(results) == 0
-    assert compute_correctness(results) is None
 
 
 @pytest.mark.parametrize(
