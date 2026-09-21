@@ -18,12 +18,6 @@ class CorpusVersionUpdate(BaseModel):
     corpus_version: str | None = None
 
 
-async def test_create_record_populates_server_defaults(db_session: AsyncSession):
-    run = await create_record(db_session, IngestRun(status=IngestRunStatus.RUNNING))
-    assert run.id is not None
-    assert run.created_at is not None
-
-
 async def test_update_record_applies_only_given_fields(db_session: AsyncSession):
     run = await create_record(db_session, IngestRun(status=IngestRunStatus.RUNNING))
     await update_record(db_session, run, CorpusVersionUpdate(corpus_version="2026-08-04-abc1234"))

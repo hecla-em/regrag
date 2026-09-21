@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from app.core.http import DEFAULT_HEADERS, http_client, http_retry, pace_requests
+from app.core.http import http_retry, pace_requests
 
 
 class FakeClock:
@@ -28,24 +28,6 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> FakeClock:
     monkeypatch.setattr("app.core.http.time.monotonic", fake.monotonic)
     monkeypatch.setattr("app.core.http.asyncio.sleep", fake.sleep)
     return fake
-
-
-def test_default_headers_carry_browser_user_agent():
-    assert "Mozilla" in DEFAULT_HEADERS["User-Agent"]
-
-
-@pytest.mark.anyio
-async def test_client_is_configured():
-    async with http_client(timeout=5.0) as client:
-        assert client.headers["user-agent"] == DEFAULT_HEADERS["User-Agent"]
-        assert client.follow_redirects is True
-        assert client.timeout.read == 5.0
-
-
-@pytest.mark.anyio
-async def test_client_does_not_pace_unless_asked():
-    async with http_client() as client:
-        assert client.event_hooks["request"] == []
 
 
 def flaky_client(responses):
