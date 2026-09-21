@@ -2,7 +2,7 @@
 
 import re
 
-from selectolax.parser import Node
+from selectolax.parser import HTMLParser, Node
 
 from app.ingestion.enums import SectionKind
 from app.ingestion.parse.html.paragraphs import block_text
@@ -18,6 +18,9 @@ ANNEX_LABEL = "p.title-annex-1"
 ANNEX_TITLE = "p.title-gr-seq-level-1"
 DATA_TABLE = "table.borderOj"
 SUBHEADING_LEVEL_RE = re.compile(r"title-gr-seq-level-(\d+)")
+ARTICLE_TITLE = "p.stitle-article-norm"
+ANNEX_SEPARATOR = "hr.separator-annex"
+NOTES_SEPARATOR = "hr.separator-short"
 
 
 def find_paragraphs(node: Node) -> list[Node]:
@@ -35,3 +38,25 @@ def build_paragraph(node: Node) -> Section:
         number=number.group(1) if number else None,
         text=block_text(body) if body is not None else "",
     )
+
+
+def wrap_flat_layout(tree: HTMLParser) -> str:
+    """Older consolidated texts lay articles and annexes flat under the body: the body
+    regrouped into the ELI containers the wrapped layout has, up to the footnotes."""
+    parts: list[str] = []
+    open_container = False
+    for index, node in enumerate(tree.body.iter() if tree.body else ()):
+        if node.css_matches(NOTES_SEPARATOR):
+            break
+        starts_article = node.css_matches(ARTICLE_HEADING)
+        if starts_article or node.css_matches(ANNEX_SEPARATOR):
+            parts.append("</div>" if open_container else "")
+            kind = '<div class="eli-subdivision" id="art_' if starts_article else '<div id="anx_'
+            parts.append(f'{kind}{index}">')
+            open_container = True
+        html = node.html or ""
+        parts.append(
+            f'<div class="eli-title">{html}</div>' if node.css_matches(ARTICLE_TITLE) else html
+        )
+    parts.append("</div>" if open_container else "")
+    return f"<html><body>{''.join(parts)}</body></html>"

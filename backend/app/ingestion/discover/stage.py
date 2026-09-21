@@ -1,13 +1,14 @@
 """Discover stage: a SPARQL query per topic, deduped into one corpus and diffed against the last."""
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 
 import httpx
 
 from app.core.config import config
 from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.discover.select import select_documents
-from app.ingestion.discover.sparql import run_acts_by_topic_query
+from app.ingestion.discover.sparql import run_acts_by_topic_query, run_cited_acts_query
+from app.ingestion.enums import CITED_TOPIC
 from app.ingestion.exceptions import CorpusShrankError
 
 
@@ -21,6 +22,19 @@ async def discover_topics(
         for document in select_documents(topic, rows):
             by_celex.setdefault(document.celex, document)
     return list(by_celex.values())
+
+
+async def discover_cited_acts(
+    client: httpx.AsyncClient, celexes: Collection[str]
+) -> list[DiscoveredDocument]:
+    """The acts the corpus cites, at their consolidated versions like any other document.
+
+    They carry the sentinel topic: an act several topics cite belongs to none of them.
+    """
+    if not celexes:
+        return []
+    rows = await run_cited_acts_query(client, sorted(celexes))
+    return select_documents(CITED_TOPIC, rows)
 
 
 def find_dropped_celexes(

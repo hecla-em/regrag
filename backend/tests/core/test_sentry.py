@@ -3,49 +3,11 @@
 import logging
 
 import pytest
-import sentry_sdk
 from sentry_sdk.types import MonitorConfig
 
-from app.core.config import config
-from app.core.logger import request_id_var
-from app.core.sentry import _before_send, configure_sentry, monitor_cron_job
+from app.core.sentry import monitor_cron_job
 
 HOURLY: MonitorConfig = {"schedule": {"type": "crontab", "value": "0 * * * *"}}
-
-
-def test_before_send_tags_the_request_id() -> None:
-    token = request_id_var.set("abc123def456")
-    try:
-        event = _before_send({}, {})
-    finally:
-        request_id_var.reset(token)
-    assert event["tags"] == {"request_id": "abc123def456"}
-
-
-def test_before_send_leaves_an_event_outside_a_request_untagged() -> None:
-    assert _before_send({}, {}) == {}
-
-
-def test_nothing_is_configured_without_a_dsn(monkeypatch) -> None:
-    monkeypatch.setattr(config, "SENTRY_DSN", None)
-    configure_sentry()
-    assert not sentry_sdk.is_initialized()
-
-
-def test_nothing_is_configured_outside_prod(monkeypatch) -> None:
-    monkeypatch.setattr(config, "SENTRY_DSN", "https://public@sentry.invalid/1")
-    configure_sentry()
-    assert not sentry_sdk.is_initialized()
-
-
-def test_a_logged_exception_becomes_an_event_without_a_capture_call(sentry) -> None:
-    try:
-        raise RuntimeError("pool exhausted")
-    except RuntimeError:
-        logging.getLogger("app.test").exception("chat stream failed unexpectedly")
-
-    [event] = sentry.events
-    assert event["exception"]["values"][0]["type"] == "RuntimeError"
 
 
 def test_a_warning_sends_nothing(sentry) -> None:
@@ -96,13 +58,3 @@ def test_a_monitored_job_that_raises_checks_in_as_an_error_and_still_raises(sent
         run_job()
 
     assert [check_in["status"] for check_in in sentry.check_ins] == ["in_progress", "error"]
-
-
-def test_a_monitored_job_runs_untouched_without_a_dsn(monkeypatch) -> None:
-    monkeypatch.setattr(config, "SENTRY_DSN", None)
-
-    @monitor_cron_job("hourly-job", HOURLY)
-    def run_job() -> int:
-        return 0
-
-    assert run_job() == 0

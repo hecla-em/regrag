@@ -58,7 +58,10 @@ async def next_corpus_version(session: AsyncSession) -> str:
 async def get_celexes_to_keep(
     session: AsyncSession, *, discovered: Sequence[DiscoveredDocument], topics: Sequence[str]
 ) -> Collection[str]:
-    """The celexes some topic still wants: this run's corpus plus the other topics' documents."""
+    """The celexes some topic still wants: this run's corpus plus the other topics' documents.
+
+    The run's own scope covers the cited hop, so a cited act nothing cites any more is pruned.
+    """
     discovered_celexes = {document.celex for document in discovered}
     other_topic_celexes = await get_raw_documents(
         session, query=RawDocsQuery(exclude_topics=list(topics))

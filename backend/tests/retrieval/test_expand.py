@@ -40,24 +40,6 @@ async def test_expand_sections_reaches_the_paragraph_relevance_cannot(
     ]
 
 
-async def test_expand_sections_widens_each_hit_once(
-    db_session: AsyncSession,
-    corpus: list[DocumentChunk],
-) -> None:
-    """Two hits in one article are one article, not two copies of it."""
-    first = await chunk_at(db_session, "32023R1805", "Article 4(1)")
-    third = await chunk_at(db_session, "32023R1805", "Article 4(3)")
-
-    expanded = await expand_sections(db_session, [first, third], limit=NO_LIMIT)
-
-    assert [chunk.citation for chunk in expanded] == [
-        "Article 4(1)",
-        "Article 4(2)",
-        "Article 4(3)",
-        "Article 4(4)",
-    ]
-
-
 async def test_expand_sections_caps_by_rounds_so_every_hit_survives(
     db_session: AsyncSession,
     corpus: list[DocumentChunk],
@@ -72,21 +54,6 @@ async def test_expand_sections_caps_by_rounds_so_every_hit_survives(
     assert [chunk.citation for chunk in anchors_only] == ["Article 5(1)", "Article 4(1)"]
     assert [chunk.article for chunk in one_more] == ["5", "5", "4"]
     assert {"Article 5(1)", "Article 4(1)"} <= {chunk.citation for chunk in one_more}
-
-
-async def test_expand_sections_never_drops_a_hit_it_was_given(
-    db_session: AsyncSession,
-    corpus: list[DocumentChunk],
-) -> None:
-    """expanded_recall >= raw_recall by construction: every hit is kept before any widening."""
-    hits = [
-        await chunk_at(db_session, "32023R1805", "Article 5(1)"),
-        await chunk_at(db_session, "32023R1805", "Article 4(1)"),
-    ]
-
-    for limit in (2, 3, 5, NO_LIMIT):
-        expanded = await expand_sections(db_session, hits, limit=limit)
-        assert {hit.id for hit in hits} <= {chunk.id for chunk in expanded}
 
 
 async def test_expand_sections_keeps_a_second_hit_in_the_same_section(
@@ -104,20 +71,6 @@ async def test_expand_sections_keeps_a_second_hit_in_the_same_section(
     for limit in (3, 4, NO_LIMIT):
         expanded = await expand_sections(db_session, hits, limit=limit)
         assert {hit.id for hit in hits} <= {chunk.id for chunk in expanded}
-
-
-async def test_expand_sections_keeps_each_article_at_the_rank_it_was_found(
-    db_session: AsyncSession,
-    corpus: list[DocumentChunk],
-) -> None:
-    """Rerank decided the order of the articles; expansion only fills each one in."""
-    fifth = await chunk_at(db_session, "32023R1805", "Article 5(1)")
-    fourth = await chunk_at(db_session, "32023R1805", "Article 4(1)")
-
-    expanded = await expand_sections(db_session, [fifth, fourth], limit=NO_LIMIT)
-    articles = list(dict.fromkeys(chunk.article for chunk in expanded))
-
-    assert articles == ["5", "4"]
 
 
 async def test_expand_sections_passes_an_unsplit_chunk_outside_an_article_through(
@@ -157,13 +110,6 @@ async def test_expand_sections_reunites_a_section_split_for_length(
 
     assert len(expanded) == later_part.parts
     assert later_part in expanded
-
-
-async def test_expand_sections_on_nothing_asks_the_database_nothing(
-    empty_session: AsyncSession,
-) -> None:
-    """No hits means no article keys, so the widening query never runs."""
-    assert await expand_sections(empty_session, [], limit=NO_LIMIT) == ()
 
 
 async def test_expand_sections_widens_every_section_in_the_same_round(

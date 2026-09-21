@@ -10,13 +10,14 @@ from app.core.config import config
 from app.core.models import AppModel, FrozenModel
 from app.ingestion.chunk.models import ChunkCounts
 from app.ingestion.embed.models import EmbedOutcome
-from app.ingestion.enums import DocChange, IngestRunStatus, Stage
+from app.ingestion.enums import CITED_TOPIC, DocChange, IngestRunStatus, Stage
 
 
 class DocumentOutcome(FrozenModel):
     """What one document's pass through the loop committed, or the stage that stopped it."""
 
     celex: str
+    topic: str
     change: DocChange | None = None
     chunks: ChunkCounts = ChunkCounts()
     failed: Stage | None = None
@@ -66,19 +67,32 @@ class IngestRunResult(AppModel):
     pruned: int = 0
     embed: EmbedOutcome = Field(default_factory=EmbedOutcome)
 
-    @property
-    def failures(self) -> dict[Stage, dict[str, str]]:
-        """Why each stage lost what it lost: the loop's documents, then the embed pass's own.
+    def _failures(self, documents: list[DocumentOutcome]) -> dict[Stage, dict[str, str]]:
+        """Why each stage lost what it lost, over whichever documents the caller counts.
 
         Embed reports for itself because it sweeps the corpus after the loop, so its losses
         are counted in chunks against a document rather than in documents against a stage.
         """
         failed: dict[Stage, dict[str, str]] = {stage: {} for stage in Stage}
-        for doc in self.documents:
+        for doc in documents:
             if doc.failed is not None:
                 failed[doc.failed][doc.celex] = doc.error
         failed[Stage.EMBED] |= self.embed.failures
         return failed
+
+    @property
+    def failures(self) -> dict[Stage, dict[str, str]]:
+        """Everything the run lost, which is what it reports and logs."""
+        return self._failures(self.documents)
+
+    @property
+    def seed_failures(self) -> dict[Stage, dict[str, str]]:
+        """The same, less the hop's own losses, which is what the run is judged on.
+
+        A cited act is followed opportunistically, not asked for, so one the corpus cannot
+        store is left unfollowed this run rather than made the whole run's failure.
+        """
+        return self._failures([doc for doc in self.documents if doc.topic != CITED_TOPIC])
 
     @property
     def committed(self) -> list[DocumentOutcome]:
@@ -98,13 +112,14 @@ class IngestRunResult(AppModel):
 
     @property
     def corpus_complete(self) -> bool:
-        """Every discovered document reached storage, so a celex it lacks is repealed, not lost."""
-        failures = self.failures
+        """Every document the topics asked for reached storage, so a celex it lacks is repealed,
+        not lost. A hop document discovery still returned is kept whether or not it stored."""
+        failures = self.seed_failures
         return not (failures[Stage.FETCH] or failures[Stage.PARSE])
 
     @property
     def ok(self) -> bool:
-        return not any(self.failures.values())
+        return not any(self.seed_failures.values())
 
     @property
     def status(self) -> IngestRunStatus:

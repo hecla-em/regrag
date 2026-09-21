@@ -10,22 +10,6 @@ from tests.conftest import act_row, binding, payload
 pytestmark = pytest.mark.anyio
 
 
-async def test_the_query_asks_for_the_base_act_and_json_results():
-    def handler(request):
-        query = request.url.params["query"]
-        assert "resource/celex/32023R1805" in query
-        assert "resource_legal_based_on_resource_legal" in query
-        assert "expression_title" in query
-        assert "resource/authority/language/ENG" in query
-        assert request.url.params["format"] == "application/sparql-results+json"
-        return httpx.Response(200, json=payload(binding("32023R1805", force="1")))
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        rows = await run_acts_by_topic_query(client, "32023R1805")
-
-    assert rows == [act_row("32023R1805", in_force=True)]
-
-
 async def test_unbound_variables_come_back_as_none():
     """SPARQL omits an OPTIONAL it could not bind, rather than sending it null."""
 

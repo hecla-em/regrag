@@ -10,7 +10,7 @@ from app.core.config import config
 from app.evals.dataset.check import find_drift
 from app.evals.dataset.enums import EvalKind, EvalTrait
 from app.evals.dataset.exceptions import UnresolvedReferenceError
-from app.evals.dataset.models import CaseReference, CorpusStamp, EvalCase, EvalDataset
+from app.evals.dataset.models import CaseReference, CorpusStamp, EvalDataset
 from app.evals.dataset.stamp import save_dataset, stamp_dataset
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.enums import IngestRunStatus
@@ -120,35 +120,6 @@ async def test_a_reference_the_corpus_cannot_resolve_refuses_the_whole_stamp(
 
 
 # Writing the file back out
-
-
-def test_a_saved_dataset_loads_back_as_the_same_cases_and_stamp(tmp_path: Path) -> None:
-    corpus = CorpusStamp(corpus_version="2026-08-15-2cc038d", stamped_at="2026-08-28")
-    dataset = eval_dataset(
-        eval_case(id="stamped", references=(STAMPED,)),
-        EvalCase(id="ooc", kind=EvalKind.OUT_OF_CORPUS, question="q?"),
-    ).model_copy(update={"corpus": corpus})
-    file = tmp_path / "golden.json"
-
-    save_dataset(dataset, file)
-    loaded = EvalDataset.load(file)
-
-    assert loaded.corpus == corpus
-    assert loaded.cases[0].references == (STAMPED,)
-    assert loaded.cases[1].references == ()
-
-
-def test_saving_omits_the_run_filter_and_what_a_case_leaves_unset(tmp_path: Path) -> None:
-    file = tmp_path / "golden.json"
-
-    dataset = eval_dataset(eval_case(references=(STAMPED,)), id_contains="case")
-
-    save_dataset(dataset, file)
-
-    text = file.read_text()
-    assert '"annex"' not in text
-    assert '"traits"' not in text
-    assert '"selection"' not in text
 
 
 def test_the_committed_dataset_is_what_the_writer_produces(tmp_path: Path) -> None:

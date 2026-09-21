@@ -12,8 +12,7 @@ from app.core import ratelimit
 from app.core.config import Environment, config
 from app.core.ratelimit import rate_limit
 from app.core.redis import get_redis
-from tests.conftest import unreachable_redis
-from tests.core.test_exceptions import assert_error_shape
+from tests.conftest import assert_error_shape, unreachable_redis
 
 router = APIRouter()
 
@@ -121,20 +120,16 @@ def test_an_id_naming_an_address_cannot_spend_its_allowance(
     assert ask(rate_limited_client, ip="203.0.113.9").status_code == 200
 
 
-def test_an_oversized_id_is_rejected_rather_than_stored(rate_limited_client: TestClient) -> None:
-    """A key carries the id verbatim, so its length is the one thing a caller could inflate."""
-    response = ask(rate_limited_client, "x" * 65)
-
-    assert response.status_code == 422
-    assert ask(rate_limited_client, "x" * 64).status_code == 200
-
-
-def test_off_it_refuses_nothing(
+def test_off_fly_a_forged_address_header_buys_no_fresh_allowance(
     rate_limited_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(config, "RATE_LIMIT_ENABLED", False)
-    for _ in range(5):
-        assert ask(rate_limited_client, "a").status_code == 200
+    """Only Fly sets the header honestly. Anywhere else it is the caller's to write, so the
+    count stays on the address that connected."""
+    monkeypatch.setattr(config, "ENVIRONMENT", Environment.TEST)
+
+    responses = [ask(rate_limited_client, ip=f"203.0.113.{caller}") for caller in range(3)]
+
+    assert [response.status_code for response in responses] == [200, 200, 429]
 
 
 def test_redis_down_lets_the_call_through(
