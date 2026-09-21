@@ -18,6 +18,7 @@ if (import.meta.env.VITE_UMAMI_WEBSITE_ID) {
 	umami.src = "https://analytics.hecla-em.com/script.js"
 	umami.defer = true
 	umami.dataset.websiteId = import.meta.env.VITE_UMAMI_WEBSITE_ID
+	umami.dataset.domains = "ask.hecla-em.com"
 	document.head.appendChild(umami)
 }
 
