@@ -44,6 +44,11 @@ def nudge(rng: random.Random, query: list[float], scale: float) -> list[float]:
     return [value + scale * (rng.random() - 0.5) for value in query]
 
 
+NO_KEYWORDS = "zzzz"
+"""A query the text leg finds nothing for, so a result can only have come from the vectors."""
+ON_BOARD_ENERGY = "greenhouse gas intensity of the energy used on board"
+
+
 async def leg_ids(session: AsyncSession, leg: Select) -> list[int]:
     """The ids one leg returns in its own rank order, run as the fused query would run it."""
     await _tune_hnsw_walk(session, config.SEARCH_CANDIDATES)
@@ -102,7 +107,15 @@ async def test_the_vector_leg_meets_its_limit_past_dead_tuples(
     await db_session.flush()
     await db_session.execute(text("SET LOCAL enable_seqscan = off"))
 
-    found = await leg_ids(db_session, _vector_candidates(query, NO_FILTERS, WANTED))
+    found = await hybrid_search(
+        db_session,
+        query=NO_KEYWORDS,
+        embedding=query,
+        filters=NO_FILTERS,
+        limit=WANTED,
+        candidates=WANTED,
+        rrf_k=config.RRF_K,
+    )
 
     assert len(found) == WANTED
 
@@ -173,6 +186,24 @@ async def test_a_topic_filter_excludes_the_other_act(
     assert {result.topic for result in found} == {"mrv"}
 
 
+async def test_a_filter_narrows_the_candidates_before_they_are_cut(
+    db_session: AsyncSession, corpus: list[DocumentChunk]
+) -> None:
+    """The nearest chunks to this query are the other act's. A filter applied after the cut
+    would leave fewer than were asked for."""
+    found = await hybrid_search(
+        db_session,
+        query=ON_BOARD_ENERGY,
+        embedding=toy_embed(ON_BOARD_ENERGY),
+        filters=SearchFilters(topic="mrv"),
+        limit=5,
+        candidates=5,
+        rrf_k=config.RRF_K,
+    )
+
+    assert [result.topic for result in found] == ["mrv"] * 5
+
+
 async def test_results_come_back_in_fused_order(
     db_session: AsyncSession, corpus: list[DocumentChunk]
 ) -> None:
@@ -182,6 +213,9 @@ async def test_results_come_back_in_fused_order(
         (result.rrf_score for result in found), reverse=True
     )
     assert any(result.vector_rank is not None and result.text_rank is not None for result in found)
+    for result in found:
+        ranks = [rank for rank in (result.vector_rank, result.text_rank) if rank is not None]
+        assert result.rrf_score == pytest.approx(sum(1 / (config.RRF_K + rank) for rank in ranks))
 
 
 async def test_a_vector_hit_carries_its_cosine_similarity_to_the_query(
