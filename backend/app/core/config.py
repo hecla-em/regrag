@@ -217,11 +217,14 @@ EMBED_DIMENSIONS = 1024
 class ProviderConfig(BaseConfig):
     """One key per provider a model may name, under litellm's own variable names so the env
     file reads the same as it would for litellm itself. Empty is unset: the provider refuses
-    the call."""
+    the call.
 
-    ANTHROPIC_API_KEY: SecretStr = SecretStr("")
-    OPENAI_API_KEY: SecretStr = SecretStr("")
+    Every model the graph and the judge call is reached through OpenRouter, so a model swap
+    stays a setting rather than an account. Voyage is named directly because OpenRouter
+    serves no embedding or rerank endpoint."""
+
     VOYAGE_API_KEY: SecretStr = SecretStr("")
+    OPENROUTER_API_KEY: SecretStr = SecretStr("")
 
 
 class EmbeddingConfig(BaseConfig):
@@ -262,7 +265,7 @@ class ChatConfig(BaseConfig):
         CHAT_MAX_TOKENS; 1024 is Anthropic's floor, and 2048 scored no better.
     """
 
-    CHAT_MODEL: str = "anthropic/claude-haiku-4-5"
+    CHAT_MODEL: str = "openrouter/google/gemini-2.5-flash"
     CHAT_TIMEOUT: int = 60
     CHAT_MAX_TOKENS: int = 2048
     CHAT_TEMPERATURE: float = Field(default=0.0, ge=0.0, le=1.0)
@@ -422,7 +425,7 @@ class JudgeConfig(BaseConfig):
         provider is tolerable; a fifth of the dataset is a different measurement.
     """
 
-    EVAL_JUDGE_MODEL: str = "anthropic/claude-sonnet-5"
+    EVAL_JUDGE_MODEL: str = "openrouter/anthropic/claude-sonnet-5"
     EVAL_JUDGE_MIN_COVERAGE: float = Field(default=0.9, gt=0.0, le=1.0)
     EVAL_JUDGE_TIMEOUT: int = 120
     EVAL_JUDGE_MAX_TOKENS: int = 8192

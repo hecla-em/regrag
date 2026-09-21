@@ -153,7 +153,7 @@ async def test_a_failed_dimension_does_not_stop_the_next(judge_answers) -> None:
 # The real seam, run only with a key in the environment
 
 
-@pytest.mark.skipif(not config.ANTHROPIC_API_KEY.get_secret_value(), reason="needs a provider key")
+@pytest.mark.skipif(not config.OPENROUTER_API_KEY.get_secret_value(), reason="needs a provider key")
 async def test_the_judge_model_returns_a_verdict_in_the_asked_shape() -> None:
     message = build_refusal_message(
         "How many ETS allowances must a company surrender for 2025?",
