@@ -12,7 +12,7 @@ const SAMPLE_QUESTIONS = [
 	"When must ships use onshore power supply under FuelEU Maritime?",
 	"Which ships must report CO2 emissions under the MRV Regulation?",
 	"What must a monitoring plan contain under the MRV Regulation?",
-	"What share of a voyage's emissions needs EU ETS allowances?",
+	"How much of a ship's emissions must be covered by EU ETS allowances?",
 	"Which authority administers a shipping company under the EU ETS?",
 ]
 
