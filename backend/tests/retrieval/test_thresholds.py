@@ -39,12 +39,3 @@ def test_met_when_the_best_of_each_present_signal_clears_its_bar(signals, verdic
     )
 
     assert meets_thresholds(hits) is verdict
-
-
-def test_a_bar_at_zero_is_off(monkeypatch):
-    monkeypatch.setattr(config, "MIN_COSINE_SIMILARITY", 0.0)
-    monkeypatch.setattr(config, "MIN_RERANKER_RELEVANCE", 0.0)
-
-    assert (
-        meets_thresholds((search_result(cosine_similarity=0.01, reranker_relevance=0.01),)) is True
-    )

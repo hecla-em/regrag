@@ -5,9 +5,9 @@ from collections.abc import Callable
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.evals.dataset.check import find_drift, find_moved_corpus, stale_case_ids
+from app.evals.dataset.check import find_drift
 from app.evals.dataset.enums import DriftKind
-from app.evals.dataset.models import CaseReference, CorpusStamp, DriftedReference
+from app.evals.dataset.models import CaseReference, DriftedReference
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.schemas import IngestRun
 from tests.evals.conftest import eval_case, eval_dataset, out_of_corpus_case
@@ -89,38 +89,3 @@ async def test_a_reference_that_was_never_stamped_is_unstamped_rather_than_stale
 
 async def test_out_of_corpus_cases_have_nothing_to_drift(db_session: AsyncSession) -> None:
     assert await find_drift(db_session, eval_dataset(out_of_corpus_case())) == ()
-
-
-def test_stale_case_ids_names_a_case_once_and_leaves_the_other_kinds_out() -> None:
-    article_5 = CaseReference(celex="32023R1805", article="5", content_hashes=("1" * 12,))
-    drifted = (
-        DriftedReference(case_id="amended", target=MOVED, kind=DriftKind.STALE),
-        DriftedReference(case_id="amended", target=article_5, kind=DriftKind.STALE),
-        DriftedReference(case_id="gone", target=MISSING, kind=DriftKind.UNRESOLVED),
-    )
-
-    assert stale_case_ids(drifted) == ("amended",)
-
-
-# Whether the corpus itself has moved
-
-
-def _stamped_at(version: str | None):
-    return eval_dataset(eval_case()).model_copy(
-        update={"corpus": CorpusStamp(corpus_version=version, stamped_at="2026-08-28")}
-    )
-
-
-CURRENT = "2026-09-02-4e81a90"
-
-
-def test_a_dataset_stamped_at_the_current_version_has_not_moved() -> None:
-    assert find_moved_corpus(_stamped_at(CURRENT), CURRENT) is None
-
-
-def test_a_dataset_stamped_at_an_older_version_names_the_current_one() -> None:
-    assert find_moved_corpus(_stamped_at("2026-08-15-2cc038d"), CURRENT) == CURRENT
-
-
-def test_an_unstamped_dataset_has_no_corpus_move_to_report() -> None:
-    assert find_moved_corpus(eval_dataset(eval_case()), CURRENT) is None

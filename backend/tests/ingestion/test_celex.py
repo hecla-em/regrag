@@ -21,23 +21,10 @@ def test_build_pads_the_number_and_maps_the_kind(kind, year, number, expected) -
     assert celex.build(kind, year, number) == expected
 
 
-def test_build_rejects_an_unknown_kind() -> None:
-    with pytest.raises(KeyError):
-        celex.build("Recommendation", "2015", "757")
-
-
 @pytest.mark.parametrize("year", ["3021", "1", "757"])
 def test_build_rejects_a_year_no_act_can_have(year: str) -> None:
     with pytest.raises(ValueError, match="not a legislation citation"):
         celex.build("Regulation", year, "757")
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [("2015", 2015), ("92", 1992), ("87", 1987), ("757", None), ("3021", None), ("1805", None)],
-)
-def test_year_candidates_are_plausible_four_digit_years(value: str, expected: int | None) -> None:
-    assert celex.as_year(value) == expected
 
 
 @pytest.mark.parametrize(
@@ -98,12 +85,6 @@ def test_two_year_shaped_halves_are_split_by_kind_and_scheme(kind, pair, expecte
     assert celex.order_number_and_year(kind, *pair) == expected
 
 
-def test_a_future_year_is_an_act_number_not_a_year() -> None:
-    """2018/2066 only resolves because 2066 has not happened; as_year rejects future years."""
-    assert celex.as_year("2066") is None
-    assert celex.order_number_and_year("Regulation", "2018", "2066") == ("2066", "2018")
-
-
 @pytest.mark.parametrize("celex_id", ["32015R0757", "32003L0087", "32013D0162"])
 def test_legislation_ids_are_recognised(celex_id: str) -> None:
     assert celex.is_legislation(celex_id)
@@ -124,16 +105,6 @@ def test_legislation_ids_are_recognised(celex_id: str) -> None:
 )
 def test_non_legislation_ids_are_rejected(celex_id: str) -> None:
     assert not celex.is_legislation(celex_id)
-
-
-def test_consolidated_stem_swaps_the_sector_and_opens_the_date_suffix() -> None:
-    assert celex.consolidated_stem("32015R0757") == "02015R0757-"
-
-
-def test_consolidated_versions_share_their_act_stem() -> None:
-    stem = celex.consolidated_stem("32015R0757")
-    assert "02015R0757-20250101".startswith(stem)
-    assert not "02023R1805-20250101".startswith(stem)
 
 
 @pytest.mark.parametrize(

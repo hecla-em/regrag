@@ -1,277 +1,255 @@
-"""Chat SSE endpoint: event ordering, payload shapes, and the error path."""
+"""POST /chat over the stored corpus, the real ledger and the real Redis. Only the model is
+faked, so what is asserted here is what a visitor's question does end to end."""
 
-import json
 from typing import Any
-from uuid import UUID
 
-import httpx
+import pytest
+from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
+from app.chat.enums import ChatOutcome
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
+from app.chat.schemas import ChatRequest
 from app.core.config import config
-from app.core.llm.errors import LLMError
+from app.core.db.session import get_session
+from app.core.redis import redis_client
+from app.ingestion.chunk.schemas import DocumentChunk
 from tests.chat.conftest import (
-    THINKING,
+    RecordingChatModel,
     fake_chat_model,
-    reasoning_chat_model,
+    first_payload,
+    read_events,
+    restated_message,
     settle_stores,
 )
-from tests.conftest import install_chat_model, install_search
+from tests.conftest import USAGE, install_chat_model
 
-PERSONAL_QUESTION = "I am Jane Example, does FuelEU apply to me?"
-"""Up here, away from the test that asks it: Sentry sends the source lines around a frame."""
+ON_TOPIC = "What is the greenhouse gas intensity limit for energy used on board a ship?"
+OFF_TOPIC = "How do I bake sourdough bread at home?"
+ANSWER = "The limit falls over time [1]."
 
 
-def read_events(response: httpx.Response) -> list[tuple[str, Any]]:
-    """Parse the SSE body into (event, payload) pairs, ignoring pings."""
-    events: list[tuple[str, Any]] = []
-    name = None
-    for line in response.iter_lines():
-        if line.startswith("event:"):
-            name = line.removeprefix("event:").strip()
-        elif line.startswith("data:") and name is not None:
-            events.append((name, json.loads(line.removeprefix("data:").strip())))
-            name = None
+def ask(client: TestClient, question: str, thread_id: str | None = None) -> list[tuple[str, Any]]:
+    """One question's frames, read to the end, with any answer store it left landed."""
+    body = {"question": question} | ({"thread_id": thread_id} if thread_id else {})
+    with client.stream("POST", "/chat", json=body) as response:
+        assert response.status_code == 200
+        events = read_events(response)
+    assert client.portal is not None
+    client.portal.call(settle_stores)
     return events
 
 
-def first_payload(events: list[tuple[str, Any]], name: str) -> Any:
-    """The payload of the first frame with this event name."""
-    return next(payload for event, payload in events if event == name)
+def answer_of(events: list[tuple[str, Any]]) -> str:
+    return "".join(payload for name, payload in events if name == "text")
 
 
-def test_stream_orders_steps_then_sources_then_text_then_done(client, two_results, monkeypatch):
-    model = fake_chat_model("Two words [1].")
+def ledger(client: TestClient) -> list[ChatRequest]:
+    """Every recorded request with its steps, oldest first, read on the app's own loop."""
+
+    async def read() -> list[ChatRequest]:
+        stmt = select(ChatRequest).options(selectinload(ChatRequest.steps)).order_by(ChatRequest.id)
+        async with get_session(auto_commit=False) as session:
+            return list(await session.scalars(stmt))
+
+    assert client.portal is not None
+    return client.portal.call(read)
+
+
+def step_names(request: ChatRequest) -> list[str]:
+    return [step.step for step in sorted(request.steps, key=lambda step: step.position)]
+
+
+def answering(monkeypatch: pytest.MonkeyPatch, answer: str = ANSWER) -> RecordingChatModel:
+    """A fresh answer model for the next question, since a fake holds one reply."""
+    model = fake_chat_model(answer)
     install_chat_model(monkeypatch, model)
+    return model
 
-    with client.stream("POST", "/chat", json={"question": "What is FuelEU?"}) as response:
-        assert response.status_code == 200
-        assert response.headers["content-type"].startswith("text/event-stream")
-        events = read_events(response)
+
+def test_a_first_question_is_answered_from_the_corpus_and_recorded(
+    seeded_client: TestClient, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
+):
+    model = answering(monkeypatch)
+
+    events = ask(seeded_client, ON_TOPIC)
 
     names = [name for name, _ in events]
-    assert names[0] == "step"
-    assert names[-1] == "done"
-    assert set(names) == {"step", "sources", "text", "done"}
+    assert (names[0], names[-1]) == ("step", "done")
     assert names.index("sources") < names.index("text")
-    answer = "".join(payload for name, payload in events if name == "text")
-    assert answer == "Two words [1]."
-
-
-def test_block_list_content_streams_text_without_reasoning(client, two_results, monkeypatch):
-    install_chat_model(monkeypatch, reasoning_chat_model())
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        events = read_events(response)
-
-    answer = "".join(payload for name, payload in events if name == "text")
-    assert answer == "Ships must comply [1]."
-    assert THINKING not in json.dumps(events)
-
-
-def test_stream_tells_proxies_and_browsers_not_to_buffer(client, two_results, monkeypatch):
-    model = fake_chat_model()
-    install_chat_model(monkeypatch, model)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        assert response.headers["cache-control"] == "no-cache"
-        assert response.headers["x-accel-buffering"] == "no"
-
-
-def test_sources_event_binds_markers_to_chunks(client, two_results, monkeypatch):
-    model = fake_chat_model()
-    install_chat_model(monkeypatch, model)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        events = read_events(response)
+    assert answer_of(events) == ANSWER
 
     sources = first_payload(events, "sources")
-    assert [source["marker"] for source in sources] == [1, 2]
-    assert sources[0]["chunk_id"] == 1
-    assert sources[0]["celex"] == "32023R1805"
-    assert sources[1]["citation"] == "Article 5(1)"
+    stored = {chunk.id: chunk for chunk in corpus}
+    assert [source["marker"] for source in sources] == list(range(1, len(sources) + 1))
+    assert all(stored[source["chunk_id"]].text == source["text"] for source in sources)
+    assert sources[0]["act"].startswith("Regulation (EU) 2023/1805")
+    [prompt] = model.received
+    assert sources[0]["text"] in str(prompt[-1].content)
+
+    [request] = ledger(seeded_client)
+    assert request.outcome is ChatOutcome.DONE
+    assert (request.question, request.answer) == (ON_TOPIC, ANSWER)
+    assert request.sources == len(sources)
+    assert (request.input_tokens, request.output_tokens) == (
+        USAGE["input_tokens"],
+        USAGE["output_tokens"],
+    )
+    assert request.cost_usd is not None and request.cost_usd > 0
+    assert step_names(request) == ["retrieve", "synthesize"]
+    assert str(request.thread_id) == first_payload(events, "done")["thread_id"]
 
 
-def test_sources_event_carries_the_paragraph_text(client, two_results, monkeypatch):
-    model = fake_chat_model()
-    install_chat_model(monkeypatch, model)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        events = read_events(response)
-
-    sources = first_payload(events, "sources")
-    assert sources[0]["text"] == "The greenhouse gas intensity of the energy used on board."
-
-
-def test_stream_failure_emits_an_error_event(client, monkeypatch):
-    """The step that was running when it failed still went out, so the trail says where."""
-
-    async def failing_search(session, request):
-        raise LLMError("embedding call failed")
-
-    install_search(monkeypatch, failing_search)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        assert response.status_code == 200
-        events = read_events(response)
-
-    assert [name for name, _ in events] == ["step", "error"]
-    payload = first_payload(events, "error")
-    assert payload["error"] == "LLMError"
-    assert payload["message"] == "embedding call failed"
-    assert payload["request_id"] == response.headers["X-Request-ID"]
-    assert "detail" not in payload
-
-
-def test_unexpected_failure_emits_a_generic_error_event(client, monkeypatch):
-    async def exploding_search(session, request):
-        raise RuntimeError("secret internals")
-
-    install_search(monkeypatch, exploding_search)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        events = read_events(response)
-
-    assert [name for name, _ in events] == ["step", "error"]
-    payload = first_payload(events, "error")
-    assert payload["error"] == "InternalServerError"
-    assert payload["message"] == "An unexpected error occurred"
-    assert "secret internals" not in json.dumps(payload)
-
-
-def test_a_question_over_the_limit_is_refused_before_the_graph_runs(
-    rate_limited_client, two_results, answer_model, monkeypatch
+def test_a_follow_up_reads_its_thread_from_the_ledger_until_the_thread_is_full(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch, rewrite_turns
 ):
-    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
-    client = rate_limited_client
-    headers = {"X-Client-ID": "reader"}
-    with client.stream("POST", "/chat", json={"question": "q"}, headers=headers) as first:
-        assert first.status_code == 200
-        read_events(first)
+    answering(monkeypatch)
+    thread_id = first_payload(ask(seeded_client, ON_TOPIC), "done")["thread_id"]
 
-    second = client.post("/chat", json={"question": "q"}, headers=headers)
+    rewrite = rewrite_turns(restated_message(ON_TOPIC))
+    answering(monkeypatch, "It tightens in 2030 [1].")
+    follow_up = ask(seeded_client, "And from 2030?", thread_id)
 
-    assert second.status_code == 429
-    assert second.json()["error"] == "RateLimitedError"
-    assert len(answer_model.received) == 1
+    assert first_payload(follow_up, "done")["thread_id"] == thread_id
+    [restating] = rewrite.received
+    thread_in_view = " ".join(str(message.content) for message in restating)
+    assert ON_TOPIC in thread_in_view
+    assert "The limit falls over time" in thread_in_view
+    assert "[1]" not in thread_in_view
+    first, second = ledger(seeded_client)
+    assert first.thread_id == second.thread_id
+    assert step_names(second) == ["rewrite", "retrieve", "synthesize"]
 
+    monkeypatch.setattr(config, "CHAT_THREAD_TURNS", 2)
+    unasked = answering(monkeypatch)
+    refused = ask(seeded_client, "And from 2035?", thread_id)
 
-def test_empty_question_is_rejected(client):
-    response = client.post("/chat", json={"question": ""})
-    assert response.status_code == 422
-
-
-def test_the_frames_are_documented_as_an_event_stream(client):
-    """The generated client types the frames from the one media type sent, as a union
-    it can narrow on the event name."""
-    spec = client.get("/openapi.json").json()
-    content = spec["paths"]["/chat"]["post"]["responses"]["200"]["content"]
-    (media_type,) = content
-    assert media_type == "text/event-stream"
-    schema = content[media_type]["schema"]
-    assert schema["discriminator"]["propertyName"] == "event"
-    assert schema["discriminator"]["mapping"]["text"] == "#/components/schemas/TextEvent"
-    assert schema["discriminator"]["mapping"]["step"] == "#/components/schemas/StepEvent"
-    text_event = spec["components"]["schemas"]["TextEvent"]
-    assert text_event["properties"]["event"]["const"] == "text"
-    assert set(text_event["required"]) == {"event", "data"}
+    assert first_payload(refused, "error")["error"] == "ThreadFullError"
+    assert unasked.received == []
+    assert ledger(seeded_client)[-1].outcome is ChatOutcome.ERROR
 
 
-def test_a_refused_question_streams_the_refusal_then_done(client, one_junk_result, answer_model):
-    with client.stream("POST", "/chat", json={"question": "best pizza topping?"}) as response:
-        events = read_events(response)
+def test_a_question_the_corpus_does_not_cover_is_refused_before_any_model_call(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+    model = answering(monkeypatch)
 
-    assert [name for name, _ in events] == [
-        "step",
-        "step",
-        "sources",
-        "step",
-        "step",
-        "text",
-        "done",
-    ]
+    events = ask(seeded_client, OFF_TOPIC)
+
     assert first_payload(events, "sources") == []
-    assert first_payload(events, "text") == REFUSAL_ANSWER
-    assert answer_model.received == []
+    assert answer_of(events) == REFUSAL_ANSWER
+    assert [name for name, _ in events][-1] == "done"
+    assert model.received == []
+    [request] = ledger(seeded_client)
+    assert request.outcome is ChatOutcome.REFUSED
+    assert seeded_client.portal is not None
+    assert seeded_client.portal.call(redis_client.dbsize) == 0
 
 
-def test_done_carries_the_thread_a_first_question_was_recorded_under(
-    client, two_results, answer_model
+def test_a_tool_round_fetches_from_the_corpus_and_grows_the_context(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch, loop_on, assess_turns
 ):
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        events = read_events(response)
+    answering(monkeypatch)
+    assess_turns(
+        AIMessage(
+            content="",
+            tool_calls=[
+                {
+                    "name": "follow_reference",
+                    "args": {"celex": "32015R0757", "article": "11a"},
+                    "id": "c1",
+                    "type": "tool_call",
+                },
+                {
+                    "name": "search",
+                    "args": {"query": "port of call", "celex": "32015R0757"},
+                    "id": "c2",
+                    "type": "tool_call",
+                },
+            ],
+        ),
+        AIMessage(content=""),
+    )
 
-    done = first_payload(events, "done")
-    assert set(done) == {"thread_id"}
-    UUID(done["thread_id"])
+    events = ask(seeded_client, ON_TOPIC)
+
+    finished = [
+        (step["step"], step["subject"])
+        for name, step in events
+        if name == "step" and step["status"] == "completed" and step["subject"]
+    ]
+    assert finished == [
+        ("tool_follow_reference", "32015R0757 · 11a"),
+        ("tool_search", "port of call · 32015R0757"),
+    ]
+    [sources] = [payload for name, payload in events if name == "sources"]
+    followed = [source for source in sources if source["citation"].startswith("Article 11a")]
+    assert len(followed) == 4
+    assert {source["celex"] for source in followed} == {"32015R0757"}
+    [request] = ledger(seeded_client)
+    assert request.sources == len(sources)
+    assert step_names(request) == [
+        "retrieve",
+        "assess",
+        "tool_follow_reference",
+        "tool_search",
+        "assess",
+        "synthesize",
+    ]
 
 
-def test_a_supplied_thread_is_echoed_back_on_done(client, two_results, answer_model, monkeypatch):
-    async def no_history(session, thread_id):
-        return ()
-
-    monkeypatch.setattr("app.chat.stream.load_thread_history", no_history)
-    thread_id = "11111111-2222-3333-4444-555555555555"
-
-    with client.stream("POST", "/chat", json={"question": "q", "thread_id": thread_id}) as response:
-        events = read_events(response)
-
-    assert first_payload(events, "done") == {"thread_id": thread_id}
-
-
-def test_a_malformed_thread_id_is_rejected(client):
-    response = client.post("/chat", json={"question": "q", "thread_id": "not-a-uuid"})
-    assert response.status_code == 422
-
-
-def test_a_repeated_question_is_answered_from_the_cache(cached_client, two_results, answer_model):
-    """Over the app's own Redis, through the real route."""
-    for _ in range(2):
-        with cached_client.stream(
-            "POST", "/chat", json={"question": "What is FuelEU?"}
-        ) as response:
-            events = read_events(response)
-        cached_client.portal.call(settle_stores)
-
-    assert [name for name, _ in events] == ["sources", "text", "done"]
-    assert first_payload(events, "text") == "Answered [1]."
-    assert len(answer_model.received) == 1
-
-
-def test_a_failed_chat_stream_is_reported_with_its_request_id_and_without_the_question(
-    client, monkeypatch, sentry
+def test_a_repeated_question_is_served_from_the_cache_and_recorded_as_cached(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
-    async def exploding_search(session, request):
-        raise RuntimeError("pool exhausted")
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+    model = answering(monkeypatch)
 
-    install_search(monkeypatch, exploding_search)
+    asked = ask(seeded_client, ON_TOPIC)
+    repeated = ask(seeded_client, f"  {ON_TOPIC.upper()}  ")
 
-    with client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
-        request_id = response.headers["X-Request-ID"]
-        response.read()
+    assert answer_of(repeated) == answer_of(asked) == ANSWER
+    assert first_payload(repeated, "sources") == first_payload(asked, "sources")
+    assert len(model.received) == 1
+    first, second = ledger(seeded_client)
+    assert second.outcome is ChatOutcome.CACHED
+    assert step_names(second) == []
+    assert str(second.thread_id) == first_payload(repeated, "done")["thread_id"]
+    assert second.thread_id != first.thread_id
 
-    [event] = sentry.events
-    assert event["exception"]["values"][0]["type"] == "RuntimeError"
-    assert event["tags"]["request_id"] == request_id
-    assert "Jane Example" not in json.dumps(event, default=str)
 
-
-def test_a_provider_failure_is_reported_without_the_provider_text_or_the_question(
-    client, monkeypatch, sentry
+def test_the_spend_cap_is_read_off_the_ledger_and_spares_a_cached_answer(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch
 ):
-    async def failing_search(session, request):
-        try:
-            raise ConnectionRefusedError(f"could not embed: {request}")
-        except ConnectionRefusedError as exc:
-            raise LLMError("embedding call failed") from exc
+    monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", True)
+    answering(monkeypatch)
+    ask(seeded_client, ON_TOPIC)
 
-    install_search(monkeypatch, failing_search)
+    async def spend_the_cap() -> None:
+        async with get_session() as session:
+            session.add(
+                ChatRequest(
+                    question="an expensive day",
+                    outcome=ChatOutcome.DONE,
+                    total_ms=1,
+                    sources=0,
+                    cost_usd=config.CHAT_DAILY_SPEND_CAP_USD,
+                )
+            )
 
-    with client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
-        request_id = response.headers["X-Request-ID"]
-        response.read()
+    assert seeded_client.portal is not None
+    seeded_client.portal.call(spend_the_cap)
+    unasked = answering(monkeypatch)
 
-    [event] = sentry.events
-    assert event["logentry"]["params"] == ["embedding call failed (ConnectionRefusedError)"]
-    assert event["tags"]["request_id"] == request_id
-    assert "exception" not in event
-    assert "Jane Example" not in json.dumps(event, default=str)
+    paused = ask(seeded_client, "Which ships must submit a monitoring plan?")
+    cached = ask(seeded_client, ON_TOPIC)
+
+    assert first_payload(paused, "error")["error"] == "SpendCapReachedError"
+    assert unasked.received == []
+    assert answer_of(cached) == ANSWER
+    assert [request.outcome for request in ledger(seeded_client)[-2:]] == [
+        ChatOutcome.ERROR,
+        ChatOutcome.CACHED,
+    ]

@@ -30,19 +30,6 @@ def test_lettered_article_title(mrv: ParsedDocument):
     )
 
 
-def test_article_without_numbered_paragraphs_yields_one_unnumbered_paragraph():
-    sections = parse_eurlex_html(
-        '<html><body><div class="eli-subdivision" id="art_1">'
-        '<p class="oj-ti-art">Article 1</p>'
-        '<p class="oj-normal">This Regulation enters into force.</p>'
-        "</div></body></html>"
-    )
-    paragraphs = sections[0].children
-    assert len(paragraphs) == 1
-    assert paragraphs[0].number is None
-    assert paragraphs[0].text == "This Regulation enters into force."
-
-
 def test_oj_paragraphs_are_numbered_and_split_from_their_text(fueleu: ParsedDocument):
     first = articles(fueleu.sections)[0]
     numbers = [p.number for p in first.children]

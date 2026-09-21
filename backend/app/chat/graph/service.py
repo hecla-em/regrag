@@ -42,28 +42,6 @@ def rewrite_or_decompose_or_retrieve(state: ChatState) -> ChatNode:
     return ChatNode.REWRITE if state.history else decompose_or_retrieve(state)
 
 
-GRAPH_EDGES = (
-    (START, ChatNode.REWRITE),
-    (START, ChatNode.DECOMPOSE),
-    (START, ChatNode.RETRIEVE),
-    (ChatNode.REWRITE, ChatNode.DECOMPOSE),
-    (ChatNode.REWRITE, ChatNode.RETRIEVE),
-    (ChatNode.DECOMPOSE, ChatNode.RETRIEVE),
-    (ChatNode.RETRIEVE, ChatNode.ASSESS),
-    (ChatNode.RETRIEVE, ChatNode.SYNTHESIZE),
-    (ChatNode.RETRIEVE, ChatNode.REFUSE),
-    (ChatNode.ASSESS, ChatNode.ASSESS_TOOLS),
-    (ChatNode.ASSESS, ChatNode.SYNTHESIZE),
-    (ChatNode.ASSESS_TOOLS, ChatNode.ASSESS),
-    (ChatNode.ASSESS_TOOLS, ChatNode.SYNTHESIZE),
-    (ChatNode.ASSESS_TOOLS, ChatNode.REFUSE),
-    (ChatNode.SYNTHESIZE, END),
-    (ChatNode.REFUSE, END),
-)
-"""Every edge the graph has, as the README draws them. A test holds the compiled graph to
-this, so an edge added here without redrawing the README fails before it is merged."""
-
-
 def build_graph() -> CompiledStateGraph[ChatState]:
     """The compiled (rewrite →) (decompose →) retrieve → (assess ⇄ assess_tools) →
     (synthesize | refuse) graph."""

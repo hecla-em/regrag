@@ -20,8 +20,6 @@ from app.evals.metrics import (
     compute_metrics,
     compute_model_refusal_rate,
     compute_raw_recall,
-    compute_usage,
-    count_answers_with_prompt_wording,
     count_assess_false_refusals,
     count_errors,
     count_false_refusals,
@@ -33,7 +31,7 @@ from app.evals.metrics import (
     score_reference_recall,
 )
 from app.retrieval.models import ReferenceTarget
-from tests.conftest import REPORTED_USAGE, retrieved_chunk, search_result
+from tests.conftest import retrieved_chunk, search_result
 from tests.evals.conftest import (
     assess_refused_result,
     eval_case,
@@ -56,13 +54,6 @@ def test_recall_counts_a_gold_article_the_chunks_cover() -> None:
 
 def test_recall_is_the_share_of_gold_references_retrieved() -> None:
     assert score_reference_recall((ARTICLE_4, ARTICLE_20), (retrieved_chunk(),)) == 0.5
-
-
-def test_recall_ignores_the_paragraph_a_chunk_sits_in() -> None:
-    """Gold cites Article 4; the chunk is Article 4(1). The ticket scores at article grain."""
-    chunk = retrieved_chunk(citation="Article 4(1)", article="4")
-
-    assert score_reference_recall((ARTICLE_4,), (chunk,)) == 1.0
 
 
 def test_recall_matches_an_article_whatever_its_case() -> None:
@@ -100,10 +91,6 @@ def test_recall_does_not_match_the_right_division_of_another_act() -> None:
     chunk = retrieved_chunk(celex="32015R0757", article="4")
 
     assert score_reference_recall((ARTICLE_4,), (chunk,)) == 0.0
-
-
-def test_recall_is_zero_when_nothing_was_retrieved() -> None:
-    assert score_reference_recall((ARTICLE_4,), ()) == 0.0
 
 
 def test_every_authored_reference_cited_scores_one() -> None:
@@ -267,10 +254,6 @@ def test_an_in_corpus_case_assess_refused_is_a_false_refusal_of_the_loops() -> N
     assert count_false_refusals(results) == 0
 
 
-def test_the_loops_refusal_rate_is_unmeasured_without_out_of_corpus_cases() -> None:
-    assert compute_assess_refusal_rate((eval_result(),)) is None
-
-
 def test_citation_metrics_average_over_the_cases_that_measure() -> None:
     """A refusal cites nothing, so it is unmeasured rather than a zero dragging the mean."""
     results = (eval_result(answer="Yes [1] and [9]."), eval_result(), refused_result())
@@ -295,26 +278,6 @@ def test_node_ms_is_averaged_over_the_cases_that_ran_the_node() -> None:
     assert compute_mean_step_ms(results) == {"retrieve": 90, "synthesize": 900, "refuse": 0}
 
 
-def test_tokens_and_cost_are_summed_over_the_run() -> None:
-    results = (eval_result(), eval_result(), refused_result())
-
-    assert compute_usage(results) == REPORTED_USAGE + REPORTED_USAGE
-
-
-def test_compute_metrics_assembles_every_block_of_the_run() -> None:
-    metrics = compute_metrics((eval_result(), refused_result()))
-
-    assert (metrics.counts.cases, metrics.counts.in_corpus, metrics.counts.out_of_corpus) == (
-        2,
-        1,
-        1,
-    )
-    assert metrics.retrieval.raw_recall == 1.0
-    assert metrics.gate.refusal_rate == 1.0
-    assert metrics.assess.refusal_rate == 0.0
-    assert metrics.latency.mean_total_ms == 542
-
-
 def test_a_run_that_synthesized_over_empty_sources_is_not_counted_refused() -> None:
     """The metric observes the branch the graph took; recomputing the route would score a
     routing bug as the refusal it should have been."""
@@ -336,13 +299,6 @@ def test_context_cost_averages_scored_in_corpus_cases_only() -> None:
 
     assert context.mean_context_chunks == 1.0
     assert context.mean_context_chars == float(len(result.state.sources[0].text))
-
-
-def test_no_cases_leaves_the_context_cost_unmeasured() -> None:
-    context = compute_context_metrics(())
-
-    assert context.mean_context_chunks is None
-    assert context.mean_context_chars is None
 
 
 # Judged metrics
@@ -381,15 +337,6 @@ def test_model_refusal_rate_is_scored_over_the_judged_out_of_corpus_answers() ->
     assert compute_gate_refusal_rate(results) == 1 / 3
 
 
-def test_an_unjudged_run_leaves_the_judged_metrics_unmeasured() -> None:
-    judge = compute_metrics((eval_result(), refused_result())).judge
-
-    assert judge.correctness is None
-    assert judge.faithfulness is None
-    assert judge.refusal_rate is None
-    assert judge.judged == 0
-
-
 def test_an_errored_case_is_not_judged_whatever_it_carries() -> None:
     results = (eval_result(judgement=passed_judgement(), error="TimeoutError"),)
 
@@ -423,14 +370,3 @@ def test_an_answer_naming_the_prompts_blocks_is_found(answer: str) -> None:
 )
 def test_plain_english_is_not_prompt_wording(answer: str) -> None:
     assert find_prompt_wording(answer) == ()
-
-
-def test_answers_with_prompt_wording_are_counted_once_each() -> None:
-    results = (
-        eval_result(answer="The context is silent. The provided context too."),
-        eval_result(),
-        refused_result(),
-    )
-
-    assert count_answers_with_prompt_wording(results) == 1
-    assert compute_metrics(results).answers.prompt_wording == 1

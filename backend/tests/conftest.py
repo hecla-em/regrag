@@ -1,14 +1,18 @@
 """Shared test fixtures."""
 
 import pkgutil
-from collections.abc import AsyncGenerator, Callable, Generator
+import re
+import zlib
+from collections.abc import AsyncGenerator, Callable, Generator, Iterator
 from contextlib import asynccontextmanager
-from functools import partial
+from functools import cache, partial
 from importlib import import_module
+from math import sqrt
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+import anyio
 import httpx
 import pytest
 import sentry_sdk
@@ -33,9 +37,10 @@ from app.chat.graph.nodes.assess import call_assess_model
 from app.chat.graph.nodes.decompose import call_decompose_model
 from app.chat.graph.nodes.rewrite import call_rewrite_model
 from app.chat.graph.nodes.synthesize import synthesize
+from app.chat.schemas import ChatRequest
 from app.core.clock import utc_now
-from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, Environment, R2Config, config
-from app.core.db.session import async_session_factory
+from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, Environment, config
+from app.core.db.session import async_session_factory, get_session
 from app.core.llm.models import Usage
 from app.core.redis import redis_client
 from app.core.sentry import configure_sentry
@@ -44,7 +49,9 @@ from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
 from app.ingestion.chunk.references import list_points
 from app.ingestion.chunk.schemas import DocumentChunk
-from app.ingestion.discover.models import ActsQueryRow, DiscoveredDocument
+from app.ingestion.chunk.service import sync_document_chunks
+from app.ingestion.chunk.tree import chunk_document
+from app.ingestion.discover.models import ActsQueryRow
 from app.ingestion.discover.sparql import run_acts_by_topic_query
 from app.ingestion.embed.batch import embed_batch
 from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
@@ -71,20 +78,6 @@ RETRIED = (
 PARSE_FIXTURES = Path(__file__).parent / "ingestion" / "parse" / "fixtures"
 FUELEU_HTML = (PARSE_FIXTURES / "32023R1805.html").read_text()
 MRV_HTML = (PARSE_FIXTURES / "32015R0757.html").read_text()
-
-R2_ENV = {
-    "R2_ACCOUNT_ID": "acc",
-    "R2_ACCESS_KEY_ID": "key",
-    "R2_SECRET_ACCESS_KEY": "secret",
-    "R2_BUCKET": "regrag-raw",
-}
-
-
-def r2_config(monkeypatch: pytest.MonkeyPatch, **overrides: str) -> R2Config:
-    """R2 settings as they really arrive — from the environment; an empty one is left unset."""
-    for name, value in {**R2_ENV, **overrides}.items():
-        monkeypatch.setenv(name, value)
-    return R2Config()
 
 
 @pytest.fixture
@@ -124,6 +117,9 @@ def test_database() -> None:
     needs no server. Migrating every session is what keeps the schema honest: a new revision
     would otherwise only reach the suite once someone ran alembic against it by hand.
     """
+    assert config.DB_NAME == "regrag_test", (
+        "the suite deletes rows, so it never runs on a dev database"
+    )
     _create_database_if_missing(config.SQLALCHEMY_DATABASE_URI)
     alembic = AlembicConfig(str(BACKEND_ROOT / "alembic.ini"))
     alembic.set_main_option("script_location", str(BACKEND_ROOT / "migrations"))
@@ -286,6 +282,117 @@ def make_chunk_row() -> Callable[..., DocumentChunk]:
     return _make
 
 
+TOKEN = re.compile(r"\w+")
+PROBES = 64
+"""Dimensions each token contributes to: a one-hot token would leave most texts exactly
+orthogonal, which gives an HNSW graph walk no gradient to descend."""
+
+
+@cache
+def token_probes(token: str) -> tuple[int, ...]:
+    """The dimensions a token lands on, spread wide so any two texts overlap somewhere."""
+    return tuple(
+        zlib.crc32(f"{token}:{probe}".encode()) % EMBED_DIMENSIONS for probe in range(PROBES)
+    )
+
+
+def toy_embed(text: str) -> list[float]:
+    """Token hashes into the real width, L2-normalised, so overlapping texts land near."""
+    vector = [0.0] * EMBED_DIMENSIONS
+    for token in TOKEN.findall(text.lower()):
+        for index in token_probes(token):
+            vector[index] += 1.0
+    norm = sqrt(sum(value * value for value in vector))
+    return [value / norm for value in vector] if norm else vector
+
+
+async def vacuum_chunks(db_engine: AsyncEngine) -> None:
+    """Reclaim the HNSW entries every rolled-back insert left behind, as autovacuum does live."""
+    autocommit = db_engine.execution_options(isolation_level="AUTOCOMMIT")
+    async with autocommit.connect() as conn:
+        await conn.execute(text("VACUUM document_chunks"))
+
+
+async def delete_runs(db_engine: AsyncEngine, ingest_run_id: int | None = None) -> None:
+    """Committed delete of one run or every run, cascading to the chunks hanging off it."""
+    stmt = delete(IngestRun)
+    if ingest_run_id is not None:
+        stmt = stmt.where(IngestRun.id == ingest_run_id)
+    async with async_session_factory(bind=db_engine) as session:
+        await session.execute(stmt)
+        await session.commit()
+
+
+SEEDED_CORPUS_VERSION = "2026-01-01-5eeded0"
+"""Stamped on the stored corpus, since an answer is only cached under a corpus version."""
+
+ON_TOPIC_COSINE = 0.75
+"""The refusal gate's bar over the toy vectors. Every text shares stopwords there, so an
+off-topic question scores about 0.6 against the corpus and an on-topic one above 0.8."""
+
+
+async def store_corpus(
+    db_engine: AsyncEngine, fueleu: ParsedDocument, mrv: ParsedDocument
+) -> list[DocumentChunk]:
+    """Chunk, store and embed both fixture acts, committed so every test reads the same rows."""
+    await delete_runs(db_engine)
+    await vacuum_chunks(db_engine)
+    async with async_session_factory(bind=db_engine) as session:
+        run = IngestRun(status=IngestRunStatus.RUNNING, corpus_version=SEEDED_CORPUS_VERSION)
+        session.add(run)
+        await session.flush()
+        for document in (fueleu, mrv):
+            await sync_document_chunks(
+                session,
+                celex=document.celex,
+                chunks=chunk_document(document),
+                ingest_run_id=run.id,
+            )
+        stmt = (
+            select(DocumentChunk)
+            .where(DocumentChunk.ingest_run_id == run.id)
+            .order_by(DocumentChunk.id)
+        )
+        rows = list(await session.scalars(stmt))
+        for row in rows:
+            row.embedding = toy_embed(row.text)
+        await session.commit()
+        session.expunge_all()
+        return rows
+
+
+@pytest.fixture(scope="session")
+def corpus(
+    db_engine: AsyncEngine, fueleu: ParsedDocument, mrv: ParsedDocument
+) -> Iterator[list[DocumentChunk]]:
+    """Both fixture acts stored once for the whole session, since retrieval only ever reads them."""
+    rows = anyio.run(store_corpus, db_engine, fueleu, mrv)
+    yield rows
+    anyio.run(delete_runs, db_engine, rows[0].ingest_run_id)
+
+
+@pytest.fixture
+def query_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Query vectors share the corpus's space, so a search is a real nearest-neighbour test."""
+
+    async def _embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
+        return [toy_embed(text) for text in texts]
+
+    monkeypatch.setattr("app.retrieval.search.embed", _embed)
+
+
+@pytest.fixture
+def identity_rerank(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ordering tests assert on fused order, so the rerank stand-in must preserve it."""
+
+    async def _identity(
+        query: str, results: tuple[SearchResult, ...], *, limit: int
+    ) -> tuple[SearchResult, ...]:
+        return results[:limit]
+
+    monkeypatch.setattr("app.retrieval.search.rerank_results", _identity)
+
+
 @pytest.fixture
 def app() -> FastAPI:
     """A throwaway app wired like production, so tests never mutate the real one."""
@@ -300,6 +407,17 @@ def client(app: FastAPI) -> Generator[TestClient, None, None]:
     and the Redis pool and engine are drained on it before the next test opens its own."""
     with TestClient(app) as client:
         yield client
+
+
+def assert_error_shape(response: httpx.Response, status_code: int, error: str) -> dict[str, Any]:
+    """Assert the single error schema: {error, message, request_id} + optional detail."""
+    assert response.status_code == status_code
+    body = response.json()
+    assert body["error"] == error
+    assert isinstance(body["message"], str) and body["message"]
+    assert body["request_id"] == response.headers["X-Request-ID"]
+    assert set(body) <= {"error", "message", "request_id", "detail"}
+    return body
 
 
 class RecordingTransport(Transport):
@@ -331,6 +449,30 @@ def sentry(monkeypatch: pytest.MonkeyPatch) -> Generator[RecordingTransport, Non
         yield transport
     finally:
         sentry_sdk.get_global_scope().set_client(None)
+
+
+async def clear_ledger() -> None:
+    """Committed delete of every recorded chat request, their steps cascading with them."""
+    async with get_session() as session:
+        await session.execute(delete(ChatRequest))
+
+
+@pytest.fixture
+def seeded_client(
+    client: TestClient,
+    corpus: list[DocumentChunk],
+    query_embeddings: None,
+    identity_rerank: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[TestClient, None, None]:
+    """The app over the stored corpus, the real ledger and the real Redis, both emptied
+    around the test. Only the model is left to fake."""
+    assert client.portal is not None
+    monkeypatch.setattr(config, "MIN_COSINE_SIMILARITY", ON_TOPIC_COSINE)
+    client.portal.call(redis_client.flushdb)
+    client.portal.call(clear_ledger)
+    yield client
+    client.portal.call(clear_ledger)
 
 
 @pytest.fixture
@@ -448,18 +590,6 @@ def act_row(
 MRV_SPARQL = httpx.Response(
     200, json=payload(binding("32015R0757", force="1"), binding("32023R2449", force="1"))
 )
-
-
-def discovered_document(
-    celex: str = "32015R0757",
-    topic: str = "mrv",
-    candidates: tuple[str, ...] = (),
-    title: str | None = None,
-) -> DiscoveredDocument:
-    """What discovery would hand fetch for one act, overridable per field."""
-    return DiscoveredDocument(
-        topic=topic, source="eurlex", celex=celex, candidates=candidates, title=title
-    )
 
 
 async def chunk_versions(session: AsyncSession, celex: str | None = None) -> set[str | None]:

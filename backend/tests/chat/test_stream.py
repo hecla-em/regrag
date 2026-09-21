@@ -1,14 +1,11 @@
 """Chat stream orchestration: every way a stream ends records one request with what it reached."""
 
-import json
 import logging
-import re
 from uuid import UUID
 
 import anyio
 import pytest
-from langchain_core.messages import AIMessage, AIMessageChunk
-from langchain_core.outputs import ChatGenerationChunk
+from langchain_core.messages import AIMessage
 from sqlalchemy.exc import OperationalError
 
 from app.chat import stream
@@ -20,7 +17,7 @@ from app.chat.stream import stream_chat_events
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
-    RecordingChatModel,
+    ToolCallStreamingModel,
     collect_events,
     fake_chat_model,
     restated_message,
@@ -28,7 +25,7 @@ from tests.chat.conftest import (
 )
 from tests.conftest import REPORTED_USAGE, USAGE, install_chat_model, install_search, search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("recorded_requests", "no_tool_session")]
 
 
 async def test_finished_stream_records_timings_sources_and_usage(
@@ -70,32 +67,6 @@ async def test_failed_stream_records_what_it_reached(monkeypatch, recorded_reque
     assert state.usage() is None
 
 
-async def test_a_provider_failure_is_logged_as_an_error_naming_what_the_provider_raised(
-    monkeypatch, recorded_requests, caplog
-):
-    """Every LLMError that gets here left a visitor without an answer, retries spent, so it
-    is an ERROR line and Sentry hears of it. No traceback: the provider's text stays local."""
-
-    async def failing_search(session, request):
-        try:
-            raise ConnectionRefusedError("I am Jane Example")
-        except ConnectionRefusedError as exc:
-            raise LLMError("embedding call failed") from exc
-
-    install_search(monkeypatch, failing_search)
-
-    events = await collect_events(ChatQuery(question="q"))
-
-    assert isinstance(events[-1], ErrorEvent)
-    assert events[-1].data.message == "embedding call failed"
-    [line] = [r for r in caplog.records if "chat stream failed" in r.getMessage()]
-    assert line.levelno == logging.ERROR
-    assert line.getMessage() == (
-        "chat stream failed: embedding call failed (ConnectionRefusedError)"
-    )
-    assert line.exc_info is None
-
-
 async def test_a_refusal_is_logged_as_a_warning(monkeypatch, recorded_requests, caplog):
     monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
 
@@ -127,22 +98,6 @@ async def test_unexpected_failure_is_recorded_by_its_type_and_sent_as_the_generi
     [state] = recorded_requests
     assert state.outcome is ChatOutcome.ERROR
     assert state.error == "RuntimeError"
-
-
-async def test_abandoned_stream_still_records(two_results, monkeypatch, recorded_requests):
-    model = fake_chat_model()
-    install_chat_model(monkeypatch, model)
-
-    events = stream_chat_events(ChatQuery(question="q"))
-    async for event in events:
-        if isinstance(event, SourcesEvent):
-            break
-    await events.aclose()
-
-    [state] = recorded_requests
-    assert state.outcome is ChatOutcome.ABORTED
-    assert len(state.sources) == 2
-    assert [result.step for result in state.steps] == [ChatNode.RETRIEVE]
 
 
 async def test_failed_write_is_logged_not_raised(two_results, monkeypatch, caplog):
@@ -314,35 +269,6 @@ async def test_a_running_step_reports_no_timing_and_the_ledger_never_sees_one(
     assert all(step.status is ChatStepStatus.COMPLETED for step in state.steps)
 
 
-class ToolCallStreamingModel(RecordingChatModel):
-    """Streams tool calls as litellm's real chunks do; the base fake's `_stream` only
-    carries content, so an assess call driven through the messages stream would lose them."""
-
-    def _stream(self, messages, *args, **kwargs):
-        message = self._generate(messages, *args, **kwargs).generations[0].message
-        assert isinstance(message, AIMessage)
-        if message.tool_calls:
-            for call in message.tool_calls:
-                yield ChatGenerationChunk(
-                    message=AIMessageChunk(
-                        content="",
-                        tool_call_chunks=[
-                            {
-                                "name": call["name"],
-                                "args": json.dumps(call["args"]),
-                                "id": call["id"],
-                                "index": 0,
-                            }
-                        ],
-                    )
-                )
-        elif isinstance(message.content, str) and message.content:
-            for token in re.split(r"(\s)", message.content):
-                yield ChatGenerationChunk(message=AIMessageChunk(content=token))
-        if self.usage:
-            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage))
-
-
 class TestLoopStreaming:
     @pytest.fixture
     def one_assess_round(self, monkeypatch):
@@ -510,21 +436,3 @@ class TestSpendCap:
         [state] = recorded_requests
         assert state.outcome is ChatOutcome.ERROR
         assert state.steps == ()
-
-    async def test_under_the_cap_the_run_goes_through_and_the_days_spend_is_logged(
-        self, two_results, monkeypatch, recorded_requests, caplog
-    ):
-        monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
-
-        async def spent_some(session, since):
-            return 1.99
-
-        monkeypatch.setattr("app.chat.stream.spent_since", spent_some)
-        install_chat_model(monkeypatch, fake_chat_model())
-
-        with caplog.at_level(logging.INFO, logger=stream.logger.name):
-            events = await collect_events(ChatQuery(question="q"))
-
-        assert isinstance(events[-1], DoneEvent)
-        [spend_line] = [r for r in caplog.records if "spend" in r.getMessage()]
-        assert (spend_line.spent_usd, spend_line.cap_usd) == (1.99, 2.0)

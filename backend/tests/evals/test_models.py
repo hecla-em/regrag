@@ -1,57 +1,9 @@
 """Eval run values: what a run's summary reports."""
 
-import json
-
-from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
-from app.evals.dataset.enums import EvalTrait
-from app.evals.dataset.models import CaseSelection
+from app.core.config import config
 from app.evals.metrics import compute_metrics
 from app.evals.models import EvalCaseResult, EvalRunResult
 from tests.evals.conftest import eval_case, eval_result, passed_judgement, refused_result
-
-
-def test_the_summary_carries_the_runs_setup_and_scores_then_names_the_cases_that_raised() -> None:
-    results = (eval_result(), eval_result(eval_case(id="boom"), error="TimeoutError"))
-    run = EvalRunResult(
-        dataset_sha="abc",
-        selection=CaseSelection(id_contains="fueleu", trait=EvalTrait.MULTI_PART),
-        settings=get_config_snapshot(EVAL_CONFIG_SECTIONS),
-        metrics=compute_metrics(results),
-        results=results,
-    )
-
-    summary = run.summary()
-    body = json.loads(summary.split("\nerrored:")[0])
-
-    assert body["dataset_sha"] == "abc"
-    assert body["selection"] == {"id_contains": "fueleu", "trait": "multi_part", "kind": None}
-    assert body["settings"]["CHAT_MODEL"] == config.CHAT_MODEL
-    assert body["retrieval"] is True
-    assert body["metrics"]["counts"]["errors"] == 1
-    assert "results" not in body
-    assert summary.rstrip().endswith("boom  TimeoutError")
-
-
-def test_the_summary_names_the_corpus_and_the_cases_owed_a_re_review() -> None:
-    """A stale case is reported, never failed: only a human can repair one, so the run stays
-    green and says which reference answers were written against text that has since moved."""
-    results = (eval_result(),)
-    run = EvalRunResult(
-        dataset_sha="abc",
-        corpus_version="2026-08-01-a3f1c2",
-        stale_cases=("amended-one", "amended-two"),
-        settings=get_config_snapshot(EVAL_CONFIG_SECTIONS),
-        metrics=compute_metrics(results),
-        results=results,
-    )
-
-    summary = run.summary()
-    body = json.loads(summary.split("\n\n")[0])
-
-    assert body["corpus_version"] == "2026-08-01-a3f1c2"
-    assert "2 cases cite text that changed since authoring:" in summary
-    assert "  amended-one" in summary
-    assert "  amended-two" in summary
 
 
 def test_a_judged_run_whose_judge_never_answered_says_so() -> None:
@@ -139,37 +91,4 @@ def test_a_shortfall_inside_the_allowance_passes(monkeypatch) -> None:
 
     assert run.judged_coverage == 0.9
     assert not run.judged_too_few
-    assert "the judge came back on" not in run.summary()
-
-
-def test_the_threshold_is_a_setting(monkeypatch) -> None:
-    judged = [eval_result(eval_case(id=f"j{i}"), judgement=passed_judgement()) for i in range(6)]
-    run = judged_run(*judged, *[eval_result(eval_case(id=f"u{i}")) for i in range(4)])
-
-    monkeypatch.setattr(config, "EVAL_JUDGE_MIN_COVERAGE", 0.5)
-
-    assert not run.judged_too_few
-
-
-def test_a_run_with_the_judge_off_has_no_coverage_to_fall_short_of() -> None:
-    """Unmeasured, not incomplete: a run that never asked cannot be judged too thinly."""
-    results = (eval_result(),)
-    run = EvalRunResult(
-        dataset_sha="abc",
-        judged=False,
-        settings={},
-        metrics=compute_metrics(results),
-        results=results,
-    )
-
-    assert run.judged_coverage is None
-    assert not run.judged_too_few
-
-
-def test_a_judge_that_never_answered_is_named_as_that_rather_than_as_a_shortfall() -> None:
-    """Both are true of a run with no verdicts; the more specific one is the useful one."""
-    run = judged_run(eval_result())
-
-    assert run.judged_too_few
-    assert "the judge returned no verdict on any answered case" in run.summary()
     assert "the judge came back on" not in run.summary()

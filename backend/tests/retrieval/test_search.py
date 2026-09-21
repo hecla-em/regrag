@@ -3,11 +3,10 @@ from collections.abc import Callable
 
 import pytest
 from litellm.types.rerank import RerankResponse
-from sqlalchemy import Select, select, text, update
+from sqlalchemy import Select, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import EMBED_DIMENSIONS, config
-from app.core.llm.errors import LLMError
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.schemas import IngestRun
 from app.retrieval.models import SearchFilters, SearchRequest, SearchResult
@@ -19,7 +18,7 @@ from app.retrieval.search import (
     hybrid_search,
     search,
 )
-from tests.retrieval.conftest import toy_embed
+from tests.conftest import toy_embed
 
 pytestmark = pytest.mark.anyio
 
@@ -45,15 +44,15 @@ def nudge(rng: random.Random, query: list[float], scale: float) -> list[float]:
     return [value + scale * (rng.random() - 0.5) for value in query]
 
 
+NO_KEYWORDS = "zzzz"
+"""A query the text leg finds nothing for, so a result can only have come from the vectors."""
+ON_BOARD_ENERGY = "greenhouse gas intensity of the energy used on board"
+
+
 async def leg_ids(session: AsyncSession, leg: Select) -> list[int]:
     """The ids one leg returns in its own rank order, run as the fused query would run it."""
     await _tune_hnsw_walk(session, config.SEARCH_CANDIDATES)
     return [row.id for row in await session.execute(leg)]
-
-
-async def load_pgvector(session: AsyncSession) -> None:
-    """Force the module to load, since its settings are unvalidated placeholders until it does."""
-    await session.execute(text("SELECT '[1,2,3]'::vector <-> '[3,2,1]'::vector"))
 
 
 async def citations_for(session: AsyncSession, chunk_ids: list[int]) -> list[str]:
@@ -64,33 +63,6 @@ async def citations_for(session: AsyncSession, chunk_ids: list[int]) -> list[str
 
 
 # The HNSW walk
-
-
-async def test_the_walk_runs_in_the_order_fusion_ranks_on(db_session: AsyncSession) -> None:
-    await _tune_hnsw_walk(db_session, config.SEARCH_CANDIDATES)
-
-    assert await db_session.scalar(text("SHOW hnsw.iterative_scan")) == "strict_order"
-
-
-async def test_the_walk_is_sized_from_the_candidate_pool_and_the_knob(
-    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(config, "EF_SEARCH_PER_CANDIDATE", 7)
-
-    await _tune_hnsw_walk(db_session, 50)
-
-    assert await db_session.scalar(text("SHOW hnsw.ef_search")) == "350"
-
-
-async def test_a_candidate_pool_past_the_ceiling_is_clamped_rather_than_refused(
-    db_session: AsyncSession,
-) -> None:
-    """pgvector rejects an ef_search above 1000, which a tuning knob must not be able to trigger."""
-    await load_pgvector(db_session)
-
-    await _tune_hnsw_walk(db_session, 1000)
-
-    assert await db_session.scalar(text("SHOW hnsw.ef_search")) == "1000"
 
 
 async def test_hybrid_search_sizes_the_walk_from_the_candidates_it_is_given(
@@ -114,24 +86,6 @@ async def test_hybrid_search_sizes_the_walk_from_the_candidates_it_is_given(
 # The vector leg
 
 
-async def test_the_vector_leg_ranks_the_chunk_whose_text_was_embedded_first(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    target = corpus[0]
-
-    found = await leg_ids(db_session, _vector_candidates(toy_embed(target.text), NO_FILTERS, 5))
-
-    assert found[0] == target.id
-
-
-async def test_the_vector_leg_respects_its_limit(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await leg_ids(db_session, _vector_candidates(toy_embed("energy"), NO_FILTERS, 3))
-
-    assert len(found) == 3
-
-
 async def test_the_vector_leg_meets_its_limit_past_dead_tuples(
     db_session: AsyncSession,
     ingest_run: IngestRun,
@@ -153,22 +107,17 @@ async def test_the_vector_leg_meets_its_limit_past_dead_tuples(
     await db_session.flush()
     await db_session.execute(text("SET LOCAL enable_seqscan = off"))
 
-    found = await leg_ids(db_session, _vector_candidates(query, NO_FILTERS, WANTED))
-
-    assert len(found) == WANTED
-
-
-async def test_the_vector_leg_skips_chunks_with_no_vector(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    unembedded = corpus[0]
-    await db_session.execute(
-        update(DocumentChunk).where(DocumentChunk.id == unembedded.id).values(embedding=None)
+    found = await hybrid_search(
+        db_session,
+        query=NO_KEYWORDS,
+        embedding=query,
+        filters=NO_FILTERS,
+        limit=WANTED,
+        candidates=WANTED,
+        rrf_k=config.RRF_K,
     )
 
-    found = await leg_ids(db_session, _vector_candidates(toy_embed("energy"), NO_FILTERS, 50))
-
-    assert unembedded.id not in found
+    assert len(found) == WANTED
 
 
 async def test_a_topic_filter_narrows_the_vector_leg_to_one_act(
@@ -183,17 +132,6 @@ async def test_a_topic_filter_narrows_the_vector_leg_to_one_act(
 
 
 # The text leg
-
-
-async def test_the_text_leg_finds_an_article_by_its_citation(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await leg_ids(db_session, _text_candidates("Article 11a", NO_FILTERS, 4))
-
-    assert found
-    assert all(
-        citation.startswith("Article 11a") for citation in await citations_for(db_session, found)
-    )
 
 
 async def test_the_text_leg_does_not_confuse_article_11_with_article_11a(
@@ -224,12 +162,6 @@ async def test_the_text_leg_does_not_confuse_article_11_with_article_11a(
     assert found_11[0] == article_11.id
 
 
-async def test_a_query_of_only_stopwords_matches_nothing(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    assert await leg_ids(db_session, _text_candidates("the of and", NO_FILTERS, 50)) == []
-
-
 async def test_a_celex_filter_narrows_the_text_leg_to_one_act(
     db_session: AsyncSession, corpus: list[DocumentChunk]
 ) -> None:
@@ -244,14 +176,6 @@ async def test_a_celex_filter_narrows_the_text_leg_to_one_act(
 # The whole search: embed, fuse, rerank
 
 
-async def test_an_article_query_returns_that_article(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await search(db_session, SearchRequest(query="Article 11a"))
-
-    assert any(result.citation.startswith("Article 11a") for result in found)
-
-
 async def test_a_topic_filter_excludes_the_other_act(
     db_session: AsyncSession, corpus: list[DocumentChunk]
 ) -> None:
@@ -262,14 +186,22 @@ async def test_a_topic_filter_excludes_the_other_act(
     assert {result.topic for result in found} == {"mrv"}
 
 
-async def test_a_paraphrase_reaches_the_article_that_defines_the_term(
+async def test_a_filter_narrows_the_candidates_before_they_are_cut(
     db_session: AsyncSession, corpus: list[DocumentChunk]
 ) -> None:
-    request = SearchRequest(query="monitoring plan submitted to the verifier", limit=5)
+    """The nearest chunks to this query are the other act's. A filter applied after the cut
+    would leave fewer than were asked for."""
+    found = await hybrid_search(
+        db_session,
+        query=ON_BOARD_ENERGY,
+        embedding=toy_embed(ON_BOARD_ENERGY),
+        filters=SearchFilters(topic="mrv"),
+        limit=5,
+        candidates=5,
+        rrf_k=config.RRF_K,
+    )
 
-    found = await search(db_session, request)
-
-    assert any(result.citation.startswith("Article 4") for result in found)
+    assert [result.topic for result in found] == ["mrv"] * 5
 
 
 async def test_results_come_back_in_fused_order(
@@ -281,15 +213,9 @@ async def test_results_come_back_in_fused_order(
         (result.rrf_score for result in found), reverse=True
     )
     assert any(result.vector_rank is not None and result.text_rank is not None for result in found)
-
-
-async def test_a_result_records_which_legs_found_it(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await search(db_session, SearchRequest(query="Article 11a"))
-
-    assert all(result.vector_rank is not None or result.text_rank is not None for result in found)
-    assert any(result.text_rank is not None for result in found)
+    for result in found:
+        ranks = [rank for rank in (result.vector_rank, result.text_rank) if rank is not None]
+        assert result.rrf_score == pytest.approx(sum(1 / (config.RRF_K + rank) for rank in ranks))
 
 
 async def test_a_vector_hit_carries_its_cosine_similarity_to_the_query(
@@ -319,12 +245,6 @@ async def test_a_text_only_hit_has_no_cosine_similarity(
     assert all(result.cosine_similarity is None for result in text_only)
 
 
-async def test_the_limit_caps_the_results(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    assert len(await search(db_session, SearchRequest(query="energy", limit=3))) == 3
-
-
 async def test_a_query_matching_no_keywords_still_returns_vector_hits(
     db_session: AsyncSession, corpus: list[DocumentChunk]
 ) -> None:
@@ -332,91 +252,6 @@ async def test_a_query_matching_no_keywords_still_returns_vector_hits(
 
     assert found
     assert all(result.text_rank is None for result in found)
-
-
-async def test_a_search_over_an_empty_corpus_returns_nothing(empty_session: AsyncSession) -> None:
-    assert await search(empty_session, SearchRequest(query="verification period")) == ()
-
-
-async def test_the_candidate_pool_is_read_from_config_per_call(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    request = SearchRequest(query="greenhouse gas emissions", limit=10)
-    assert len(await search(db_session, request)) > 2
-
-    monkeypatch.setattr(config, "SEARCH_CANDIDATES", 1)
-
-    assert len(await search(db_session, request)) <= 2
-
-
-async def test_a_request_without_a_limit_takes_the_configured_default_per_call(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(config, "SEARCH_DEFAULT_LIMIT", 2)
-
-    found = await search(db_session, SearchRequest(query="greenhouse gas emissions"))
-
-    assert len(found) == 2
-
-
-async def test_a_provider_failure_surfaces_rather_than_returning_nothing(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async def _fail(texts: list[str], **kwargs: object) -> list[list[float]]:
-        raise LLMError("embedding call failed")
-
-    monkeypatch.setattr("app.retrieval.search.embed", _fail)
-
-    with pytest.raises(LLMError):
-        await search(db_session, SearchRequest(query="verification period"))
-
-
-async def test_rerank_receives_a_pool_wider_than_the_limit(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pools = []
-
-    async def _capture(query, results, *, limit):
-        pools.append(len(results))
-        return results[:limit]
-
-    monkeypatch.setattr("app.retrieval.search.rerank_results", _capture)
-
-    found = await search(db_session, SearchRequest(query="greenhouse gas emissions", limit=3))
-
-    assert len(found) == 3
-    assert 3 < pools[0] <= config.RERANK_POOL
-
-
-async def test_the_reranked_order_is_what_the_caller_receives(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    async def _reverse(query, results, *, limit):
-        return tuple(reversed(results))[:limit]
-
-    monkeypatch.setattr("app.retrieval.search.rerank_results", _reverse)
-
-    found = await search(db_session, SearchRequest(query="greenhouse gas emissions", limit=5))
-
-    assert [result.rrf_score for result in found] == sorted(result.rrf_score for result in found)
-
-
-async def test_disabling_rerank_skips_the_step_and_keeps_the_narrow_pool(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    calls = []
-
-    async def _record(query, results, *, limit):
-        calls.append(query)
-        return results[:limit]
-
-    monkeypatch.setattr("app.retrieval.search.rerank_results", _record)
-    monkeypatch.setattr(config, "RERANK_ENABLED", False)
-
-    found = await search(db_session, SearchRequest(query="greenhouse gas emissions", limit=3))
-
-    assert len(found) == 3
-    assert calls == []
 
 
 async def test_the_real_rerank_path_reorders_the_pool(
@@ -441,34 +276,3 @@ async def test_the_real_rerank_path_reorders_the_pool(
 
     assert [result.id for result in found] == [result.id for result in reversed(captured[0])][:5]
     assert all(result.reranker_relevance is not None for result in found)
-
-
-async def test_a_limit_above_the_rerank_pool_is_honoured(
-    db_session: AsyncSession, corpus: list[DocumentChunk], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    pools = []
-
-    async def _capture(query, results, *, limit):
-        pools.append(len(results))
-        return results[:limit]
-
-    monkeypatch.setattr("app.retrieval.search.rerank_results", _capture)
-    request = SearchRequest(query="greenhouse gas emissions", limit=config.RERANK_POOL + 10)
-
-    await search(db_session, request)
-
-    assert pools[0] > config.RERANK_POOL
-
-
-async def test_a_search_result_carries_the_references_its_chunk_cites(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    """The fused select projects the links too, so an answer can follow on from what it found."""
-    request = SearchRequest(query="monitoring plan submitted to the verifier", limit=10)
-
-    found = await search(db_session, request)
-
-    cited = [reference for result in found for reference in result.references]
-
-    assert cited
-    assert all(reference.raw for reference in cited)

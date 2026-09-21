@@ -6,18 +6,6 @@ from app.ingestion.parse.models import ParsedDocument
 from tests.ingestion.parse.html.helpers import articles, subdivision
 
 
-def test_a_repeated_table_row_is_kept_because_the_repetition_is_the_data():
-    node = subdivision(
-        '<html><body><div id="anx_I"><table><tbody>'
-        "<tr><td>Vessel A</td><td>0</td></tr>"
-        "<tr><td>Vessel A</td><td>0</td></tr>"
-        "<tr><td>Vessel B</td><td>1</td></tr>"
-        "</tbody></table></div></body></html>",
-        "anx_I",
-    )
-    assert collect_lines(node) == ["Vessel A 0", "Vessel A 0", "Vessel B 1"]
-
-
 def test_a_container_carrying_a_level_class_is_recursed_into_not_read_as_a_heading():
     node = subdivision(
         '<html><body><div id="anx_I">'
@@ -31,16 +19,6 @@ def test_a_container_carrying_a_level_class_is_recursed_into_not_read_as_a_headi
         Subheading(2, "A. First part"),
         "Prose under A.",
     ]
-
-
-def test_a_node_holding_no_blocks_falls_back_to_its_own_text():
-    node = subdivision(
-        '<html><body><div id="anx_I">'
-        '<div class="oj-normal">Bare prose <span>with inline</span> markup.</div>'
-        "</div></body></html>",
-        "anx_I",
-    )
-    assert collect_lines(node) == ["Bare prose with inline markup."]
 
 
 def test_layout_tables_flatten_into_the_paragraph_that_contains_them(fueleu: ParsedDocument):

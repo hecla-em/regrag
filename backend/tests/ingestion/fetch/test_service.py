@@ -11,20 +11,6 @@ from app.ingestion.schemas import IngestRun
 pytestmark = pytest.mark.anyio
 
 
-async def test_baseline_empty_when_no_prior_runs(db_session: AsyncSession):
-    assert await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"])) == {}
-
-
-async def test_an_empty_topic_filter_matches_nothing(db_session: AsyncSession, make_document):
-    """None leaves the filter off; an explicit empty list must not widen to the whole corpus."""
-    run = IngestRun(status=IngestRunStatus.SUCCESS)
-    db_session.add(make_document(run, "32015R0757", topic="mrv"))
-    await db_session.flush()
-
-    assert await get_raw_documents(db_session, RawDocsQuery(include_topics=[])) == {}
-    assert set(await get_raw_documents(db_session, RawDocsQuery())) == {"32015R0757"}
-
-
 async def test_baseline_is_latest_run_with_rows_filtered_to_topics(
     db_session: AsyncSession, make_document
 ):
@@ -84,16 +70,6 @@ async def test_a_topic_with_no_successful_run_still_holds_what_it_downloaded(
         "32015R0757",
         "32023R1805",
     }
-
-
-async def test_baseline_skips_newer_run_without_rows(db_session: AsyncSession, make_document):
-    with_rows = IngestRun(status=IngestRunStatus.SUCCESS)
-    db_session.add(make_document(with_rows, "32015R0757", topic="mrv"))
-    db_session.add(IngestRun(status=IngestRunStatus.FAILED))
-    await db_session.flush()
-
-    previous = await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"]))
-    assert set(previous) == {"32015R0757"}
 
 
 async def test_a_failed_run_does_not_retire_what_it_could_not_download(

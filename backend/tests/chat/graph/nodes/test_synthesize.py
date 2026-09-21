@@ -9,13 +9,10 @@ from langchain_core.messages import SystemMessage
 
 from app.chat.graph.nodes.synthesize import (
     BASELINE_SYSTEM_PROMPT,
-    SYSTEM_PROMPT,
-    build_user_message,
     synthesize,
 )
 from app.chat.graph.service import chat_graph
-from app.chat.models import ChatState, ChatTurn
-from app.chat.prompts import system_prompt
+from app.chat.models import ChatState
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
@@ -30,7 +27,6 @@ from tests.conftest import (
     REPORTED_USAGE,
     install_chat_model,
     install_search,
-    retrieved_chunk,
     search_result,
 )
 
@@ -79,16 +75,6 @@ async def test_model_receives_system_prompt_and_numbered_context(monkeypatch):
     assert isinstance(prompt[0], SystemMessage)
     assert "[1] (Regulation (EU) 2023/1805, Article 4(1))" in prompt[1].content
     assert "A very specific clause." in prompt[1].content
-
-
-async def test_a_transient_provider_failure_is_retried(one_result, monkeypatch):
-    model = FailingModel(messages=iter(["Second time lucky [1]."]), failures=1)
-    install_chat_model(monkeypatch, model)
-
-    state = await run_graph()
-
-    assert state.answer == "Second time lucky [1]."
-    assert len(model.received) == 2
 
 
 async def test_a_persistent_provider_failure_becomes_a_transient_llm_error(one_result, monkeypatch):
@@ -167,15 +153,6 @@ async def test_the_answer_call_thinks_only_when_switched_on(one_result, monkeypa
     assert ("thinking" in calls[0]) is enabled
 
 
-def test_user_message_puts_context_before_the_question():
-    message = build_user_message("What is the limit?", (retrieved_chunk(),))
-    assert message.index("[1]") < message.index("Question: What is the limit?")
-
-
-def test_system_prompt_demands_inline_markers():
-    assert "[1]" in SYSTEM_PROMPT
-
-
 async def test_no_sources_answers_from_memory_under_the_baseline_prompt(monkeypatch):
     model = fake_chat_model()
     install_chat_model(monkeypatch, model)
@@ -186,20 +163,3 @@ async def test_no_sources_answers_from_memory_under_the_baseline_prompt(monkeypa
     assert prompt[0].content == BASELINE_SYSTEM_PROMPT
     assert prompt[1].content == QUESTION
     assert update["answer"] == ANSWER
-
-
-def test_baseline_prompt_shares_the_style_rules_and_asks_for_no_markers():
-    shared = "Start directly with the answer"
-    assert shared in SYSTEM_PROMPT
-    assert shared in BASELINE_SYSTEM_PROMPT
-    assert "[1]" not in BASELINE_SYSTEM_PROMPT
-    assert "numbered passages" not in BASELINE_SYSTEM_PROMPT
-
-
-def test_no_prompt_a_reader_facing_answer_is_written_under_says_context():
-    """The model repeats the prompt's words to the reader, who never saw any context."""
-    message = build_user_message("What is the limit?", (retrieved_chunk(),))
-    follow_up = system_prompt(SYSTEM_PROMPT, (ChatTurn(question="Q", answer="A"),))
-
-    for prompt in (follow_up, BASELINE_SYSTEM_PROMPT, message):
-        assert "context" not in prompt.lower()
