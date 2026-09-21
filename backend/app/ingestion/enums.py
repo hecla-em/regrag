@@ -2,6 +2,10 @@
 
 from enum import StrEnum
 
+CITED_TOPIC = "cited"
+"""The topic a hop document carries: an act the corpus cites belongs to no topic of its own,
+and several are cited by more than one."""
+
 
 class IngestRunStatus(StrEnum):
     """How a run ended, and so how much of its report can be trusted.

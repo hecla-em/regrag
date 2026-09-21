@@ -4,6 +4,7 @@ from typing import Any
 
 from app.chat.enums import ChatOutcome
 from app.chat.models import ChatState
+from app.core.config import config
 from app.core.llm.models import Usage
 from app.core.models import FrozenModel
 from app.evals.dataset.models import CaseSelection, EvalCase
@@ -143,6 +144,27 @@ class EvalRunResult(FrozenModel):
     results: tuple[EvalCaseResult, ...]
 
     @property
+    def judgeable(self) -> int:
+        """The cases the judge was owed a verdict on: only an answered one is judged, a gate
+        refusal being scored by the gate metrics and an errored case by nothing."""
+        return sum(r.state.outcome is ChatOutcome.DONE for r in self.results)
+
+    @property
+    def judged_coverage(self) -> float | None:
+        """The share of those the judge came back on, or None when it was off or none was
+        answered, which is unmeasured rather than complete."""
+        if not self.judged or not self.judgeable:
+            return None
+        return self.metrics.judge.judged / self.judgeable
+
+    @property
+    def judged_too_few(self) -> bool:
+        """The judge came back on too small a share for the scores to mean what a full run's
+        mean: they are a different subset, not a worse result."""
+        coverage = self.judged_coverage
+        return coverage is not None and coverage < config.EVAL_JUDGE_MIN_COVERAGE
+
+    @property
     def judge_never_answered(self) -> bool:
         """The judge was on and some case was answered, yet no verdict came back: every
         judge call failed, which a misnamed judge model does silently."""
@@ -185,5 +207,12 @@ class EvalRunResult(FrozenModel):
             blocks.append(
                 "the judge returned no verdict on any answered case: check EVAL_JUDGE_MODEL "
                 "and the warnings above"
+            )
+        elif self.judged_too_few:
+            blocks.append(
+                f"the judge came back on {self.metrics.judge.judged} of {self.judgeable} "
+                f"answered cases ({self.judged_coverage:.0%}, under "
+                f"{config.EVAL_JUDGE_MIN_COVERAGE:.0%}): the judged scores above are that "
+                "subset's, and do not compare with a full run"
             )
         return "\n\n".join(blocks)

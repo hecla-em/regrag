@@ -1,5 +1,7 @@
 """CELEX ids: the EU's identity scheme for legal acts, read and written in one place."""
 
+import re
+
 from app.core.clock import utc_today
 
 LEGISLATION = "3"
@@ -12,6 +14,11 @@ YEAR_FIRST_KINDS = ("directive", "decision")
 """Numbered year-first in every era; only regulations ever led with the act number."""
 YEAR_FIRST_SCHEME = 2015
 """The year from which regulations too are numbered year-first."""
+CITED_NAME_RE = re.compile(
+    r"^(?:(?:Commission|Council) )?(?:(?:Implementing|Delegated) )?"
+    r"(?P<name>(?:Regulation|Directive|Decision) (?:\([^)]+\) )?(?:No )?\d+/\d+(?:/[A-Za-z]+)?)\b"
+)
+"""The citation an official title opens with, less the author: 'Directive 2003/87/EC'."""
 
 
 def expand_year(value: str) -> str:
@@ -61,12 +68,16 @@ def is_legislation(celex: str) -> bool:
     )
 
 
-def format_act_name(celex: str) -> str:
+def format_act_name(celex: str, title: str | None = None) -> str:
     """An act as it is cited: 'Regulation (EU) 2023/1805'. Acts numbered before the year-first
-    scheme are left as their id, since naming them needs the treaty era they were made under."""
-    if not is_legislation(celex) or int(celex[1:5]) < YEAR_FIRST_SCHEME:
+    scheme need the treaty era they were made under, so are read off their official title,
+    and left as their id without one."""
+    if not is_legislation(celex):
         return celex
-    return f"{KIND_NAMES[celex[5]]} (EU) {celex[1:5]}/{int(celex[6:])}"
+    if int(celex[1:5]) >= YEAR_FIRST_SCHEME:
+        return f"{KIND_NAMES[celex[5]]} (EU) {celex[1:5]}/{int(celex[6:])}"
+    cited = CITED_NAME_RE.match(title or "")
+    return cited.group("name") if cited else celex
 
 
 def consolidated_stem(celex: str) -> str:

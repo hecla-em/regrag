@@ -336,6 +336,8 @@ class IngestConfig(BaseConfig):
     TOPIC_EXCLUDED_BASIS_ARTICLES: the same kind of pattern, for acts the corpus leaves out. ETS
         drops the lists of shipping companies adopted under Article 3gf(2), 2024/411 and any
         that replace it: 200k characters of names that crowd out the rules.
+    FOLLOW_CITED_ACTS: whether a run makes a second discovery pass over the acts the topics'
+        own text cites a division of.
     CRAWL_DELAYS: seconds between requests per host; eur-lex publishes 10 in robots.txt.
     MAX_DROP_RATIO: fraction of the previous corpus that may vanish before discovery aborts.
     MIN_SUSPICIOUS_DROPS: dropped documents below this never abort, however small the corpus.
@@ -353,6 +355,7 @@ class IngestConfig(BaseConfig):
     }
     TOPIC_BASIS_ARTICLES: dict[str, str] = {"ets": r"A03g[a-g]|A12P3-[b-e]"}
     TOPIC_EXCLUDED_BASIS_ARTICLES: dict[str, str] = {"ets": r"A03gfP2"}
+    FOLLOW_CITED_ACTS: bool = True
     CRAWL_DELAYS: dict[str, float] = {"eur-lex.europa.eu": 10.0, "publications.europa.eu": 1.0}
     MAX_DROP_RATIO: float = 0.2
     MIN_SUSPICIOUS_DROPS: int = 3
@@ -419,9 +422,14 @@ class JudgeConfig(BaseConfig):
     EVAL_JUDGE_MAX_TOKENS: the cap on one verdict, well above the answer's, since a verdict
         is critique first. One cut short parses as nothing and leaves the case unjudged.
     EVAL_JUDGE_CONCURRENCY: cases judged at once; llm_retry absorbs the rate limits.
+    EVAL_JUDGE_MIN_COVERAGE: the share of answered cases the judge must come back on before
+        a run counts. Below it the scores are drawn from a subset and do not compare with a
+        full run, so the run is printed and stored but fails. A handful of cases lost to a
+        provider is tolerable; a fifth of the dataset is a different measurement.
     """
 
     EVAL_JUDGE_MODEL: str = "anthropic/claude-sonnet-5"
+    EVAL_JUDGE_MIN_COVERAGE: float = Field(default=0.9, gt=0.0, le=1.0)
     EVAL_JUDGE_TIMEOUT: int = 120
     EVAL_JUDGE_MAX_TOKENS: int = 8192
     EVAL_JUDGE_CONCURRENCY: int = 4

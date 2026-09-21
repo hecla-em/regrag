@@ -51,7 +51,9 @@ def test_unknown_topic_rejected(fake_ingest, capsys):
 def test_prints_summary_and_exits_zero_when_clean(fake_ingest, capsys):
     _, report = fake_ingest
     report.documents.append(
-        DocumentOutcome(celex="32023R1805", change=DocChange.NEW, chunks=ChunkCounts(added=3))
+        DocumentOutcome(
+            celex="32023R1805", topic="mrv", change=DocChange.NEW, chunks=ChunkCounts(added=3)
+        )
     )
     assert main([]) == 0
     assert "1 new" in capsys.readouterr().out
@@ -62,6 +64,7 @@ def test_exits_nonzero_when_documents_failed(fake_ingest, capsys):
     report.documents.append(
         DocumentOutcome(
             celex="32023R2917",
+            topic="mrv",
             failed=Stage.FETCH,
             error="ConnectionError: no fetchable HTML",
         )
@@ -75,6 +78,7 @@ def test_exits_nonzero_when_a_document_failed_to_parse(fake_ingest, capsys):
     report.documents.append(
         DocumentOutcome(
             celex="32023R2449",
+            topic="mrv",
             failed=Stage.PARSE,
             error="ParseError: unrecognised dialect",
         )
@@ -106,7 +110,9 @@ def test_a_run_with_failed_documents_checks_in_to_the_nightly_monitor_as_an_erro
 ):
     """Nothing raises when a document fails, so the check-in has to follow the exit code."""
     _, report = fake_ingest
-    report.documents.append(DocumentOutcome(celex="32023R2917", failed=Stage.FETCH, error="x"))
+    report.documents.append(
+        DocumentOutcome(celex="32023R2917", topic="mrv", failed=Stage.FETCH, error="x")
+    )
 
     assert main([]) == 1
 
