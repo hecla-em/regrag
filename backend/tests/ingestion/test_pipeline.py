@@ -8,6 +8,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
 
 from app.core.config import config
+from app.core.llm.errors import LLMError
 from app.core.storage import StorageError
 from app.ingestion import pipeline
 from app.ingestion.celex import consolidated_stem
@@ -103,6 +104,8 @@ async def test_unchanged_corpus_keeps_the_previous_corpus_version(
 async def test_changed_document_produces_a_new_corpus_version(
     db_session, local_store, corpus_client
 ):
+    """The new consolidation is fetched in one request, its chunks reconciled, the corpus
+    version moved on."""
     first = await ingest_mrv(db_session, local_store, corpus_client)
 
     consolidated = httpx.Response(
@@ -112,12 +115,18 @@ async def test_changed_document_produces_a_new_corpus_version(
             binding("32023R2449", force="1"),
         ),
     )
-    client, _ = corpus_client(
+    amended = SMALL_ACT.replace("report them annually", "report them every quarter")
+    client, calls = corpus_client(
         {"mrv": consolidated},
-        mrv_docs({"02015R0757-20250101": small_act()}),
+        mrv_docs({"02015R0757-20250101": httpx.Response(200, content=amended.encode())}),
     )
     second = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
 
+    assert calls == ["02015R0757-20250101"]
+    assert committed(second, DocChange.UPDATED) == ["32015R0757"]
+    assert (second.chunks.added, second.chunks.deleted) == (1, 1)
+    rows = await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"]))
+    assert rows["32015R0757"].resolved_celex == "02015R0757-20250101"
     versions = [(await db_session.get(IngestRun, r.run_id)).corpus_version for r in (first, second)]
     assert versions[0] != versions[1]
 
@@ -264,9 +273,11 @@ async def test_second_identical_run_adds_and_removes_nothing(
     await ingest(db_session, client=client, topics=["mrv"], store=local_store)
     before = {row.id for row in await chunk_rows(db_session)}
 
-    client, _ = corpus_client({"mrv": MRV_SPARQL}, docs)
+    client, calls = corpus_client({"mrv": MRV_SPARQL}, docs)
     second = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
 
+    assert calls == []
+    assert committed(second, DocChange.REUSED) == ["32015R0757", "32023R2449"]
     assert (second.chunks.added, second.chunks.deleted) == (0, 0)
     assert second.chunks.kept == len(before)
     assert {row.id for row in await chunk_rows(db_session)} == before
@@ -781,6 +792,71 @@ async def test_a_run_that_dies_in_embed_keeps_its_documents_and_chunks(
     assert second.embed.embedded == stored
     assert second.chunks.added == 0
     assert second.ok
+
+
+async def test_a_failed_embed_batch_fails_the_run_and_the_next_run_fills_the_gap(
+    db_session, local_store, corpus_client, embeddings
+):
+    """A batch the provider refuses is recorded, not raised, so nothing else marks the run."""
+    embeddings.errors[1] = LLMError("embedding call failed")
+
+    first = await ingest_mrv(db_session, local_store, corpus_client)
+
+    run = await db_session.get(IngestRun, first.run_id)
+    assert run.status is IngestRunStatus.FAILED
+    assert list(first.embed.failed) == ["32015R0757"]
+    lost = first.embed.failed["32015R0757"].chunks
+
+    client, calls = corpus_client({"mrv": MRV_SPARQL}, mrv_docs())
+    second = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert calls == []
+    assert second.embed.embedded == lost
+    assert second.ok
+
+
+async def test_a_consolidation_cellar_will_not_serve_is_not_asked_for_again(
+    db_session, local_store, corpus_client
+):
+    """An act with a consolidated id but no consolidated text falls back to the act itself.
+    Reuse compares the candidates, not the version served, or the fallback would be denied
+    every night and the corpus downloaded again for as long as CELLAR serves no consolidation."""
+    sparql = httpx.Response(
+        200,
+        json=payload(
+            binding("32015R0757", force="1", cons="02015R0757-20250101"),
+            binding("32023R2449", force="1"),
+        ),
+    )
+    unserved = {"02015R0757-20250101": httpx.Response(404, text="gone")}
+    await ingest_mrv(db_session, local_store, corpus_client, sparql, mrv_docs(unserved))
+
+    client, calls = corpus_client({"mrv": sparql}, mrv_docs(unserved))
+    second = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert calls == []
+    assert committed(second, DocChange.REUSED) == ["32015R0757", "32023R2449"]
+
+
+async def test_a_store_outage_fails_the_run_rather_than_refetching_the_corpus(
+    db_session, local_store, corpus_client, monkeypatch
+):
+    """Every document's bytes unreadable at once is the store, not the corpus: nothing is
+    downloaded again, and nothing already stored is pruned."""
+    await ingest_mrv(db_session, local_store, corpus_client)
+    before = {row.id for row in await chunk_rows(db_session)}
+
+    def outage(key: str) -> bytes:
+        raise StorageError("get", key, "connection reset by peer")
+
+    monkeypatch.setattr(local_store, "get", outage)
+    client, calls = corpus_client({"mrv": MRV_SPARQL}, mrv_docs())
+    second = await ingest(db_session, client=client, topics=["mrv"], store=local_store)
+
+    assert calls == []
+    assert sorted(second.failures[Stage.FETCH]) == ["32015R0757", "32023R2449"]
+    assert not second.ok
+    assert {row.id for row in await chunk_rows(db_session)} == before
 
 
 async def test_a_run_where_every_document_fails_still_reports_the_later_stages(

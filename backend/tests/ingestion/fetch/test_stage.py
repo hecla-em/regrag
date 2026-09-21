@@ -3,7 +3,6 @@
 import httpx
 import pytest
 
-from app.core.storage import StorageError
 from app.ingestion.discover.stage import discover_topics
 from app.ingestion.enums import DocChange, IngestRunStatus
 from app.ingestion.exceptions import DocumentFailed
@@ -73,60 +72,6 @@ def celexes(changes: dict[str, DocChange], change: DocChange) -> list[str]:
     return sorted(celex for celex, value in changes.items() if value is change)
 
 
-async def test_a_consolidation_eurlex_will_not_serve_is_not_asked_for_again(
-    db_session, local_store, corpus_client
-):
-    """An act with a consolidated id but no consolidated text: run 1 falls back to the act.
-
-    Comparing the stored version against the candidate would deny the match every run and
-    re-download the whole corpus for as long as CELLAR serves no consolidation.
-    """
-    sparql = {
-        "mrv": httpx.Response(
-            200,
-            json=payload(
-                binding("32015R0757", force="1", cons="02015R0757-20250101"),
-                binding("32023R2449", force="1"),
-            ),
-        )
-    }
-    docs = mrv_docs({"02015R0757-20250101": httpx.Response(404, text="gone")})
-    client, _ = corpus_client(sparql, docs)
-    await fetch(db_session, client, ["mrv"], local_store)
-
-    client, calls = corpus_client(sparql, docs)
-    changes, _, _ = await fetch(db_session, client, ["mrv"], local_store)
-
-    assert calls == []
-    assert celexes(changes, DocChange.REUSED) == ["32015R0757", "32023R2449"]
-
-
-async def test_new_consolidation_is_updated_and_redownloaded(
-    db_session, local_store, corpus_client
-):
-    """One request, not two: the download hands back the bytes it already pulled."""
-    docs = mrv_docs({"32015R0757": httpx.Response(200, content=b"<html>v1</html>")})
-    client, _ = corpus_client({"mrv": MRV_SPARQL}, docs)
-    await fetch(db_session, client, ["mrv"], local_store)
-
-    consolidated = httpx.Response(
-        200,
-        json=payload(
-            binding("32015R0757", force="1", cons="02015R0757-20250101"),
-            binding("32023R2449", force="1"),
-        ),
-    )
-    docs = mrv_docs({"02015R0757-20250101": httpx.Response(200, content=b"<html>v2</html>")})
-    client, calls = corpus_client({"mrv": consolidated}, docs)
-    changes, _, documents = await fetch(db_session, client, ["mrv"], local_store)
-
-    assert celexes(changes, DocChange.UPDATED) == ["32015R0757"]
-    assert calls == ["02015R0757-20250101"]
-    assert html_of(documents, "32015R0757", local_store) == b"<html>v2</html>"
-    rows = await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"]))
-    assert rows["32015R0757"].resolved_celex == "02015R0757-20250101"
-
-
 async def test_still_rendering_doc_fails_leaving_the_parsed_bytes_readable(
     db_session, local_store, corpus_client
 ):
@@ -151,22 +96,3 @@ async def test_still_rendering_doc_fails_leaving_the_parsed_bytes_readable(
     assert "32015R0757" in failed
     assert html_of(first, "32015R0757", local_store) == b"<html>mrv</html>"
     assert celexes(changes, DocChange.REUSED) == ["32023R2449"]
-
-
-async def test_a_store_outage_fails_the_run_rather_than_refetching_the_corpus(
-    db_session, local_store, corpus_client, monkeypatch
-):
-    """Every document's bytes become unreadable at once: that is the store, not the corpus."""
-    client, _ = corpus_client({"mrv": MRV_SPARQL}, mrv_docs())
-    await fetch(db_session, client, ["mrv"], local_store)
-
-    def outage(key: str) -> bytes:
-        raise StorageError("get", key, "connection reset by peer")
-
-    monkeypatch.setattr(local_store, "get", outage)
-    client, calls = corpus_client({"mrv": MRV_SPARQL}, mrv_docs())
-    changes, failed, _ = await fetch(db_session, client, ["mrv"], local_store)
-
-    assert sorted(failed) == ["32015R0757", "32023R2449"]
-    assert changes == {}
-    assert calls == []
