@@ -197,6 +197,19 @@ class RateLimitConfig(BaseConfig):
     RATE_LIMIT_WINDOW_SECONDS: int = Field(default=60, ge=1)
 
 
+class TurnstileConfig(BaseConfig):
+    """Cloudflare Turnstile, proving a request came from a browser rather than a script.
+
+    TURNSTILE_ENABLED: the check's off switch, off so dev, tests and evals need no token.
+    TURNSTILE_SECRET_KEY: the widget's secret half. Empty lets every request through.
+    TURNSTILE_TIMEOUT: seconds to wait for siteverify before letting the request through.
+    """
+
+    TURNSTILE_ENABLED: bool = False
+    TURNSTILE_SECRET_KEY: SecretStr = SecretStr("")
+    TURNSTILE_TIMEOUT: float = Field(default=5.0, gt=0.0)
+
+
 EMBED_DIMENSIONS = 1024
 """Width of the document_chunks.embedding column: not a setting, changing it needs a migration."""
 
@@ -421,6 +434,7 @@ class Config(
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    TurnstileConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,
@@ -443,6 +457,7 @@ _CONFIG_SECTIONS = (
     PostgresConfig,
     RedisConfig,
     RateLimitConfig,
+    TurnstileConfig,
     ProviderConfig,
     EmbeddingConfig,
     ChatConfig,

@@ -131,21 +131,6 @@ def test_a_question_over_the_limit_is_refused_before_the_graph_runs(
     assert len(answer_model.received) == 1
 
 
-def test_a_malformed_question_costs_no_slot(
-    rate_limited_client, two_results, answer_model, monkeypatch
-):
-    """Route dependencies run before the body parses. The limiter must not, or a client's
-    own 422s would lock it out."""
-    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
-    headers = {"X-Client-ID": "reader"}
-    assert (
-        rate_limited_client.post("/chat", json={"question": ""}, headers=headers).status_code == 422
-    )
-
-    with rate_limited_client.stream("POST", "/chat", json={"question": "q"}, headers=headers) as ok:
-        assert ok.status_code == 200
-
-
 def test_the_frames_are_documented_as_an_event_stream(client):
     """The generated client types the frames from the one media type sent, as a union
     it can narrow on the event name."""

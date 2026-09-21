@@ -164,7 +164,7 @@ export interface components {
          * @description The names core reports its errors under; a capability declares its own beside its errors.
          * @enum {string}
          */
-        ErrorCode: "ValidationError" | "HTTPException" | "IntegrityError" | "InternalServerError" | "NotFoundError" | "RateLimitedError" | "StorageError" | "ObjectNotFoundError" | "LLMError";
+        ErrorCode: "ValidationError" | "HTTPException" | "IntegrityError" | "InternalServerError" | "NotFoundError" | "RateLimitedError" | "TurnstileFailedError" | "StorageError" | "ObjectNotFoundError" | "LLMError";
         /**
          * ErrorEvent
          * @description The last event of a failed stream, in the app's one error shape.
@@ -311,6 +311,7 @@ export interface operations {
             query?: never;
             header?: {
                 "x-client-id"?: string | null;
+                "cf-turnstile-response"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -328,6 +329,15 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["SourcesEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["TextEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Validation Error */

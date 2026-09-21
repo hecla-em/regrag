@@ -15,6 +15,7 @@ from app.core.logger import setup_logging
 from app.core.middleware import register_middleware
 from app.core.redis import redis_client
 from app.core.sentry import configure_sentry
+from app.core.turnstile import turnstile_client
 
 setup_logging()
 configure_sentry()
@@ -28,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         await async_engine.dispose()
         await redis_client.aclose()
+        await turnstile_client.aclose()
 
 
 def configure_app(app: FastAPI) -> None:

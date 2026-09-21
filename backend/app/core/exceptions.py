@@ -28,6 +28,7 @@ class ErrorCode(StrEnum):
     INTERNAL = "InternalServerError"
     NOT_FOUND = "NotFoundError"
     RATE_LIMITED = "RateLimitedError"
+    TURNSTILE_FAILED = "TurnstileFailedError"
     STORAGE = "StorageError"
     OBJECT_NOT_FOUND = "ObjectNotFoundError"
     LLM = "LLMError"
@@ -81,6 +82,17 @@ class RateLimitedError(DomainError):
             f"Too many questions. Try again in {retry_after} seconds",
             headers={"Retry-After": str(retry_after)},
         )
+
+
+class TurnstileFailedError(DomainError):
+    """The question carried no browser check Cloudflare would vouch for: no token, one
+    already spent, or one minted somewhere other than the chat page."""
+
+    status_code = status.HTTP_403_FORBIDDEN
+    code = ErrorCode.TURNSTILE_FAILED
+
+    def __init__(self) -> None:
+        super().__init__("Could not verify this browser. Reload the page and ask again")
 
 
 def describe(exc: Exception) -> tuple[StrEnum, str]:
