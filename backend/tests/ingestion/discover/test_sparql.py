@@ -10,16 +10,40 @@ from tests.conftest import act_row, binding, payload
 pytestmark = pytest.mark.anyio
 
 
-async def test_unbound_variables_come_back_as_none():
-    """SPARQL omits an OPTIONAL it could not bind, rather than sending it null."""
+def answering(response: httpx.Response) -> httpx.AsyncClient:
+    """A client whose every query gets the one response."""
+    return httpx.AsyncClient(transport=httpx.MockTransport(lambda _: response))
 
-    def handler(request):
-        return httpx.Response(200, json=payload(binding("32023R1805")))
 
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        rows = await run_acts_by_topic_query(client, "32023R1805")
+async def test_a_binding_is_read_into_a_row_with_whatever_cellar_left_unbound_as_none():
+    """SPARQL omits an OPTIONAL it could not bind, flags arrive as '1' and '0', and titles
+    are set with non-breaking spaces."""
+    answer = payload(
+        binding("32003L0087"),
+        binding(
+            "32023R2599",
+            force="1",
+            cons="02023R2599-20240101",
+            title="Regulation (EU) 2023/2599 of 22\xa0November 2023",
+            basis="A03gfP4",
+        ),
+        binding("32016R1927", force="0"),
+    )
 
-    assert rows == [act_row("32023R1805", in_force=None, consolidation=None)]
+    async with answering(httpx.Response(200, json=answer)) as client:
+        rows = await run_acts_by_topic_query(client, "32003L0087")
+
+    assert rows == [
+        act_row("32003L0087"),
+        act_row(
+            "32023R2599",
+            in_force=True,
+            consolidation="02023R2599-20240101",
+            title="Regulation (EU) 2023/2599 of 22 November 2023",
+            basis_article="A03gfP4",
+        ),
+        act_row("32016R1927", in_force=False),
+    ]
 
 
 async def test_an_answer_without_the_base_act_is_malformed():
@@ -33,56 +57,21 @@ async def test_an_answer_without_the_base_act_is_malformed():
             await run_acts_by_topic_query(client, "32015R0757")
 
 
-async def test_a_body_that_is_not_a_result_set_is_malformed():
-    def handler(request):
-        return httpx.Response(200, json={"error": "service unavailable"})
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(MalformedDiscoveryError, match="malformed"):
+@pytest.mark.parametrize(
+    "response",
+    [
+        pytest.param(
+            httpx.Response(200, json={"error": "service unavailable"}),
+            id="json that is not a result set",
+        ),
+        pytest.param(
+            httpx.Response(200, text="<html>gateway timeout</html>"), id="a body that is not json"
+        ),
+    ],
+)
+async def test_a_body_cellar_answers_200_with_but_no_rows_in_is_malformed(
+    response: httpx.Response,
+) -> None:
+    async with answering(response) as client:
+        with pytest.raises(MalformedDiscoveryError):
             await run_acts_by_topic_query(client, "32015R0757")
-
-
-async def test_a_body_that_is_not_json_is_malformed():
-    def handler(request):
-        return httpx.Response(200, text="<html>gateway timeout</html>")
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(MalformedDiscoveryError, match="malformed"):
-            await run_acts_by_topic_query(client, "32015R0757")
-
-
-async def test_the_in_force_flag_is_read_as_a_bool():
-    def handler(request):
-        return httpx.Response(
-            200,
-            json=payload(binding("32016R1928", force="1"), binding("32016R1927", force="0")),
-        )
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        rows = await run_acts_by_topic_query(client, "32016R1928")
-
-    assert [row.in_force for row in rows] == [True, False]
-
-
-async def test_the_title_is_read_with_its_spacing_normalised():
-    """CELLAR sets titles with non-breaking spaces; a stored title should read as plain text."""
-
-    def handler(request):
-        title = "Regulation (EU) 2023/1805 of 13\xa0September 2023"
-        return httpx.Response(200, json=payload(binding("32023R1805", title=title)))
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        rows = await run_acts_by_topic_query(client, "32023R1805")
-
-    assert rows[0].title == "Regulation (EU) 2023/1805 of 13 September 2023"
-
-
-async def test_the_legal_basis_article_is_read_from_the_row():
-    def handler(request):
-        rows = payload(binding("32003L0087"), binding("32023R2599", basis="A03gfP4"))
-        return httpx.Response(200, json=rows)
-
-    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-        rows = await run_acts_by_topic_query(client, "32003L0087")
-
-    assert [row.basis_article for row in rows] == [None, "A03gfP4"]

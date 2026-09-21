@@ -1,0 +1,594 @@
+[
+  {
+    "article": "4",
+    "annex": null,
+    "title": "GHG intensity limit on energy used on board by a ship",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The yearly average GHG intensity of the energy used on board by a ship during a reporting period shall not exceed the limit set out in paragraph 2.",
+    "paragraph": "1",
+    "part": 1,
+    "parts": 1,
+    "position": 0,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(1)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "GHG intensity limit on energy used on board by a ship",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The limit referred to in paragraph 1 shall be calculated by reducing the reference value of 91,16 grams of CO2 equivalent per MJ by the following percentage:\n— 2 % from 1 January 2025;\n— 6 % from 1 January 2030;\n— 14,5 % from 1 January 2035;\n— 31 % from 1 January 2040;\n— 62 % from 1 January 2045;\n— 80 % from 1 January 2050.",
+    "paragraph": "2",
+    "part": 1,
+    "parts": 1,
+    "position": 1,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(2)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "GHG intensity limit on energy used on board by a ship",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The GHG intensity of the energy used on board by a ship shall be calculated as the amount of GHG emissions per unit of energy in accordance with the methodology set out in Annex I.",
+    "paragraph": "3",
+    "part": 1,
+    "parts": 1,
+    "position": 2,
+    "points": [],
+    "references": [
+      {
+        "raw": "Annex I",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "I"
+      }
+    ],
+    "citation": "Article 4(3)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "GHG intensity limit on energy used on board by a ship",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The Commission is empowered to adopt delegated acts in accordance with Article 28 to amend Annex II in order to include the well-to-wake emission factors related to any new sources of energy or to adapt the existing emission factors to ensure consistency with future international standards or Union legal acts in the field of energy, in accordance with the best available scientific and technical knowledge.",
+    "paragraph": "4",
+    "part": 1,
+    "parts": 1,
+    "position": 3,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 28",
+        "instrument": null,
+        "article": "28",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex II",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "II"
+      }
+    ],
+    "citation": "Article 4(4)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "For the calculation of the GHG intensity of the energy used on board by a ship, from 1 January 2025 to 31 December 2033 a multiplier of ‘2’ can be used to reward the ship for the use of RFNBO. The methodology for this calculation is set out in Annex I.",
+    "paragraph": "1",
+    "part": 1,
+    "parts": 1,
+    "position": 4,
+    "points": [],
+    "references": [
+      {
+        "raw": "Annex I",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "I"
+      }
+    ],
+    "citation": "Article 5(1)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The Commission shall monitor, calculate and annually publish, on the basis of the data recorded in the FuelEU database referred to in Article 19 and at the latest 18 months after the end of each reporting period, the share of RFNBO in the yearly energy used on board by ships falling under the scope of this Regulation.",
+    "paragraph": "2",
+    "part": 1,
+    "parts": 1,
+    "position": 5,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 19",
+        "instrument": null,
+        "article": "19",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 5(2)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "If the share of RFNBO referred to in paragraph 2 is less than 1 % for the reporting period 2031, a subtarget of 2 % shall apply for such fuels in the yearly energy used on board by a ship from 1 January 2034, subject to paragraph 5.",
+    "paragraph": "3",
+    "part": 1,
+    "parts": 1,
+    "position": 6,
+    "points": [],
+    "references": [],
+    "citation": "Article 5(3)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Paragraph 3 shall not apply where the monitoring results provided for in paragraph 2 that are available before 1 January 2033 demonstrate that the share referred to in paragraph 2 is more than 2 %.",
+    "paragraph": "4",
+    "part": 1,
+    "parts": 1,
+    "position": 7,
+    "points": [],
+    "references": [],
+    "citation": "Article 5(4)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "If, based on the monitoring activities referred to in paragraph 2 and following the Commission’s assessment, there is evidence of insufficient production capacity and availability of RFNBO to the maritime sector, uneven geographical distribution or a too high price of those fuels, the subtarget provided for in paragraph 3 shall not apply.",
+    "paragraph": "5",
+    "part": 1,
+    "parts": 1,
+    "position": 8,
+    "points": [],
+    "references": [],
+    "citation": "Article 5(5)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The Commission shall adopt implementing acts specifying the criteria for the assessment provided for in paragraph 5 and the method for calculating the factor of price difference between RFNBO and fossil fuels used in cell 14 of the table in Part B of Annex IV. Those implementing acts shall be adopted in accordance with the examination procedure referred to in Article 29(3).",
+    "paragraph": "6",
+    "part": 1,
+    "parts": 1,
+    "position": 9,
+    "points": [],
+    "references": [
+      {
+        "raw": "Annex IV",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "IV"
+      },
+      {
+        "raw": "Article 29(3)",
+        "instrument": null,
+        "article": "29",
+        "paragraph": "3",
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 5(6)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The Commission is empowered to adopt delegated acts in accordance with Article 28 to:\n(a) supplement paragraph 5 of this Article with additional elements;\n(b) inform about the non-applicability of the subtarget referred to in paragraph 3 of this Article, resulting from the monitoring referred to in paragraph 2 of this Article or the assessment referred to in paragraph 5 of this Article.",
+    "paragraph": "7",
+    "part": 1,
+    "parts": 1,
+    "position": 10,
+    "points": [
+      "a",
+      "b"
+    ],
+    "references": [
+      {
+        "raw": "Article 28",
+        "instrument": null,
+        "article": "28",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 5(7)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Where the subtarget referred to in paragraph 3 of this Article applies, the Commission shall adopt, by 31 December 2033, implementing acts to further specify the rules for the application of paragraph 3 of this Article as regards:\n(a) verification and calculation as referred to in Article 16;\n(b) applicable flexibility mechanisms set out in Articles 20 and 21;\n(c) applicable FuelEU penalties as referred to in Article 23 and Annex IV.\nThose implementing acts shall be adopted in accordance with the examination procedure referred to in Article 29(3).",
+    "paragraph": "8",
+    "part": 1,
+    "parts": 1,
+    "position": 11,
+    "points": [
+      "a",
+      "b",
+      "c"
+    ],
+    "references": [
+      {
+        "raw": "Article 16",
+        "instrument": null,
+        "article": "16",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 20",
+        "instrument": null,
+        "article": "20",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 21",
+        "instrument": null,
+        "article": "21",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 23",
+        "instrument": null,
+        "article": "23",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex IV",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "IV"
+      },
+      {
+        "raw": "Article 29(3)",
+        "instrument": null,
+        "article": "29",
+        "paragraph": "3",
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 5(8)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The subtarget referred to in paragraph 3 of this Article, if applicable, shall not apply to a ship which demonstrates that the same share of the yearly energy used on board is met by other fuels that provide equivalent GHG emissions savings and are certified pursuant to Article 10 of this Regulation, excluding biofuels referred to in Part B of Annex IX to Directive (EU) 2018/2001.",
+    "paragraph": "9",
+    "part": 1,
+    "parts": 1,
+    "position": 12,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 10",
+        "instrument": null,
+        "article": "10",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex IX to Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "IX"
+      }
+    ],
+    "citation": "Article 5(9)"
+  },
+  {
+    "article": "5",
+    "annex": null,
+    "title": "Use of Renewable Fuels of Non-Biological Origin",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "This Article shall not apply to the share of yearly energy used on board by ships from OPS.",
+    "paragraph": "10",
+    "part": 1,
+    "parts": 1,
+    "position": 13,
+    "points": [],
+    "references": [],
+    "citation": "Article 5(10)"
+  },
+  {
+    "article": null,
+    "annex": "II",
+    "title": "Default emission factors",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "table",
+    "text": "1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9\n | WtT | TtW\nFuel Class | Pathway name | LCV [formula] | CO2eq WtT [formula] | Fuel Consumer Unit Class | [formula] [formula] | [formula] [formula] | [formula] [formula] | Cslip As % of the mass of the fuel used by the engine\nFossil | HFO ISO 8217 Grades RME to RMK | 0,0405 | 13,5 | ALL ICEs | 3,114 | 0,00005 | 0,00018 | -\nLFO ISO 8217 Grades RMA to RMD | 0,041 | 13,2 | ALL ICEs | 3,151 | 0,00005 | 0,00018 | -",
+    "paragraph": null,
+    "part": 1,
+    "parts": 1,
+    "position": 14,
+    "points": [],
+    "references": [],
+    "citation": "Annex II"
+  },
+  {
+    "article": null,
+    "annex": "II",
+    "title": "Default emission factors",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The default emission factors contained in the table below shall be used for the determination of the GHG intensity index referred to in Annex I of this Regulation, except where companies diverge from those default emission factors in application of Article 10(4) and (5) of this Regulation.\nIn the table below:\n— TBM stands for To Be Measured,\n— N/A stands for Not Available,\n— The dash means not applicable,\n— E is established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V and Part B of Annex VI.\nWhere a cell indicates either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the highest default value of the fuel class in the same column shall be used.\nWhere, for a particular fuel class, all cells in the same column indicate either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the default value of the least favourable fossil fuel pathway shall be used. This rule does not apply to column 9, where TBM or N/A refers to non-available values for the fuel consumer. In case of no default value, a certified value in accordance with Article 10(5) should be used.\nColumn 1 identifies the class of the fuels, namely fossils fuels, liquid biofuels, gaseous biofuels and e-fuels.\nColumn 2 identifies the name or the pathways of the relevant fuels within the class.\nColumn 3 contains the lower calorific value of the fuels in [MJ/g]. For liquid biofuels, values of energy content by weight (lower calorific value, MJ/kg) as set out in Annex III to Directive (EU) 2018/2001 shall be converted in [MJ/g] and used.\nColumn 4 contains the WtT GHG emission factors in [gCO2eq/MJ]:",
+    "paragraph": null,
+    "part": 1,
+    "parts": 3,
+    "position": 15,
+    "points": [],
+    "references": [
+      {
+        "raw": "Annex I",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "I"
+      },
+      {
+        "raw": "Article 10(4)",
+        "instrument": null,
+        "article": "10",
+        "paragraph": "4",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex V",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "V"
+      },
+      {
+        "raw": "Annex VI",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "VI"
+      },
+      {
+        "raw": "Article 10",
+        "instrument": null,
+        "article": "10",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 10(5)",
+        "instrument": null,
+        "article": "10",
+        "paragraph": "5",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex III to Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "III"
+      },
+      {
+        "raw": "Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Annex II"
+  },
+  {
+    "article": null,
+    "annex": "II",
+    "title": "Default emission factors",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "(a) For liquid biofuels, the default values shall be calculated by using the values of E established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V to that Directive for all liquid biofuels except bio-LNG and Part B of Annex VI to that Directive for bio-LNG, and on the basis of default values related to the particular biofuel used as a transport fuel and its production pathway, laid down in that Directive, Parts D and E of Annex V to that Directive for all liquid biofuels except bio-LNG and in Part D of Annex VI to that Directive for bio-LNG. However, the values of E need to be adjusted by subtracting the ratio of the values contained in column 6 (Cf_CO2) and column 3 (LCV). This is required under this Regulation, which separates the WtT and the TtW calculations, to avoid double counting of emissions;\n(b) For RFNBO and other fuels not referred to in point (a) to be taken into account for the purpose referred to in Article 4(1) of this Regulation, default values are to be either calculated by using the methodology of the delegated act referred to in Article 28(5) of Directive (EU) 2018/2001, or, if applicable, a similar methodology if defined under a Union legal act concerning the internal markets in renewable and natural gases and in hydrogen, pursuant to Article 10(1) and (2) of this Regulation.\nColumn 5 identifies the main types/classes of fuel consumer units such as 2 and 4 strokes Internal Combustion Engines (ICE) Diesel or Otto cycle, Lean-Burn Spark-Ignited (LBSI) engines, fuel cells, etc.\nColumn 6 contains the emission factor Cf for CO2 in [gCO2/gfuel]. Emission factors values as specified in Regulation (EU) 2015/757 shall be used. For all those fuels not contained in Regulation (EU) 2015/757, the default values are specified in the table.\nColumn 7 contains the emission factor Cf for methane in [gCH4/gfuel]. For LNG fuels, Cf for methane are set to zero.",
+    "paragraph": null,
+    "part": 2,
+    "parts": 3,
+    "position": 16,
+    "points": [
+      "a",
+      "b"
+    ],
+    "references": [
+      {
+        "raw": "Annex V",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "V"
+      },
+      {
+        "raw": "Annex VI",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "VI"
+      },
+      {
+        "raw": "Article 4(1)",
+        "instrument": null,
+        "article": "4",
+        "paragraph": "1",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 28(5) of Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": "28",
+        "paragraph": "5",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 10(1)",
+        "instrument": null,
+        "article": "10",
+        "paragraph": "1",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Regulation (EU) 2015/757",
+        "instrument": "32015R0757",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Annex II"
+  },
+  {
+    "article": null,
+    "annex": "II",
+    "title": "Default emission factors",
+    "heading_path": [],
+    "celex": "32023R1805",
+    "topic": "fueleu",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Column 8 contains the emission factor Cf for nitrous oxide in [gN2O/gfuel].\nColumn 9 identifies the part of fuel lost as fugitive and slipped emissions (Cslip) measured as % of the mass of fuel used by the specific fuel consumer unit. For fuels such as LNG for which the fugitive and slipped emissions exist, the amount of fugitive and slipped emissions as presented in the table is expressed in % of the mass of fuel used (Column 9). The values of Cslip in the table are calculated at 50 % of the full engine load.",
+    "paragraph": null,
+    "part": 3,
+    "parts": 3,
+    "position": 17,
+    "points": [],
+    "references": [],
+    "citation": "Annex II"
+  }
+]

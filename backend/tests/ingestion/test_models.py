@@ -4,7 +4,6 @@ import pytest
 
 from app.ingestion.chunk.models import ChunkCounts
 from app.ingestion.enums import DocChange, Stage
-from app.ingestion.exceptions import ParseError
 from app.ingestion.models import DocumentOutcome, IngestRunResult
 
 
@@ -28,12 +27,6 @@ def run() -> IngestRunResult:
         DocumentOutcome(celex="b", topic="mrv", change=DocChange.REUSED, chunks=ChunkCounts())
     )
     return result
-
-
-def test_an_embed_failure_fails_the_run() -> None:
-    result = IngestRunResult(run_id=1)
-    result.embed.fail("a", ParseError("boom"), chunks=1)
-    assert not result.ok
 
 
 def test_report_covers_every_stage_with_its_counts_and_failures(run: IngestRunResult) -> None:

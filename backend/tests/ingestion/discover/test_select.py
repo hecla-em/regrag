@@ -1,52 +1,79 @@
 """Which acts belong in the corpus, and at what version."""
 
-from app.ingestion.discover.select import (
-    exclude_acts_by_basis_article,
-    extract_candidate_acts,
-    filter_acts_by_basis_article,
-    select_documents,
-)
+import pytest
+
+from app.ingestion.discover.models import ActsQueryRow, CandidateAct
+from app.ingestion.discover.select import extract_candidate_acts, select_documents
 from tests.conftest import act_row
 
-
-def test_extract_candidate_acts_folds_every_row_for_one_celex():
-    rows = [
-        act_row("32015R0757", in_force=True, consolidation="02015R0757-20240101"),
-        act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101"),
-    ]
-    acts = extract_candidate_acts(rows)
-    assert len(acts) == 1
-    assert acts[0].consolidations == frozenset({"02015R0757-20240101", "02015R0757-20250101"})
-    assert acts[0].in_force is True
+MRV, MRV_2024, MRV_2025 = "32015R0757", "02015R0757-20240101", "02015R0757-20250101"
+ETS = "32003L0087"
 
 
-def test_extract_candidate_acts_groups_interleaved_rows_by_celex():
-    rows = [
-        act_row("32023R2449", in_force=True),
-        act_row("32015R0757", in_force=True, consolidation="02015R0757-20240101"),
-        act_row("32023R2449", in_force=True, consolidation="02023R2449-20250101"),
-    ]
-    acts = extract_candidate_acts(rows)
-    assert [act.celex for act in acts] == ["32015R0757", "32023R2449"]
-    assert acts[1].consolidations == frozenset({"02023R2449-20250101"})
-
-
-def test_extract_candidate_acts_carries_the_title_every_row_repeats():
-    rows = [
-        act_row("32015R0757", in_force=True, consolidation="02015R0757-20240101", title="MRV"),
-        act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101", title="MRV"),
-    ]
-    assert extract_candidate_acts(rows)[0].title == "MRV"
-
-
-def test_extract_candidate_acts_keeps_an_act_that_has_no_consolidations():
-    acts = extract_candidate_acts([act_row("32023R2449", in_force=True)])
-    assert acts[0].consolidations == frozenset()
-
-
-def test_extract_candidate_acts_keeps_a_missing_flag_distinct_from_a_false_one():
-    acts = extract_candidate_acts([act_row("32016R1927", in_force=False), act_row("52024IP0025")])
-    assert [act.in_force for act in acts] == [False, None]
+@pytest.mark.parametrize(
+    ("rows", "acts"),
+    [
+        pytest.param(
+            [
+                act_row("32023R2449", in_force=True),
+                act_row(MRV, in_force=True, consolidation=MRV_2024),
+                act_row("32023R2449", in_force=True, consolidation="02023R2449-20250101"),
+            ],
+            [
+                CandidateAct(celex=MRV, in_force=True, consolidations=frozenset({MRV_2024})),
+                CandidateAct(
+                    celex="32023R2449",
+                    in_force=True,
+                    consolidations=frozenset({"02023R2449-20250101"}),
+                ),
+            ],
+            id="interleaved rows are grouped by celex",
+        ),
+        pytest.param(
+            [
+                act_row(MRV, in_force=True, consolidation=MRV_2024, title="MRV"),
+                act_row(MRV, in_force=True, consolidation=MRV_2025, title="MRV"),
+            ],
+            [
+                CandidateAct(
+                    celex=MRV,
+                    in_force=True,
+                    consolidations=frozenset({MRV_2024, MRV_2025}),
+                    title="MRV",
+                )
+            ],
+            id="every consolidation is collected under the flag and title each row repeats",
+        ),
+        pytest.param(
+            [
+                act_row("32023D2895", in_force=True, basis_article="A12P3-c"),
+                act_row("32023D2895", in_force=True, basis_article="A12P3-d"),
+            ],
+            [
+                CandidateAct(
+                    celex="32023D2895",
+                    in_force=True,
+                    basis_articles=frozenset({"A12P3-c", "A12P3-d"}),
+                )
+            ],
+            id="so is every basis article",
+        ),
+        pytest.param(
+            [act_row("32023R2449", in_force=True)],
+            [CandidateAct(celex="32023R2449", in_force=True)],
+            id="an act with no consolidations is kept",
+        ),
+        pytest.param(
+            [act_row("32016R1927", in_force=False), act_row("52024IP0025")],
+            [CandidateAct(celex="32016R1927", in_force=False), CandidateAct(celex="52024IP0025")],
+            id="a missing in-force flag stays distinct from a false one",
+        ),
+    ],
+)
+def test_the_rows_cellar_explodes_an_act_into_fold_back_into_one_act(
+    rows: list[ActsQueryRow], acts: list[CandidateAct]
+) -> None:
+    assert extract_candidate_acts(rows) == acts
 
 
 def test_only_acts_flagged_in_force_are_fetched():
@@ -75,104 +102,59 @@ def test_folded_amendment_filtered():
     assert selected[0].candidates == ("02015R0757-20240101",)
 
 
-def test_candidates_are_every_own_stem_consolidation_newest_first():
-    selected = select_documents(
-        "mrv",
-        [
-            act_row("32015R0757", in_force=True, consolidation="02015R0757-20240101"),
-            act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101"),
-            act_row("32015R0757", in_force=True, consolidation="02015R0757-20161216"),
-        ],
-    )
-    assert selected[0].candidates == (
-        "02015R0757-20250101",
-        "02015R0757-20240101",
-        "02015R0757-20161216",
-    )
+@pytest.mark.parametrize(
+    ("consolidations", "candidates"),
+    [
+        pytest.param(
+            [MRV_2024, MRV_2025, "02015R0757-20161216"],
+            (MRV_2025, MRV_2024, "02015R0757-20161216"),
+            id="every consolidation of the act itself, newest first",
+        ),
+        pytest.param(
+            [MRV_2025, "02023R1805-20260101"],
+            (MRV_2025,),
+            id="another act's consolidation is ignored even when it sorts higher",
+        ),
+        pytest.param([None], (), id="an act nothing has consolidated is still fetched, with none"),
+    ],
+)
+def test_a_documents_candidates_are_its_own_consolidations(
+    consolidations: list[str | None], candidates: tuple[str, ...]
+) -> None:
+    rows = [act_row(MRV, in_force=True, consolidation=version) for version in consolidations]
+
+    selected = select_documents("mrv", rows)
+
+    assert [(document.celex, document.candidates) for document in selected] == [(MRV, candidates)]
 
 
-def test_candidates_ignore_another_acts_consolidations_even_when_they_sort_higher():
-    selected = select_documents(
-        "mrv",
-        [
-            act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101"),
-            act_row("32015R0757", in_force=True, consolidation="02023R1805-20260101"),
-        ],
-    )
-    assert selected[0].candidates == ("02015R0757-20250101",)
+@pytest.mark.parametrize(
+    ("celex", "basis_articles", "kept"),
+    [
+        pytest.param("32023R2599", ["A03gfP4"], True, id="Articles 3ga to 3gg are shipping"),
+        pytest.param("32023D2895", ["A12P3-c"], True, id="so are the 12(3-b) to 12(3-e) cases"),
+        pytest.param("32024R2620", ["A12P3bL2"], False, id="12(3b) is carbon capture"),
+        pytest.param("32010D0001", ["A03gP1"], False, id="Article 3g itself is aviation"),
+        pytest.param("32009R0748", ["A03cP6"], False, id="another sector's article"),
+        pytest.param("32010D0002", ["XA03ga"], False, id="an article is matched from its start"),
+        pytest.param("32010D0670", [None], False, id="an act naming no article"),
+        pytest.param(
+            "32024D0411",
+            ["A03gfP2PTA)", "A03gfP4"],
+            False,
+            id="a list of shipping companies is left out whatever else it was adopted under",
+        ),
+        pytest.param(
+            "32028D0100", ["A03gfP2PTB)"], False, id="and so is whichever act replaces that list"
+        ),
+    ],
+)
+def test_ets_keeps_the_base_act_and_the_maritime_acts_adopted_under_it(
+    celex: str, basis_articles: list[str | None], kept: bool
+) -> None:
+    rows = [act_row(ETS, in_force=True)]
+    rows += [act_row(celex, in_force=True, basis_article=article) for article in basis_articles]
 
-
-def test_no_consolidations_gives_no_candidates():
-    """An act nothing has consolidated is not folded into anything, so it is still fetched."""
-    selected = select_documents("mrv", [act_row("32023R2449", in_force=True)])
-    assert [s.celex for s in selected] == ["32023R2449"]
-    assert selected[0].candidates == ()
-
-
-def test_extract_candidate_acts_collects_every_basis_article():
-    rows = [
-        act_row("32023D2895", in_force=True, basis_article="A12P3-c"),
-        act_row("32023D2895", in_force=True, basis_article="A12P3-d"),
-    ]
-    assert extract_candidate_acts(rows)[0].basis_articles == frozenset({"A12P3-c", "A12P3-d"})
-
-
-def test_filter_acts_by_basis_article_keeps_acts_based_on_a_listed_article():
-    rows = [
-        act_row("32023R2599", basis_article="A03gfP4"),
-        act_row("32023D2895", basis_article="A12P3-c"),
-        act_row("32024R2620", basis_article="A12P3bL2"),
-        act_row("32009R0748", basis_article="A03cP6"),
-        act_row("32010D0670"),
-    ]
-    kept = filter_acts_by_basis_article(
-        extract_candidate_acts(rows), "32003L0087", r"A03g[a-g]|A12P3-[b-e]"
-    )
-    assert [act.celex for act in kept] == ["32023D2895", "32023R2599"]
-
-
-def test_filter_acts_by_basis_article_matches_from_the_start_of_the_article():
-    """Article 3g is aviation; only 3ga to 3gg are shipping."""
-    rows = [
-        act_row("32010D0001", basis_article="A03gP1"),
-        act_row("32010D0002", basis_article="XA03ga"),
-    ]
-    assert (
-        filter_acts_by_basis_article(extract_candidate_acts(rows), "32003L0087", r"A03g[a-g]") == []
-    )
-
-
-def test_filter_acts_by_basis_article_always_keeps_the_base_act():
-    acts = extract_candidate_acts([act_row("32003L0087"), act_row("32009R0748")])
-    kept = filter_acts_by_basis_article(acts, "32003L0087", r"A03g[a-g]")
-    assert [act.celex for act in kept] == ["32003L0087"]
-
-
-def test_select_documents_keeps_only_maritime_acts_for_ets():
-    rows = [
-        act_row("32003L0087", in_force=True),
-        act_row("32023R2599", in_force=True, basis_article="A03gfP4"),
-        act_row("32009R0748", in_force=True, basis_article="A03cP6"),
-    ]
     selected = select_documents("ets", rows)
-    assert [document.celex for document in selected] == ["32003L0087", "32023R2599"]
 
-
-def test_exclude_acts_by_basis_article_turns_away_an_act_with_any_matching_article():
-    rows = [
-        act_row("32023R2599", basis_article="A03gfP4"),
-        act_row("32024D0411", basis_article="A03gfP2PTA)"),
-        act_row("32024D0411", basis_article="A03gfP4"),
-    ]
-    kept = exclude_acts_by_basis_article(extract_candidate_acts(rows), r"A03gfP2")
-    assert [act.celex for act in kept] == ["32023R2599"]
-
-
-def test_select_documents_leaves_out_every_list_of_shipping_companies():
-    """The lists are names, not rules: 2024/411 today, and whichever act replaces it."""
-    rows = [
-        act_row("32003L0087", in_force=True),
-        act_row("32024D0411", in_force=True, basis_article="A03gfP2PTA)"),
-        act_row("32028D0100", in_force=True, basis_article="A03gfP2PTB)"),
-    ]
-    assert [d.celex for d in select_documents("ets", rows)] == ["32003L0087"]
+    assert [document.celex for document in selected] == [ETS, *([celex] if kept else [])]

@@ -1,7 +1,6 @@
 """Whole-document parsing: dialect detection, section order, and stripped markup."""
 
 from app.ingestion.parse.html.document import parse_eurlex_html
-from app.ingestion.parse.models import ParsedDocument
 from tests.ingestion.parse.html.helpers import all_sections, annexes, articles
 
 
@@ -21,10 +20,15 @@ def test_recitals_and_citations_are_excluded():
     assert "Having regard to the Treaty" not in text
 
 
-def test_footnote_superscripts_are_dropped_with_their_brackets(mrv: ParsedDocument):
-    definitions = articles(mrv.sections)[0].children[0]
-    assert "of the European Parliament and of the Council;" in definitions.text
-    assert "( 1 )" not in definitions.text
+def test_a_footnote_marker_is_dropped_with_the_brackets_around_it():
+    (article,) = parse_eurlex_html(
+        "<html><body>"
+        '<div class="eli-subdivision" id="art_1"><p class="oj-ti-art">Article 1</p>'
+        '<p class="oj-normal">Directive 2003/87/EC of the Council (<a href="#E0001">'
+        '<span class="oj-super">1</span></a>);</p></div>'
+        "</body></html>"
+    )
+    assert article.children[0].text == "Directive 2003/87/EC of the Council;"
 
 
 FLAT_CONSOLIDATED_HTML = (
