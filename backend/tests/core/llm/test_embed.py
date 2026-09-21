@@ -36,29 +36,15 @@ async def test_embed_reorders_shuffled_response_by_index(monkeypatch):
     assert result == [[0.0], [1.0], [2.0]]
 
 
-async def test_embed_raises_on_short_response(monkeypatch):
+async def test_a_response_short_of_its_inputs_is_a_failed_call_not_worth_retrying(monkeypatch):
     async def fake_aembedding(**kwargs):
         return _response([[0.0]])
 
     monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
 
-    with pytest.raises(LLMError):
+    with pytest.raises(LLMError) as caught:
         await embed(["a", "b", "c"], input_type=EmbedInput.DOCUMENT)
-
-
-async def test_embed_wraps_provider_error_without_leaking_provider_text(monkeypatch):
-    provider_message = "connection refused by voyageai.com upstream"
-
-    async def fake_aembedding(**kwargs):
-        raise provider_error(openai.APIConnectionError, message=provider_message)
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    with pytest.raises(LLMError) as exc_info:
-        await embed(["text"], input_type=EmbedInput.DOCUMENT)
-
-    assert provider_message not in str(exc_info.value)
-    assert str(exc_info.value) == "embedding call failed"
+    assert caught.value.transient is False
 
 
 async def test_embed_sends_voyage_request_body_and_auth_header(monkeypatch):
@@ -106,52 +92,29 @@ async def test_embed_sends_voyage_request_body_and_auth_header(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("exc_type", "status_code"),
+    ("exc_type", "status_code", "transient"),
     [
-        (openai.RateLimitError, 429),
-        (openai.InternalServerError, 500),
-        (openai.APITimeoutError, None),
-        (openai.APIConnectionError, None),
+        (openai.RateLimitError, 429, True),
+        (openai.InternalServerError, 500, True),
+        (openai.APITimeoutError, None, True),
+        (openai.APIConnectionError, None, True),
+        (openai.AuthenticationError, 401, False),
+        (openai.BadRequestError, 400, False),
+        (openai.NotFoundError, 404, False),
     ],
 )
-async def test_retryable_provider_failures_are_flagged_transient(
-    monkeypatch, exc_type, status_code
+async def test_a_provider_failure_is_wrapped_without_its_text_and_flagged_if_worth_retrying(
+    monkeypatch, exc_type, status_code, transient
 ):
+    said = None if exc_type is openai.APITimeoutError else "refused by voyageai.com upstream"
+
     async def fake_aembedding(**kwargs):
-        raise provider_error(exc_type, status_code)
+        raise provider_error(exc_type, status_code, message=said)
 
     monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
 
     with pytest.raises(LLMError) as caught:
         await embed(["a chunk"], input_type=EmbedInput.DOCUMENT)
-    assert caught.value.transient is True
 
-
-@pytest.mark.parametrize(
-    ("exc_type", "status_code"),
-    [
-        (openai.AuthenticationError, 401),
-        (openai.BadRequestError, 400),
-        (openai.NotFoundError, 404),
-    ],
-)
-async def test_client_errors_are_never_flagged_transient(monkeypatch, exc_type, status_code):
-    async def fake_aembedding(**kwargs):
-        raise provider_error(exc_type, status_code)
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    with pytest.raises(LLMError) as caught:
-        await embed(["a chunk"], input_type=EmbedInput.DOCUMENT)
-    assert caught.value.transient is False
-
-
-async def test_a_misaligned_response_is_not_transient(monkeypatch):
-    async def fake_aembedding(**kwargs):
-        return _response([[1.0]])
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    with pytest.raises(LLMError) as caught:
-        await embed(["a", "b"], input_type=EmbedInput.DOCUMENT)
-    assert caught.value.transient is False
+    assert str(caught.value) == "embedding call failed"
+    assert caught.value.transient is transient
