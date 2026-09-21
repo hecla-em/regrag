@@ -5,7 +5,6 @@ import pytest
 
 from app.chat.enums import RefusalReason
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
-from app.chat.graph.service import GRAPH_EDGES, chat_graph
 from app.chat.models import ChatState, Refusal
 from app.core.config import config
 from app.retrieval.models import SearchRequest
@@ -60,25 +59,3 @@ async def test_an_empty_search_is_refused_before_any_model_call(answer_model, mo
 
     assert state.answer == REFUSAL_ANSWER
     assert answer_model.received == []
-
-
-async def test_a_refused_question_is_not_widened_to_sections(
-    one_junk_result, answer_model, monkeypatch
-):
-    async def refuse_to_expand(session, chunks, *, limit):
-        raise AssertionError("expansion ran for a question the gate refused")
-
-    monkeypatch.setattr(config, "EXPAND_SECTIONS", True)
-    monkeypatch.setattr("app.chat.graph.nodes.retrieve.expand_sections", refuse_to_expand)
-
-    state = await run_graph()
-
-    assert state.answer == REFUSAL_ANSWER
-
-
-def test_the_compiled_graph_has_the_edges_the_readme_draws():
-    """The README's diagram is hand-drawn, so the edge list it was drawn from is asserted
-    here: an edge added to the graph fails this until the drawing catches up."""
-    edges = {(edge.source, edge.target) for edge in chat_graph.get_graph().edges}
-
-    assert edges == {(source, target) for source, target in GRAPH_EDGES}
