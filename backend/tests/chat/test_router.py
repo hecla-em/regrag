@@ -1,6 +1,7 @@
 """POST /chat over the stored corpus, the real ledger and the real Redis. Only the model is
 faked, so what is asserted here is what a visitor's question does end to end."""
 
+import json
 from typing import Any
 
 import pytest
@@ -14,27 +15,40 @@ from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.schemas import ChatRequest
 from app.core.config import config
 from app.core.db.session import get_session
+from app.core.llm.errors import LLMError
 from app.core.redis import redis_client
 from app.ingestion.chunk.schemas import DocumentChunk
+from tests.chat.conftest import ANSWER as REASONED_ANSWER
 from tests.chat.conftest import (
+    THINKING,
     RecordingChatModel,
     fake_chat_model,
     first_payload,
     read_events,
+    reasoning_chat_model,
     restated_message,
+    search_giving,
     settle_stores,
+    tool_calls_message,
 )
-from tests.conftest import USAGE, install_chat_model
+from tests.conftest import USAGE, RecordingTransport, install_chat_model
 
 ON_TOPIC = "What is the greenhouse gas intensity limit for energy used on board a ship?"
 OFF_TOPIC = "How do I bake sourdough bread at home?"
 ANSWER = "The limit falls over time [1]."
+DEFINITION_QUERY = "What is the definition of port of call under the monitoring regulation?"
+"""A search that clears the bar inside the MRV act, and ranks FuelEU first without the filter."""
+PERSONAL_QUESTION = "I am Jane Example, does FuelEU apply to me?"
+"""Up here, away from the test that asks it: Sentry sends the source lines around a frame."""
 
 
-def ask(client: TestClient, question: str, thread_id: str | None = None) -> list[tuple[str, Any]]:
+def ask(
+    client: TestClient, question: str, thread_id: str | None = None, client_id: str | None = None
+) -> list[tuple[str, Any]]:
     """One question's frames, read to the end, with any answer store it left landed."""
     body = {"question": question} | ({"thread_id": thread_id} if thread_id else {})
-    with client.stream("POST", "/chat", json=body) as response:
+    headers = {"X-Client-ID": client_id} if client_id else {}
+    with client.stream("POST", "/chat", json=body, headers=headers) as response:
         assert response.status_code == 200
         events = read_events(response)
     assert client.portal is not None
@@ -60,6 +74,17 @@ def ledger(client: TestClient) -> list[ChatRequest]:
 
 def step_names(request: ChatRequest) -> list[str]:
     return [step.step for step in sorted(request.steps, key=lambda step: step.position)]
+
+
+def answer_ttls(client: TestClient) -> list[int]:
+    """How long each kept answer has left, read on the app's own loop."""
+
+    async def read() -> list[int]:
+        keys = redis_client.scan_iter("chat:answer:*")
+        return [await redis_client.ttl(key) async for key in keys]
+
+    assert client.portal is not None
+    return client.portal.call(read)
 
 
 def answering(monkeypatch: pytest.MonkeyPatch, answer: str = ANSWER) -> RecordingChatModel:
@@ -126,9 +151,12 @@ def test_a_follow_up_reads_its_thread_from_the_ledger_until_the_thread_is_full(
     unasked = answering(monkeypatch)
     refused = ask(seeded_client, "And from 2035?", thread_id)
 
+    assert [name for name, _ in refused] == ["error"]
     assert first_payload(refused, "error")["error"] == "ThreadFullError"
     assert unasked.received == []
-    assert ledger(seeded_client)[-1].outcome is ChatOutcome.ERROR
+    third = ledger(seeded_client)[-1]
+    assert (third.outcome, step_names(third)) == (ChatOutcome.ERROR, [])
+    assert third.thread_id == first.thread_id
 
 
 def test_a_question_the_corpus_does_not_cover_is_refused_before_any_model_call(
@@ -152,24 +180,12 @@ def test_a_question_the_corpus_does_not_cover_is_refused_before_any_model_call(
 def test_a_tool_round_fetches_from_the_corpus_and_grows_the_context(
     seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch, loop_on, assess_turns
 ):
+    monkeypatch.setattr(config, "ASSESS_SEARCH_LIMIT", 2)
     answering(monkeypatch)
     assess_turns(
-        AIMessage(
-            content="",
-            tool_calls=[
-                {
-                    "name": "follow_reference",
-                    "args": {"celex": "32015R0757", "article": "11a"},
-                    "id": "c1",
-                    "type": "tool_call",
-                },
-                {
-                    "name": "search",
-                    "args": {"query": "port of call", "celex": "32015R0757"},
-                    "id": "c2",
-                    "type": "tool_call",
-                },
-            ],
+        tool_calls_message(
+            ("follow_reference", {"celex": "32015R0757", "article": "11a"}),
+            ("search", {"query": DEFINITION_QUERY, "celex": "32015R0757"}),
         ),
         AIMessage(content=""),
     )
@@ -183,12 +199,15 @@ def test_a_tool_round_fetches_from_the_corpus_and_grows_the_context(
     ]
     assert finished == [
         ("tool_follow_reference", "32015R0757 · 11a"),
-        ("tool_search", "port of call · 32015R0757"),
+        ("tool_search", f"{DEFINITION_QUERY} · 32015R0757"),
     ]
     [sources] = [payload for name, payload in events if name == "sources"]
     followed = [source for source in sources if source["citation"].startswith("Article 11a")]
     assert len(followed) == 4
     assert {source["celex"] for source in followed} == {"32015R0757"}
+    searched = sources[sources.index(followed[-1]) + 1 :]
+    assert 0 < len(searched) <= config.ASSESS_SEARCH_LIMIT
+    assert {source["celex"] for source in searched} == {"32015R0757"}
     [request] = ledger(seeded_client)
     assert request.sources == len(sources)
     assert step_names(request) == [
@@ -218,6 +237,8 @@ def test_a_repeated_question_is_served_from_the_cache_and_recorded_as_cached(
     assert step_names(second) == []
     assert str(second.thread_id) == first_payload(repeated, "done")["thread_id"]
     assert second.thread_id != first.thread_id
+    [ttl] = answer_ttls(seeded_client)
+    assert ttl == pytest.approx(config.CHAT_CACHE_TTL_SECONDS, abs=60)
 
 
 def test_the_spend_cap_is_read_off_the_ledger_and_spares_a_cached_answer(
@@ -246,10 +267,119 @@ def test_the_spend_cap_is_read_off_the_ledger_and_spares_a_cached_answer(
     paused = ask(seeded_client, "Which ships must submit a monitoring plan?")
     cached = ask(seeded_client, ON_TOPIC)
 
+    assert [name for name, _ in paused] == ["error"]
     assert first_payload(paused, "error")["error"] == "SpendCapReachedError"
     assert unasked.received == []
     assert answer_of(cached) == ANSWER
-    assert [request.outcome for request in ledger(seeded_client)[-2:]] == [
-        ChatOutcome.ERROR,
-        ChatOutcome.CACHED,
+    assert [(request.outcome, step_names(request)) for request in ledger(seeded_client)[-2:]] == [
+        (ChatOutcome.ERROR, []),
+        (ChatOutcome.CACHED, []),
     ]
+
+
+def test_a_reasoning_models_thinking_never_reaches_the_wire_or_the_ledger(
+    seeded_client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    install_chat_model(monkeypatch, reasoning_chat_model())
+
+    events = ask(seeded_client, ON_TOPIC)
+
+    assert answer_of(events) == REASONED_ANSWER
+    assert THINKING not in json.dumps(events)
+    [request] = ledger(seeded_client)
+    assert request.answer == REASONED_ANSWER
+
+
+def test_a_question_over_the_limit_is_refused_before_the_graph_runs(
+    seeded_client: TestClient, rate_limited_client: TestClient, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
+    model = answering(monkeypatch)
+    ask(seeded_client, ON_TOPIC, client_id="reader")
+
+    second = seeded_client.post(
+        "/chat", json={"question": ON_TOPIC}, headers={"X-Client-ID": "reader"}
+    )
+
+    assert second.status_code == 429
+    assert second.json()["error"] == "RateLimitedError"
+    assert len(model.received) == 1
+    assert len(ledger(seeded_client)) == 1
+
+
+def provider_failure() -> LLMError:
+    """An LLMError as the embed wrapper raises one: caused by a provider error whose text
+    quotes the request it was sent."""
+    error = LLMError("embedding call failed")
+    error.__cause__ = ConnectionRefusedError(f"could not embed: {PERSONAL_QUESTION}")
+    return error
+
+
+@pytest.mark.parametrize(
+    ("failure", "code", "recorded", "exceptions"),
+    [
+        pytest.param(
+            RuntimeError("pool exhausted"),
+            "InternalServerError",
+            "RuntimeError",
+            ["RuntimeError"],
+            id="an unexpected failure goes out as the generic error and is reported whole",
+        ),
+        pytest.param(
+            provider_failure(),
+            "LLMError",
+            "embedding call failed",
+            [],
+            id="a provider failure is reported as its log line, without the provider's text",
+        ),
+    ],
+)
+def test_a_failed_stream_ends_in_one_error_frame_recorded_and_reported_without_the_question(
+    seeded_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    sentry: RecordingTransport,
+    failure: Exception,
+    code: str,
+    recorded: str,
+    exceptions: list[str],
+):
+    """The step that was running when it failed still went out, so the trail says where."""
+    search_giving(monkeypatch, failure)
+
+    with seeded_client.stream("POST", "/chat", json={"question": PERSONAL_QUESTION}) as response:
+        assert response.status_code == 200
+        request_id = response.headers["X-Request-ID"]
+        events = read_events(response)
+
+    assert [name for name, _ in events] == ["step", "error"]
+    error = first_payload(events, "error")
+    assert set(error) == {"error", "message", "request_id"}
+    assert (error["error"], error["request_id"]) == (code, request_id)
+    assert "pool exhausted" not in error["message"]
+
+    [request] = ledger(seeded_client)
+    assert (request.outcome, request.error) == (ChatOutcome.ERROR, recorded)
+    assert request.request_id == request_id
+
+    [event] = sentry.events
+    assert event["tags"]["request_id"] == request_id
+    assert [value["type"] for value in event.get("exception", {}).get("values", [])] == exceptions
+    reported = json.dumps(event, default=str)
+    assert "Jane Example" not in reported
+    assert "could not embed" not in reported
+
+
+def test_the_frames_are_documented_as_an_event_stream(client: TestClient):
+    """The generated client types the frames from the one media type sent, as a union
+    it can narrow on the event name."""
+    spec = client.get("/openapi.json").json()
+    content = spec["paths"]["/chat"]["post"]["responses"]["200"]["content"]
+    (media_type,) = content
+    assert media_type == "text/event-stream"
+    schema = content[media_type]["schema"]
+    assert schema["discriminator"]["propertyName"] == "event"
+    assert schema["discriminator"]["mapping"]["text"] == "#/components/schemas/TextEvent"
+    assert schema["discriminator"]["mapping"]["step"] == "#/components/schemas/StepEvent"
+    text_event = spec["components"]["schemas"]["TextEvent"]
+    assert text_event["properties"]["event"]["const"] == "text"
+    assert set(text_event["required"]) == {"event", "data"}

@@ -1,117 +1,128 @@
-"""Chat run state: what a graph snapshot copies over, and what it leaves alone."""
+"""Chat run state: what the stats line may carry, and when the context is final."""
+
+import json
+
+import pytest
 
 from app.chat.enums import ChatNode, RefusalReason, ToolStep
 from app.chat.models import ChatState, ChatStepResult, ChatTurn, Refusal
 from app.chat.toolbox.models import ToolCall
+from app.chat.toolbox.service import build_call_step
 from app.core.config import config
 from tests.conftest import reply_message, search_result
 
 
-def test_log_fields_leave_the_thread_content_out():
+def test_log_fields_count_what_was_found_and_leave_every_piece_of_content_out():
+    """A tool step's subject is the query the model wrote from the question: content, so
+    the line keeps the step and its timing and drops that."""
+    search = ToolCall(name="search", args={"query": "penalties for a missing monitoring plan"})
     state = ChatState(
-        question="q",
+        question="What must ships report?",
         history=(ChatTurn(question="What is FuelEU?", answer="A regulation."),),
-        standalone_question="What penalties does FuelEU impose?",
-    )
-
-    fields = state.log_fields()
-
-    assert "history" not in fields
-    assert "standalone_question" not in fields
-    assert fields["thread_id"] == str(state.thread_id)
-
-
-def test_log_fields_count_hits_sources_and_queries_rather_than_dumping_them():
-    state = ChatState(
-        question="q",
+        standalone_question="What must ships report under FuelEU?",
         queries=("first part", "second part"),
         hits=(search_result(), search_result(id=2)),
         sources=(search_result(),),
+        steps=(build_call_step(search, ms=80),),
+        answer="Ships must report [1].",
     )
 
     fields = state.log_fields()
 
     assert (fields["hits"], fields["sources"], fields["queries"]) == (2, 1, 2)
-    assert "question" not in fields
-    assert "first part" not in str(fields)
+    assert fields["thread_id"] == str(state.thread_id)
+    assert fields["steps"] == [{"step": "tool_search", "ms": 80, "usage": None, "model": None}]
+    logged = json.dumps(fields)
+    for content in (
+        state.question,
+        state.history[0].answer,
+        state.standalone_question,
+        state.queries[0],
+        search.args["query"],
+        search_result().text,
+        state.answer,
+    ):
+        assert content not in logged
 
 
 def visited(*steps: ChatNode | ToolStep) -> tuple[ChatStepResult, ...]:
     return tuple(ChatStepResult(step=step, ms=1) for step in steps)
 
 
-class TestContextSettled:
-    def test_not_settled_before_any_node(self):
-        assert ChatState(question="q").context_settled is False
+SOURCES = (search_result(),)
+RETRIEVED = visited(ChatNode.RETRIEVE)
+ASSESSED = visited(ChatNode.RETRIEVE, ChatNode.ASSESS)
+SEARCHED = visited(ChatNode.RETRIEVE, ChatNode.ASSESS, ToolStep.SEARCH)
+REFUSED = visited(ChatNode.RETRIEVE, ChatNode.ASSESS, ToolStep.REFUSE)
 
-    def test_after_retrieve_with_loop_enabled_the_loop_still_runs(self, monkeypatch):
-        monkeypatch.setattr(config, "ASSESS_ENABLED", True)
-        state = ChatState(
-            question="q", steps=visited(ChatNode.RETRIEVE), sources=(search_result(),)
-        )
-        assert state.context_settled is False
 
-    def test_after_retrieve_with_loop_disabled_context_is_settled(self, monkeypatch):
-        monkeypatch.setattr(config, "ASSESS_ENABLED", False)
-        state = ChatState(
-            question="q", steps=visited(ChatNode.RETRIEVE), sources=(search_result(),)
-        )
-        assert state.context_settled is True
+@pytest.mark.parametrize(
+    ("state", "settings", "settled"),
+    [
+        pytest.param({}, {}, False, id="nothing has run yet"),
+        pytest.param(
+            {"steps": RETRIEVED, "sources": SOURCES},
+            {"ASSESS_ENABLED": True},
+            False,
+            id="after retrieve with the loop on, assess still runs",
+        ),
+        pytest.param(
+            {"steps": RETRIEVED, "sources": SOURCES},
+            {"ASSESS_ENABLED": False},
+            True,
+            id="after retrieve with the loop off",
+        ),
+        pytest.param(
+            {"steps": RETRIEVED},
+            {"ASSESS_ENABLED": True},
+            True,
+            id="after a gated retrieve, settled for the refusal",
+        ),
+        pytest.param(
+            {
+                "steps": ASSESSED,
+                "sources": SOURCES,
+                "pending_calls": (ToolCall(name="search", args={"query": "penalties"}),),
+            },
+            {},
+            False,
+            id="assess asked for tools",
+        ),
+        pytest.param(
+            {"steps": ASSESSED, "sources": SOURCES}, {}, True, id="assess asked for nothing"
+        ),
+        pytest.param(
+            {"steps": SEARCHED, "sources": SOURCES},
+            {"ASSESS_MAX_ROUNDS": 2},
+            False,
+            id="a tool round below the round cap",
+        ),
+        pytest.param(
+            {"steps": SEARCHED, "sources": SOURCES},
+            {"ASSESS_MAX_ROUNDS": 1},
+            True,
+            id="a tool round that used the last round",
+        ),
+        pytest.param(
+            {
+                "steps": REFUSED,
+                "sources": SOURCES,
+                "refusal": Refusal(reason=RefusalReason.INSUFFICIENT_CONTEXT),
+            },
+            {"ASSESS_MAX_ROUNDS": 3},
+            True,
+            id="a refuse call, whatever the budget left",
+        ),
+    ],
+)
+def test_the_context_is_settled_once_nothing_more_will_be_fetched(
+    monkeypatch, state, settings, settled
+):
+    """The routing predicate the graph hangs on, and what sends the sources to the client."""
+    for name, value in settings.items():
+        monkeypatch.setattr(config, name, value)
 
-    def test_after_a_gated_retrieve_context_is_settled_for_the_refusal(self, monkeypatch):
-        monkeypatch.setattr(config, "ASSESS_ENABLED", True)
-        state = ChatState(question="q", steps=visited(ChatNode.RETRIEVE), sources=())
-        assert state.context_settled is True
-
-    def test_assess_asking_for_tools_is_not_settled(self):
-        state = ChatState(
-            question="q",
-            steps=visited(ChatNode.RETRIEVE, ChatNode.ASSESS),
-            sources=(search_result(),),
-            pending_calls=(ToolCall(name="search", args={"query": "penalties"}),),
-        )
-        assert state.context_settled is False
-
-    def test_assess_asking_for_nothing_is_settled(self):
-        state = ChatState(
-            question="q",
-            steps=visited(ChatNode.RETRIEVE, ChatNode.ASSESS),
-            sources=(search_result(),),
-        )
-        assert state.context_settled is True
-
-    def test_tool_step_below_the_round_cap_is_not_settled(self, monkeypatch):
-        monkeypatch.setattr(config, "ASSESS_MAX_ROUNDS", 2)
-        state = ChatState(
-            question="q",
-            steps=visited(ChatNode.RETRIEVE, ChatNode.ASSESS, ToolStep.SEARCH),
-            sources=(search_result(),),
-        )
-        assert state.context_settled is False
-
-    def test_tool_step_consuming_the_round_cap_is_settled(self, monkeypatch):
-        monkeypatch.setattr(config, "ASSESS_MAX_ROUNDS", 1)
-        state = ChatState(
-            question="q",
-            steps=visited(ChatNode.RETRIEVE, ChatNode.ASSESS, ToolStep.SEARCH),
-            sources=(search_result(),),
-        )
-        assert state.context_settled is True
-
-    def test_a_refuse_step_is_settled_whatever_the_budget(self, monkeypatch):
-        """Nothing bearing on the question is final: the refusal follows, and the sources
-        it was read against go out first."""
-        monkeypatch.setattr(config, "ASSESS_MAX_ROUNDS", 3)
-        state = ChatState(
-            question="q",
-            steps=visited(ChatNode.RETRIEVE, ChatNode.ASSESS, ToolStep.REFUSE),
-            sources=(search_result(),),
-            refusal=Refusal(
-                reason=RefusalReason.INSUFFICIENT_CONTEXT,
-                explanation="no block concerns the question",
-            ),
-        )
-        assert state.context_settled is True
+    assert ChatState(question="q", **state).context_settled is settled
 
 
 def test_usage_without_a_model_is_unmeasured_not_priced_at_a_guess():
