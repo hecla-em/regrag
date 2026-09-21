@@ -2,16 +2,12 @@
 
 from app.evals.report import format_run_comparison
 from tests.evals.conftest import (
+    comparison_line,
     judged_metrics,
     stored_run,
 )
 
 # Two stored runs side by side
-
-
-def comparison_line(output: str, name: str) -> list[str]:
-    [line] = [line for line in output.splitlines() if line.split()[:1] == [name]]
-    return line.split()
 
 
 def test_a_comparison_lists_every_metric_by_its_path_with_the_delta():

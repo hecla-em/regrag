@@ -1,15 +1,11 @@
 """Judging a case: which dimensions run, what each call asks, and how a failing call lands."""
 
 import logging
-from typing import Any
 
-import litellm
 import pytest
-from litellm import Choices, Message, ModelResponse, Usage
 from openai import APIConnectionError
 
 from app.core.config import config
-from app.core.models import FrozenModel
 from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
 from app.evals.judge.models import (
     ClaimVerdict,
@@ -20,7 +16,13 @@ from app.evals.judge.models import (
 from app.evals.judge.prompts import CORRECTNESS_PROMPT, REFUSAL_PROMPT, build_refusal_message
 from app.evals.judge.service import call_judge_model, judge_case
 from tests.conftest import provider_error
-from tests.evals.conftest import eval_case, eval_result, out_of_corpus_case, refused_result
+from tests.evals.conftest import (
+    eval_case,
+    eval_result,
+    judge_response,
+    out_of_corpus_case,
+    refused_result,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -29,40 +31,6 @@ GROUNDED = FaithfulnessVerdict(
     critique="in [1]", claims=(ClaimVerdict(claim="half counts", supported=True),)
 )
 DECLINED = RefusalVerdict(critique="says the corpus lacks it", verdict=JudgeVerdict.PASS)
-
-
-def judge_response(payload: FrozenModel | str, finish_reason: str = "stop") -> ModelResponse:
-    """A completion as litellm returns one, its content the verdict's JSON."""
-    content = payload if isinstance(payload, str) else payload.model_dump_json()
-    return ModelResponse(
-        choices=[Choices(message=Message(content=content), finish_reason=finish_reason)],
-        usage=Usage(prompt_tokens=200, completion_tokens=60),
-    )
-
-
-@pytest.fixture
-def judge_answers(monkeypatch: pytest.MonkeyPatch):
-    """Install a judge answering each call with the next given verdict, or raising the next
-    given error; hands back the list every call's arguments are recorded in. Gathered calls
-    still arrive in the order they were made, as the fake never yields."""
-    calls: list[dict[str, Any]] = []
-
-    def install(*answers: FrozenModel | str | ModelResponse | Exception) -> list[dict[str, Any]]:
-        queue = list(answers)
-
-        async def fake_acompletion(**kwargs: Any) -> ModelResponse:
-            calls.append(kwargs)
-            answer = queue.pop(0)
-            if isinstance(answer, Exception):
-                raise answer
-            if isinstance(answer, ModelResponse):
-                return answer
-            return judge_response(answer)
-
-        monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
-        return calls
-
-    return install
 
 
 # The call

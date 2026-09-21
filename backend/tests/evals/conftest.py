@@ -3,12 +3,15 @@
 from datetime import UTC, datetime
 from typing import Any
 
+import litellm
 import pytest
+from litellm import Choices, Message, ModelResponse, Usage
 
 from app.chat.enums import ChatNode, RefusalReason, ToolStep
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import ChatState, ChatStepResult, Refusal
 from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
+from app.core.models import FrozenModel
 from app.evals.dataset.enums import EvalKind
 from app.evals.dataset.models import CaseReference, CaseSelection, EvalCase, EvalDataset
 from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
@@ -205,3 +208,42 @@ def stored_run(id: int, metrics: EvalMetrics | None = None, **overrides: Any) ->
         "metrics": (metrics or judged_metrics()).model_dump(mode="json"),
     }
     return EvalRun(**{**defaults, **overrides})
+
+
+def judge_response(payload: FrozenModel | str, finish_reason: str = "stop") -> ModelResponse:
+    """A completion as litellm returns one, its content the verdict's JSON."""
+    content = payload if isinstance(payload, str) else payload.model_dump_json()
+    return ModelResponse(
+        choices=[Choices(message=Message(content=content), finish_reason=finish_reason)],
+        usage=Usage(prompt_tokens=200, completion_tokens=60),
+    )
+
+
+@pytest.fixture
+def judge_answers(monkeypatch: pytest.MonkeyPatch):
+    """Install a judge answering each call with the next given verdict, or raising the next
+    given error; hands back the list every call's arguments are recorded in. Gathered calls
+    still arrive in the order they were made, as the fake never yields."""
+    calls: list[dict[str, Any]] = []
+
+    def install(*answers: FrozenModel | str | ModelResponse | Exception) -> list[dict[str, Any]]:
+        queue = list(answers)
+
+        async def fake_acompletion(**kwargs: Any) -> ModelResponse:
+            calls.append(kwargs)
+            answer = queue.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            if isinstance(answer, ModelResponse):
+                return answer
+            return judge_response(answer)
+
+        monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
+        return calls
+
+    return install
+
+
+def comparison_line(output: str, name: str) -> list[str]:
+    [line] = [line for line in output.splitlines() if line.split()[:1] == [name]]
+    return line.split()
