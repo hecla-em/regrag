@@ -7,6 +7,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from app.chat.models import ChatTurn
 from app.ingestion.celex import format_act_name
+from app.ingestion.chunk.split import CELL_SEPARATOR
+from app.ingestion.enums import SectionKind
 from app.retrieval.models import RetrievedChunk
 
 THREAD_NOTE = (
@@ -22,11 +24,19 @@ def system_prompt(base: str, history: Sequence[ChatTurn]) -> str:
     return f"{base}{THREAD_NOTE}" if history else base
 
 
+def format_markdown_table(text: str) -> str:
+    """A table chunk's separated rows as a markdown table, its first row the header."""
+    header, *body = (f"| {line} |" for line in text.split("\n"))
+    rule = "|" + " --- |" * (header.count(CELL_SEPARATOR) + 1)
+    return "\n".join([header, rule, *body])
+
+
 def format_context_block(marker: int, source: RetrievedChunk) -> str:
     """One chunk as the numbered block a citation marker refers to, under the act's name
     as it is cited."""
     name = format_act_name(source.celex, source.act_title)
-    return f"[{marker}] ({name}, {source.citation})\n{source.text}"
+    text = format_markdown_table(source.text) if source.kind is SectionKind.TABLE else source.text
+    return f"[{marker}] ({name}, {source.citation})\n{text}"
 
 
 def format_acts_legend(sources: Sequence[RetrievedChunk]) -> str:
