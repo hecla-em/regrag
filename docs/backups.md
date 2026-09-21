@@ -1,118 +1,37 @@
 # Database backups
 
-The prod database is backed up nightly to Cloudflare R2. PlanetScale takes its own
-backups of the `hecla-em` cluster and those stay the first thing to restore from — this
-job exists so a lost PlanetScale account or cluster does not take the backups with it.
+PlanetScale's own backups of the `hecla-em` cluster are the first thing to restore from. This
+nightly copy in R2 exists so that losing the PlanetScale account or cluster does not take the
+backups with it.
 
 ## What runs
 
-- **Workflow:** `.github/workflows/backup.yml` — daily at 02:00 UTC, an hour before the
-  ingest run, plus manual `workflow_dispatch`.
-- **Dump + upload:** `scripts/db/backup.sh` writes `daily/regrag-prod-<timestamp>.dump`
-  to the `regrag-db-backups` R2 bucket, after checking the archive's table of contents with
-  `pg_restore --list` so an unreadable dump fails the job rather than sitting in the bucket.
-  That reads the archive header, not the whole file, so it does not prove the dump restores
-  — see [Restore](#restore).
-- **Retention:** a 30-day R2 lifecycle rule deletes old objects, configured in
-  Cloudflare rather than the workflow.
+`.github/workflows/backup.yml` runs `uv run backup` daily at 02:00 UTC. It writes a
+`pg_dump` of the whole `regrag` database to `daily/regrag-prod-<timestamp>.dump` in the
+`regrag-db-backups` bucket, which deletes objects after 30 days by a lifecycle rule set in
+Cloudflare. Each run checks in with Sentry as `nightly-backup`, so a night that fails or never
+starts raises an issue.
 
-The dump covers the whole `regrag` logical database. Most of it is the corpus, which
-`ingest` rebuilds from CELLAR anyway — what could not be recovered any other way is the
-chat ledger and the eval runs. Dumping everything is still simpler than picking tables.
+The bucket has a token of its own, read from `BACKUP_R2_*`, so neither bucket's credentials
+reach the other. `pg_dump` needs the direct port 5432, not a pooler.
 
-## Connection notes
-
-- **Port.** `DB_PORT` is the direct PlanetScale port, **5432**. `pg_dump` cannot run over a
-  transaction pooler, which has no prepared-statement support, even though the
-  application's driver connects over one fine.
-- **TLS.** `backup.sh` picks its `sslmode` default from `ENVIRONMENT` the way
-  `core/config.py` does: `verify-full` for prod, so credentials are never sent in the clear
-  to a host that failed to prove itself, and `prefer` elsewhere, which the compose database
-  accepts. `DB_SSLMODE` overrides it either way.
-- **Trust roots.** `sslrootcert` is set to `system`, the OS trust store, which is what
-  `certifi.where()` gives the application. Without it libpq looks for
-  `~/.postgresql/root.crt`, which no CI runner has, and `verify-full` fails before the dump
-  starts. Needs a client of PostgreSQL 16 or newer.
-- **Client version.** The workflow installs `postgresql-client-17` to match the server:
-  `pg_dump` refuses a server newer than itself, and a dump written by a newer `pg_dump`
-  cannot be read by an older `pg_restore`.
-
-## Secrets
-
-Set on the `prod` GitHub environment, the same one the ingest workflow uses.
-
-- Reused (already set): `DB_HOST`, `DB_USER`, `DB_PASS`, `R2_ACCOUNT_ID`. `DB_PORT` and
-  `DB_NAME` are not secrets and are written into the workflow.
-- New: `R2_BACKUP_ACCESS_KEY_ID` and `R2_BACKUP_SECRET_ACCESS_KEY`, an R2 token scoped to
-  Object Read & Write on `regrag-db-backups` alone. The raw-docs token is deliberately not
-  reused — neither bucket's credentials should reach the other.
-- `R2_BUCKET` (`regrag-db-backups`) is non-sensitive config, written into the workflow.
-  `restore.sh` still reads it from env, for manual restores.
-
-## Manual backup
-
-The nightly workflow sets every required variable itself, so this is only for ad-hoc runs
-from a laptop. `backup.sh` reads its connection from `DB_*`, and `backend/.env.prod` /
-`.env.dev` already hold exactly those, so source the one you want:
-
-```bash
-set -a; source backend/.env.prod; set +a
-R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
-  R2_BUCKET=regrag-db-backups \
-  bash scripts/db/backup.sh
-```
-
-Notes:
-
-- The filename carries `ENVIRONMENT` (`regrag-prod-…`, `regrag-dev-…`), which defaults to
-  `prod`. Set `ENVIRONMENT=dev` when dumping anything else, so the file cannot be mistaken
-  for a prod backup.
-- The `.env.*` files hold the raw-docs R2 credentials, not the backup ones. Pass the
-  backup token inline as above.
-- For a local dump with no upload, into the working directory:
-  `UPLOAD=false ENVIRONMENT=dev bash scripts/db/backup.sh`.
-
-## List available backups
-
-```bash
-aws s3 ls s3://regrag-db-backups/daily/ --region auto \
-  --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
-```
+For a dump on your own machine: `uv run backup --no-upload`, with `ENVIRONMENT=prod` to read
+`.env.prod`.
 
 ## Restore
 
-These steps round-trip a dev dump through the compose database, but have not been
-exercised against a real prod dump — expect to debug them the first time.
-
-Restore is **destructive** and never targets prod by default — restore into a fresh
-database, verify it, then promote. `restore.sh` asks you to type the target database name
-to confirm, which `FORCE=1` skips in automation.
-
-The target must be a Postgres with pgvector available, because the dump recreates the
-extension. The compose `db` service is one:
+Not yet rehearsed against a real prod dump. Restore into a fresh database on a Postgres with
+pgvector (the compose `db` service is one), check it, and only then point anything at it.
 
 ```bash
-docker compose -f backend/compose.yaml up -d db
-PGPASSWORD=postgres createdb -h 127.0.0.1 -p 5432 -U postgres regrag_restore_test
+aws s3 cp s3://regrag-db-backups/daily/<dump> . --region auto \
+  --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
 
-# The latest backup (the usual case — no flag needed):
-R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... \
-  R2_BUCKET=regrag-db-backups \
-  bash scripts/db/restore.sh
+createdb -h 127.0.0.1 -U postgres regrag_restored
+pg_restore -h 127.0.0.1 -U postgres -d regrag_restored --no-owner --no-privileges <dump>
 
-# Or one particular backup, with the same R2_* variables:
-#   bash scripts/db/restore.sh --key daily/regrag-prod-YYYYMMDD-HHMMSS.dump
-# Or a local dump file, needing no R2 access at all:
-#   bash scripts/db/restore.sh --file /path/to/regrag-prod-*.dump
+psql -h 127.0.0.1 -U postgres -d regrag_restored -c "select count(*) from chat_requests"
 ```
 
-Override the target with `TARGET_DB_HOST`, `TARGET_DB_PORT`, `TARGET_DB_USER`,
-`TARGET_DB_PASS` and `TARGET_DB_NAME`.
-
-Check what came back before trusting it:
-
-```bash
-PGPASSWORD=postgres psql -h 127.0.0.1 -p 5432 -U postgres -d regrag_restore_test \
-  -c "select count(*) from chat_requests" \
-  -c "select count(*) from document_chunks where embedding is not null"
-```
+`aws s3 ls s3://regrag-db-backups/daily/` with the same two flags lists what is there. The
+`aws` commands need `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set to the backup token.

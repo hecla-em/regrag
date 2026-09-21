@@ -1,9 +1,11 @@
 """Object storage: the seam's key rules, both backends' behaviour, backend selection."""
 
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import pytest
+from boto3.exceptions import S3UploadFailedError
 from botocore.exceptions import ClientError, EndpointConnectionError
 from pydantic import ValidationError
 
@@ -110,6 +112,10 @@ class FakeS3:
         self._record("put_object", Key)
         self.objects[Key] = Body
 
+    def upload_file(self, Filename: str, Bucket: str, Key: str) -> None:
+        self._record("upload_file", Key)
+        self.objects[Key] = Path(Filename).read_bytes()
+
     def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         self._record("get_object", Key)
         if Key not in self.objects:
@@ -145,6 +151,22 @@ def test_s3_put_then_get_round_trips():
     store = s3_store()
     store.put(KEY, HTML)
     assert store.get(KEY) == HTML
+
+
+def test_s3_put_file_uploads_from_disk(tmp_path):
+    dump = tmp_path / "regrag.dump"
+    dump.write_bytes(b"rows")
+    store = s3_store()
+
+    store.put_file("daily/regrag.dump", dump)
+
+    assert store.get("daily/regrag.dump") == b"rows"
+
+
+def test_s3_put_file_failure_raises_storage_error(tmp_path):
+    """boto3's transfer manager raises an error of its own, outside botocore's hierarchy."""
+    with pytest.raises(StorageError, match="put failed for 'daily/x.dump'"):
+        failing_s3(S3UploadFailedError("refused")).put_file("daily/x.dump", tmp_path / "x.dump")
 
 
 def test_s3_put_targets_the_configured_bucket():

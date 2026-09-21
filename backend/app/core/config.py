@@ -98,6 +98,13 @@ class R2Config(BaseConfig):
         return f"https://{self.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
 
+class BackupR2Config(R2Config):
+    """The backups bucket under a token of its own, read as BACKUP_R2_*, so a dump can never
+    land in the raw-docs bucket the R2_* settings name."""
+
+    model_config = SettingsConfigDict(env_prefix="BACKUP_")
+
+
 class SslMode(StrEnum):
     """libpq's sslmode values."""
 
@@ -151,6 +158,21 @@ class PostgresConfig(BaseConfig):
             database=self.DB_NAME,
             query=tls,
         )
+
+    @property
+    def LIBPQ_ENVIRONMENT(self) -> dict[str, str]:
+        """What pg_dump and psql connect with: the URI's database and TLS, as libpq variables."""
+        tls = {}
+        if self.DB_SSLMODE:
+            tls = {"PGSSLMODE": self.DB_SSLMODE.value, "PGSSLROOTCERT": certifi.where()}
+        return {
+            "PGHOST": self.DB_HOST,
+            "PGPORT": str(self.DB_PORT),
+            "PGUSER": self.DB_USER,
+            "PGPASSWORD": self.DB_PASS.get_secret_value(),
+            "PGDATABASE": self.DB_NAME,
+            **tls,
+        }
 
     @property
     def SQLALCHEMY_ENGINE_ARGS(self) -> dict[str, Any]:

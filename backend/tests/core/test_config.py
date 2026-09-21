@@ -11,6 +11,7 @@ from app.core.config import (
     EVAL_CONFIG_SECTIONS,
     AppConfig,
     AssessConfig,
+    BackupR2Config,
     BaseConfig,
     ChatConfig,
     Config,
@@ -32,7 +33,7 @@ from app.core.config import (
     get_env_file,
     load_environment,
 )
-from tests.conftest import r2_config
+from tests.conftest import R2_ENV, r2_config
 
 
 def test_storage_defaults_to_the_local_backend():
@@ -177,6 +178,36 @@ def test_a_set_sslmode_reaches_the_database_uri_with_a_root_certificate():
     """In the URI, which alembic and the app engine both connect with."""
     url = PostgresConfig(DB_SSLMODE=SslMode.VERIFY_FULL).SQLALCHEMY_DATABASE_URI
     assert url.query == {"sslmode": "verify-full", "sslrootcert": certifi.where()}
+
+
+def test_pg_dump_and_psql_are_handed_the_same_database_and_tls_as_the_uri():
+    libpq = PostgresConfig(
+        DB_PASS=SecretStr("p@ss"), DB_SSLMODE=SslMode.VERIFY_FULL
+    ).LIBPQ_ENVIRONMENT
+    assert libpq == {
+        "PGHOST": "localhost",
+        "PGPORT": "5432",
+        "PGUSER": "postgres",
+        "PGPASSWORD": "p@ss",
+        "PGDATABASE": PostgresConfig().DB_NAME,
+        "PGSSLMODE": "verify-full",
+        "PGSSLROOTCERT": certifi.where(),
+    }
+
+
+def test_outside_prod_libpq_is_left_to_its_own_tls_default():
+    assert not {"PGSSLMODE", "PGSSLROOTCERT"} & PostgresConfig().LIBPQ_ENVIRONMENT.keys()
+
+
+def test_the_backups_bucket_is_read_from_settings_of_its_own(monkeypatch):
+    """So a dump taken with .env.prod loaded cannot land in the raw-docs bucket."""
+    raw_docs = r2_config(monkeypatch)
+    for name, value in R2_ENV.items():
+        monkeypatch.setenv(f"BACKUP_{name}", value)
+    monkeypatch.setenv("BACKUP_R2_BUCKET", "regrag-db-backups")
+
+    assert BackupR2Config().R2_BUCKET == "regrag-db-backups"
+    assert raw_docs.R2_BUCKET != "regrag-db-backups"
 
 
 def test_outside_prod_the_database_is_reached_without_tls():
