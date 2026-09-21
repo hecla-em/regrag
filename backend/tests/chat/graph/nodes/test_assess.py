@@ -22,7 +22,7 @@ from tests.chat.conftest import (
 )
 from tests.conftest import USAGE, install_search, search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("no_tool_session")]
 
 
 class TestMergeSources:

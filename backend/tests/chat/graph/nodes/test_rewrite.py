@@ -23,7 +23,7 @@ from tests.chat.conftest import (
 )
 from tests.conftest import search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("no_tool_session")]
 
 FOLLOW_UP = "What penalties does it impose?"
 RESTATED = "What penalties does FuelEU Maritime impose?"

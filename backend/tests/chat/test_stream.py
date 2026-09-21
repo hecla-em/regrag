@@ -1,14 +1,11 @@
 """Chat stream orchestration: every way a stream ends records one request with what it reached."""
 
-import json
 import logging
-import re
 from uuid import UUID
 
 import anyio
 import pytest
-from langchain_core.messages import AIMessage, AIMessageChunk
-from langchain_core.outputs import ChatGenerationChunk
+from langchain_core.messages import AIMessage
 from sqlalchemy.exc import OperationalError
 
 from app.chat import stream
@@ -20,7 +17,7 @@ from app.chat.stream import stream_chat_events
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
-    RecordingChatModel,
+    ToolCallStreamingModel,
     collect_events,
     fake_chat_model,
     restated_message,
@@ -28,7 +25,7 @@ from tests.chat.conftest import (
 )
 from tests.conftest import REPORTED_USAGE, USAGE, install_chat_model, install_search, search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("recorded_requests", "no_tool_session")]
 
 
 async def test_finished_stream_records_timings_sources_and_usage(
@@ -270,35 +267,6 @@ async def test_a_running_step_reports_no_timing_and_the_ledger_never_sees_one(
     [state] = recorded_requests
     assert len(completed) == len(state.steps)
     assert all(step.status is ChatStepStatus.COMPLETED for step in state.steps)
-
-
-class ToolCallStreamingModel(RecordingChatModel):
-    """Streams tool calls as litellm's real chunks do; the base fake's `_stream` only
-    carries content, so an assess call driven through the messages stream would lose them."""
-
-    def _stream(self, messages, *args, **kwargs):
-        message = self._generate(messages, *args, **kwargs).generations[0].message
-        assert isinstance(message, AIMessage)
-        if message.tool_calls:
-            for call in message.tool_calls:
-                yield ChatGenerationChunk(
-                    message=AIMessageChunk(
-                        content="",
-                        tool_call_chunks=[
-                            {
-                                "name": call["name"],
-                                "args": json.dumps(call["args"]),
-                                "id": call["id"],
-                                "index": 0,
-                            }
-                        ],
-                    )
-                )
-        elif isinstance(message.content, str) and message.content:
-            for token in re.split(r"(\s)", message.content):
-                yield ChatGenerationChunk(message=AIMessageChunk(content=token))
-        if self.usage:
-            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage))
 
 
 class TestLoopStreaming:
