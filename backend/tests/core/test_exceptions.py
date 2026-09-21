@@ -59,9 +59,29 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
-def test_domain_error(client: TestClient) -> None:
-    body = assert_error_shape(client.get("/boom-domain"), 404, "NotFoundError")
-    assert body["message"] == "Regulation 'fueleu' not found"
+@pytest.mark.parametrize(
+    ("path", "status_code", "error", "message", "hidden"),
+    [
+        pytest.param(
+            "/boom-domain", 404, "NotFoundError", "Regulation 'fueleu' not found", None, id="domain"
+        ),
+        pytest.param(
+            "/boom-integrity", 409, "IntegrityError", None, "duplicate key value", id="integrity"
+        ),
+        pytest.param(
+            "/boom-unhandled", 500, "InternalServerError", None, "secret internal", id="unhandled"
+        ),
+        pytest.param("/nope", 404, "HTTPException", None, None, id="unknown route"),
+    ],
+)
+def test_every_error_leaves_in_one_shape_and_leaks_nothing(
+    client: TestClient, path: str, status_code: int, error: str, message: str | None, hidden: str
+) -> None:
+    response = client.get(path)
+
+    body = assert_error_shape(response, status_code, error)
+    assert message is None or body["message"] == message
+    assert hidden is None or hidden not in response.text
 
 
 def test_a_domain_error_is_logged_at_the_level_it_names(
@@ -74,17 +94,6 @@ def test_a_domain_error_is_logged_at_the_level_it_names(
     lines = [r for r in caplog.records if " on GET " in r.getMessage()]
     levels = {line.getMessage().split(" ")[0]: line.levelno for line in lines}
     assert levels == {"NotFoundError": logging.WARNING, "StorageError": logging.ERROR}
-
-
-def test_integrity_error_hides_db_detail(client: TestClient) -> None:
-    body = assert_error_shape(client.get("/boom-integrity"), 409, "IntegrityError")
-    assert "duplicate key value" not in body["message"]
-
-
-def test_unhandled_error_leaks_nothing(client: TestClient) -> None:
-    response = client.get("/boom-unhandled")
-    assert_error_shape(response, 500, "InternalServerError")
-    assert "secret internal detail" not in response.text
 
 
 def test_unhandled_error_is_access_logged(
@@ -101,7 +110,3 @@ def test_validation_error_strips_ctx(client: TestClient) -> None:
     body = assert_error_shape(response, 422, "ValidationError")
     assert body["detail"]
     assert all("ctx" not in item and "input" not in item for item in body["detail"])
-
-
-def test_unknown_route_uses_shared_schema(client: TestClient) -> None:
-    assert_error_shape(client.get("/nope"), 404, "HTTPException")

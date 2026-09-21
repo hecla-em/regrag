@@ -60,14 +60,21 @@ async def test_follow_reference_puts_a_split_chapeau_in_part_order(
     assert [part_of[chunk.id] for chunk in found] == [1, 2]
 
 
-async def test_follow_reference_matches_the_article_number_case_insensitively(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
+@pytest.mark.parametrize(
+    ("upper", "lower"),
+    [
+        pytest.param({"article": "11A"}, {"article": "11a"}, id="article"),
+        pytest.param({"article": "3", "point": "E"}, {"article": "3", "point": "e"}, id="point"),
+    ],
+)
+async def test_an_article_and_a_point_are_matched_regardless_of_case(
+    db_session: AsyncSession, corpus: list[DocumentChunk], upper: dict, lower: dict
 ) -> None:
-    upper = await follow_reference(db_session, ReferenceTarget(celex="32015R0757", article="11A"))
-    lower = await follow_reference(db_session, ReferenceTarget(celex="32015R0757", article="11a"))
+    as_cited = await follow_reference(db_session, ReferenceTarget(celex="32015R0757", **upper))
+    as_stored = await follow_reference(db_session, ReferenceTarget(celex="32015R0757", **lower))
 
-    assert lower
-    assert upper == lower
+    assert as_stored
+    assert as_cited == as_stored
 
 
 async def test_follow_reference_does_not_reach_into_another_act(
@@ -138,76 +145,50 @@ async def test_a_followed_chunk_carries_the_reference_that_leads_on_from_it(
 # The chunk hashes covering a division, for stamping a golden case against it
 
 
-@pytest.mark.parametrize(("point", "part"), [("e", 1), ("m", 2)])
-async def test_a_point_of_a_definitions_article_reaches_the_part_that_lists_it(
-    db_session: AsyncSession, corpus: list[DocumentChunk], point: str, part: int
+MRV, FUELEU = "32015R0757", "32023R1805"
+
+
+@pytest.mark.parametrize(
+    ("target", "found"),
+    [
+        pytest.param(
+            ReferenceTarget(celex=MRV, article="3", point="e"),
+            [("Article 3", 1)],
+            id="a point of a definitions article reaches the part that lists it",
+        ),
+        pytest.param(
+            ReferenceTarget(celex=MRV, article="3", point="m"),
+            [("Article 3", 2)],
+            id="and a later point reaches the later part",
+        ),
+        pytest.param(
+            ReferenceTarget(celex=MRV, article="3", point="z"),
+            [],
+            id="a point no part lists returns nothing, not the whole article",
+        ),
+        pytest.param(
+            ReferenceTarget(celex=FUELEU, article="5", paragraph="7", point="a"),
+            [("Article 5(7)", 1)],
+            id="a point under a paragraph narrows to it, though paragraph 8 lists an (a) too",
+        ),
+        pytest.param(
+            ReferenceTarget(celex=FUELEU, article="5", point="a"),
+            [("Article 5(7)", 1), ("Article 5(8)", 1)],
+            id="a point without a paragraph reaches every paragraph that lists it",
+        ),
+        pytest.param(
+            ReferenceTarget(celex=MRV, article="3", paragraph="m"),
+            [("Article 3", 2)],
+            id="Article 3(m) is read as point (m) where the article numbers no paragraphs",
+        ),
+    ],
+)
+async def test_a_point_reaches_the_parts_that_list_it(
+    db_session: AsyncSession,
+    corpus: list[DocumentChunk],
+    target: ReferenceTarget,
+    found: list[tuple[str, int]],
 ) -> None:
-    """A definitions article numbers no paragraphs; its points are stored on the parts."""
-    found = await follow_reference(
-        db_session, ReferenceTarget(celex="32015R0757", article="3", point=point)
-    )
+    chunks = await follow_reference(db_session, target)
 
-    parts = select(DocumentChunk.id, DocumentChunk.part).where(DocumentChunk.celex == "32015R0757")
-    part_of = {id_: part for id_, part in await db_session.execute(parts)}
-    assert [part_of[chunk.id] for chunk in found] == [part]
-
-
-async def test_a_point_no_part_lists_returns_nothing_rather_than_the_whole_article(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await follow_reference(
-        db_session, ReferenceTarget(celex="32015R0757", article="3", point="z")
-    )
-
-    assert found == ()
-
-
-async def test_a_point_is_matched_regardless_of_case_like_an_article(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    upper = await follow_reference(
-        db_session, ReferenceTarget(celex="32015R0757", article="3", point="E")
-    )
-    lower = await follow_reference(
-        db_session, ReferenceTarget(celex="32015R0757", article="3", point="e")
-    )
-
-    assert lower
-    assert upper == lower
-
-
-async def test_a_point_under_a_paragraph_narrows_to_that_paragraph(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    """'Article 5(7), point (a)': paragraphs 7 and 8 both list an (a), only 7's is wanted."""
-    found = await follow_reference(
-        db_session, ReferenceTarget(celex="32023R1805", article="5", paragraph="7", point="a")
-    )
-
-    assert [chunk.citation for chunk in found] == ["Article 5(7)"]
-
-
-async def test_a_point_without_a_paragraph_reaches_every_paragraph_that_lists_it(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    """A citation that leaves the paragraph out is read across the article rather than
-    turned away: a few candidates beat none."""
-    found = await follow_reference(
-        db_session, ReferenceTarget(celex="32023R1805", article="5", point="a")
-    )
-
-    assert [chunk.citation for chunk in found] == ["Article 5(7)", "Article 5(8)"]
-
-
-async def test_a_point_cited_in_paragraph_notation_reaches_the_part_that_lists_it(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    """EU drafting writes 'Article 2(5)' for point (5) of a definitions article, and the
-    parser cannot tell that from a paragraph; an article that numbers no paragraphs settles it."""
-    found = await follow_reference(
-        db_session, ReferenceTarget(celex="32015R0757", article="3", paragraph="m")
-    )
-
-    parts = select(DocumentChunk.id, DocumentChunk.part).where(DocumentChunk.celex == "32015R0757")
-    part_of = {id_: part for id_, part in await db_session.execute(parts)}
-    assert [(chunk.citation, part_of[chunk.id]) for chunk in found] == [("Article 3", 2)]
+    assert [(chunk.citation, chunk.part) for chunk in chunks] == found

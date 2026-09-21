@@ -14,7 +14,6 @@ from app.retrieval.rerank import rerank_results
 from app.retrieval.search import (
     _text_candidates,
     _tune_hnsw_walk,
-    _vector_candidates,
     hybrid_search,
     search,
 )
@@ -120,17 +119,6 @@ async def test_the_vector_leg_meets_its_limit_past_dead_tuples(
     assert len(found) == WANTED
 
 
-async def test_a_topic_filter_narrows_the_vector_leg_to_one_act(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await leg_ids(
-        db_session, _vector_candidates(toy_embed("energy"), SearchFilters(topic="mrv"), 50)
-    )
-
-    stmt = select(DocumentChunk.topic).where(DocumentChunk.id.in_(found))
-    assert set(await db_session.scalars(stmt)) == {"mrv"}
-
-
 # The text leg
 
 
@@ -162,28 +150,29 @@ async def test_the_text_leg_does_not_confuse_article_11_with_article_11a(
     assert found_11[0] == article_11.id
 
 
-async def test_a_celex_filter_narrows_the_text_leg_to_one_act(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
-) -> None:
-    found = await leg_ids(
-        db_session, _text_candidates("energy", SearchFilters(celex="32023R1805"), 50)
-    )
-
-    stmt = select(DocumentChunk.celex).where(DocumentChunk.id.in_(found))
-    assert set(await db_session.scalars(stmt)) == {"32023R1805"}
-
-
 # The whole search: embed, fuse, rerank
 
 
-async def test_a_topic_filter_excludes_the_other_act(
-    db_session: AsyncSession, corpus: list[DocumentChunk]
+@pytest.mark.parametrize(
+    ("filters", "field", "only"),
+    [
+        pytest.param(SearchFilters(topic="mrv"), "topic", "mrv", id="topic"),
+        pytest.param(SearchFilters(celex="32023R1805"), "celex", "32023R1805", id="celex"),
+    ],
+)
+async def test_a_filter_excludes_the_other_act_from_both_legs(
+    db_session: AsyncSession,
+    corpus: list[DocumentChunk],
+    filters: SearchFilters,
+    field: str,
+    only: str,
 ) -> None:
-    request = SearchRequest(query="greenhouse gas emissions", filters=SearchFilters(topic="mrv"))
+    """The query matches both acts on keywords and on vectors, so either leg would leak one."""
+    found = await search(db_session, SearchRequest(query="fuel", filters=filters))
 
-    found = await search(db_session, request)
-
-    assert {result.topic for result in found} == {"mrv"}
+    assert {getattr(result, field) for result in found} == {only}
+    assert any(result.vector_rank is not None for result in found)
+    assert any(result.text_rank is not None for result in found)
 
 
 async def test_a_filter_narrows_the_candidates_before_they_are_cut(

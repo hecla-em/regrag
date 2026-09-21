@@ -24,33 +24,37 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path
 
 
-def test_a_clean_checkout_reads_its_commit(repo: Path):
-    commit, dirty = read_git_commit()
-
-    assert commit is not None
-    assert len(commit) == 40
-    assert dirty is False
-
-
-def test_an_edited_tracked_file_marks_the_checkout_dirty(repo: Path):
+def edit_the_tracked_file(repo: Path) -> None:
     (repo / "tracked.txt").write_text("two")
 
-    assert read_git_commit()[1] is True
 
-
-def test_an_untracked_file_leaves_the_checkout_clean(repo: Path):
+def add_an_untracked_file(repo: Path) -> None:
     (repo / "scratch.txt").write_text("notes")
 
-    assert read_git_commit()[1] is False
 
-
-def test_a_tag_on_head_still_reads_as_the_commit(repo: Path):
+def tag_head(repo: Path) -> None:
     _git(repo, "tag", "v1")
 
-    commit, _ = read_git_commit()
 
-    assert commit is not None
-    assert len(commit) == 40
+@pytest.mark.parametrize(
+    ("change", "dirty"),
+    [
+        pytest.param(None, False, id="a clean checkout"),
+        pytest.param(edit_the_tracked_file, True, id="an edited tracked file is dirty"),
+        pytest.param(add_an_untracked_file, False, id="an untracked file is not"),
+        pytest.param(tag_head, False, id="a tag on HEAD still reads as the commit"),
+    ],
+)
+def test_a_checkout_reads_as_its_full_commit_and_whether_tracked_files_were_edited(
+    repo: Path, change, dirty: bool
+):
+    if change is not None:
+        change(repo)
+
+    commit, read_dirty = read_git_commit()
+
+    assert commit is not None and len(commit) == 40
+    assert read_dirty is dirty
 
 
 def test_outside_a_checkout_nothing_is_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

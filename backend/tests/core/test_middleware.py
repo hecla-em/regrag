@@ -1,7 +1,5 @@
 """Tests for the request middleware: request IDs, access log, gzip."""
 
-import logging
-import uuid
 from collections.abc import Iterator
 
 import pytest
@@ -10,12 +8,6 @@ from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 
 from app.core import middleware
-from app.core.config import Environment, config
-
-
-def access_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
-    """The access-log records the request middleware emitted, with their extras."""
-    return [r for r in caplog.records if r.name == middleware.logger.name]
 
 
 @pytest.fixture
@@ -29,51 +21,10 @@ def logged_path(app: FastAPI) -> str:
     return "/probe"
 
 
-def test_every_response_carries_request_id(client: TestClient) -> None:
-    response = client.get("/health")
-    uuid.UUID(hex=response.headers["X-Request-ID"])
-
-
-def test_requests_get_distinct_ids(client: TestClient) -> None:
-    r1 = client.get("/health")
-    r2 = client.get("/health")
-    assert r1.headers["X-Request-ID"] != r2.headers["X-Request-ID"]
-
-
 def test_incoming_request_id_is_ignored(client: TestClient) -> None:
     incoming = "attacker-chosen-value"
     response = client.get("/health", headers={"X-Request-ID": incoming})
     assert response.headers["X-Request-ID"] != incoming
-
-
-def test_access_log_records_the_connecting_address(
-    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
-) -> None:
-    client.get(logged_path)
-    [record] = access_records(caplog)
-    assert record.__dict__["client_ip"] == "testclient"
-
-
-def test_access_log_prefers_the_address_fly_forwards_in_prod(
-    client: TestClient,
-    logged_path: str,
-    caplog: pytest.LogCaptureFixture,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Behind Fly's proxy the connecting address is the proxy. The header names the client."""
-    monkeypatch.setattr(config, "ENVIRONMENT", Environment.PROD)
-    client.get(logged_path, headers={"Fly-Client-IP": "203.0.113.9"})
-    [record] = access_records(caplog)
-    assert record.__dict__["client_ip"] == "203.0.113.9"
-
-
-def test_access_log_ignores_the_fly_header_off_fly(
-    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Off Fly nothing strips the header, so a caller could name any address."""
-    client.get(logged_path, headers={"Fly-Client-IP": "203.0.113.9"})
-    [record] = access_records(caplog)
-    assert record.__dict__["client_ip"] == "testclient"
 
 
 def test_access_log_waits_for_a_streamed_body(

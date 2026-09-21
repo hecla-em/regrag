@@ -18,13 +18,6 @@ class CorpusVersionUpdate(BaseModel):
     corpus_version: str | None = None
 
 
-async def test_update_record_applies_only_given_fields(db_session: AsyncSession):
-    run = await create_record(db_session, IngestRun(status=IngestRunStatus.RUNNING))
-    await update_record(db_session, run, CorpusVersionUpdate(corpus_version="2026-08-04-abc1234"))
-    assert run.corpus_version == "2026-08-04-abc1234"
-    assert run.status is IngestRunStatus.RUNNING
-
-
 async def test_update_record_leaves_updated_at_loaded(db_session: AsyncSession):
     """The server-side onupdate arrives via RETURNING; lazy-loading it raises MissingGreenlet."""
     run = await create_record(db_session, IngestRun(status=IngestRunStatus.RUNNING))
@@ -33,15 +26,21 @@ async def test_update_record_leaves_updated_at_loaded(db_session: AsyncSession):
     assert run.updated_at is not None
 
 
-async def test_update_record_ignores_omitted_fields(db_session: AsyncSession):
+@pytest.mark.parametrize(
+    ("update", "expected"),
+    [
+        pytest.param(CorpusVersionUpdate(corpus_version="v2"), "v2", id="a given field is applied"),
+        pytest.param(CorpusVersionUpdate(), "v1", id="an omitted field is left alone"),
+        pytest.param(CorpusVersionUpdate(corpus_version=None), None, id="an explicit None nulls"),
+    ],
+)
+async def test_update_record_tells_an_omitted_field_from_an_explicit_none(
+    db_session: AsyncSession, update: CorpusVersionUpdate, expected: str | None
+):
     run = IngestRun(status=IngestRunStatus.RUNNING, corpus_version="v1")
     await create_record(db_session, run)
-    await update_record(db_session, run, CorpusVersionUpdate())
-    assert run.corpus_version == "v1"
 
+    await update_record(db_session, run, update)
 
-async def test_update_record_nulls_explicitly_passed_none(db_session: AsyncSession):
-    run = IngestRun(status=IngestRunStatus.RUNNING, corpus_version="v1")
-    await create_record(db_session, run)
-    await update_record(db_session, run, CorpusVersionUpdate(corpus_version=None))
-    assert run.corpus_version is None
+    assert run.corpus_version == expected
+    assert run.status is IngestRunStatus.RUNNING

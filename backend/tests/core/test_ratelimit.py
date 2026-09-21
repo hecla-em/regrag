@@ -58,26 +58,29 @@ def test_a_client_is_refused_once_it_has_used_its_allowance(
     assert response.headers["Retry-After"] == "60"
 
 
-def test_the_refusal_names_the_wait_left_in_the_window(
-    rate_limited_client: TestClient, clock: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("later_ms", "status_code", "retry_after"),
+    [
+        pytest.param(30_000, 429, "30", id="refused with the wait left in the window"),
+        pytest.param(60_050, 200, None, id="allowed again once the window has slid past"),
+    ],
+)
+def test_the_window_slides_and_a_refusal_names_the_wait_left(
+    rate_limited_client: TestClient,
+    clock: SimpleNamespace,
+    monkeypatch: pytest.MonkeyPatch,
+    later_ms: int,
+    status_code: int,
+    retry_after: str | None,
 ) -> None:
     monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
     ask(rate_limited_client, "a")
-    clock.now_ms += 30_000
+    clock.now_ms += later_ms
 
     response = ask(rate_limited_client, "a")
 
-    assert response.headers["Retry-After"] == "30"
-
-
-def test_the_window_slides(
-    rate_limited_client: TestClient, clock: SimpleNamespace, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(config, "RATE_LIMIT_PER_CLIENT", 1)
-    ask(rate_limited_client, "a")
-    clock.now_ms += 60_050
-
-    assert ask(rate_limited_client, "a").status_code == 200
+    assert response.status_code == status_code
+    assert response.headers.get("Retry-After") == retry_after
 
 
 def test_ids_on_one_address_share_its_ceiling(rate_limited_client: TestClient) -> None:

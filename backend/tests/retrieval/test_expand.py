@@ -73,43 +73,32 @@ async def test_expand_sections_keeps_a_second_hit_in_the_same_section(
         assert {hit.id for hit in hits} <= {chunk.id for chunk in expanded}
 
 
-async def test_expand_sections_passes_an_unsplit_chunk_outside_an_article_through(
-    db_session: AsyncSession,
-    corpus: list[DocumentChunk],
+@pytest.mark.parametrize(
+    "split",
+    [
+        pytest.param(False, id="a whole annex section has nothing to widen to"),
+        pytest.param(True, id="a later half of a split table brings back the other"),
+    ],
+)
+async def test_expand_sections_widens_a_hit_outside_an_article_to_exactly_its_own_split(
+    db_session: AsyncSession, corpus: list[DocumentChunk], split: bool
 ) -> None:
-    """A whole annex section has nothing to widen to, so it arrives as it came."""
-    row = (
-        await db_session.execute(
-            select(*CHUNK_COLUMNS).where(DocumentChunk.annex.is_not(None), DocumentChunk.parts == 1)
-        )
-    ).first()
-    assert row is not None, "the fixture no longer stores a whole annex chunk"
-    chunk = RetrievedChunk.model_validate(row)
+    parts = (
+        (DocumentChunk.parts > 1, DocumentChunk.part > 1) if split else (DocumentChunk.parts == 1,)
+    )
+    stmt = (
+        select(*CHUNK_COLUMNS)
+        .where(DocumentChunk.annex.is_not(None), *parts)
+        .order_by(DocumentChunk.position)
+    )
+    row = (await db_session.execute(stmt)).first()
+    assert row is not None, "the fixture no longer stores such an annex chunk"
+    hit = RetrievedChunk.model_validate(row)
 
-    assert await expand_sections(db_session, [chunk], limit=NO_LIMIT) == (chunk,)
+    expanded = await expand_sections(db_session, [hit], limit=NO_LIMIT)
 
-
-async def test_expand_sections_reunites_a_section_split_for_length(
-    db_session: AsyncSession,
-    corpus: list[DocumentChunk],
-) -> None:
-    """A table cut in two leaves its halves adrift; one half must bring back the other."""
-    row = (
-        await db_session.execute(
-            select(*CHUNK_COLUMNS)
-            .where(
-                DocumentChunk.annex.is_not(None), DocumentChunk.parts > 1, DocumentChunk.part > 1
-            )
-            .order_by(DocumentChunk.position)
-        )
-    ).first()
-    assert row is not None, "the fixture no longer stores a split annex section"
-    later_part = RetrievedChunk.model_validate(row)
-
-    expanded = await expand_sections(db_session, [later_part], limit=NO_LIMIT)
-
-    assert len(expanded) == later_part.parts
-    assert later_part in expanded
+    assert len(expanded) == hit.parts
+    assert hit in expanded
 
 
 async def test_expand_sections_widens_every_section_in_the_same_round(

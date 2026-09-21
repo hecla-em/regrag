@@ -20,36 +20,6 @@ KEY = "32023R1805/32023R1805/abc.html"
 HTML = b"<html>act</html>"
 
 
-def test_a_key_with_nothing_at_it_is_absent_rather_than_a_failed_store(
-    local_store: LocalObjectStore,
-):
-    """Callers that can recover from an absent object must not recover from an unreachable store."""
-    with pytest.raises(ObjectNotFoundError):
-        local_store.get(KEY)
-
-
-def test_a_local_store_that_cannot_be_read_is_not_reported_as_absent(
-    local_store: LocalObjectStore,
-):
-    local_store.put(KEY, HTML)
-    (local_store.root / KEY).chmod(0o000)
-    with pytest.raises(StorageError) as raised:
-        local_store.get(KEY)
-    assert not isinstance(raised.value, ObjectNotFoundError)
-
-
-@pytest.mark.parametrize("key", ["../../etc/passwd", "/etc/passwd", "a/./b.html", ""])
-def test_a_key_that_is_not_a_plain_relative_path_is_refused(local_store: LocalObjectStore, key):
-    with pytest.raises(StorageError, match="access failed"):
-        local_store.get(key)
-
-
-def test_exists_refuses_such_a_key_rather_than_calling_it_absent(local_store: LocalObjectStore):
-    """Both backends have to agree here, so exists must not quietly answer for a bad key."""
-    with pytest.raises(StorageError, match="access failed"):
-        local_store.exists("../../etc/passwd")
-
-
 class FakeS3:
     """Answers from a dict, raising whatever the client is scripted to raise."""
 
@@ -102,36 +72,66 @@ def test_s3_put_then_get_round_trips():
     assert store.get(KEY) == HTML
 
 
-def test_s3_exists_reads_a_missing_object_as_absent_not_an_error():
-    assert s3_store().exists(KEY) is False
+def unreadable(local_store: LocalObjectStore) -> LocalObjectStore:
+    local_store.put(KEY, HTML)
+    (local_store.root / KEY).chmod(0o000)
+    return local_store
 
 
-def test_s3_exists_surfaces_a_non_404_client_error():
-    with pytest.raises(StorageError, match="head failed"):
-        failing_s3(denied()).exists(KEY)
-
-
-def test_s3_exists_surfaces_a_transport_failure():
-    with pytest.raises(StorageError, match="head failed"):
-        failing_s3(EndpointConnectionError(endpoint_url="https://r2.example")).exists(KEY)
-
-
-def test_s3_get_of_a_missing_object_is_absent_rather_than_a_failed_store():
-    with pytest.raises(ObjectNotFoundError):
-        s3_store().get(KEY)
-
-
-def test_s3_get_that_is_refused_is_not_reported_as_absent():
-    """A rotated credential answers every read the same way: an outage, not an empty bucket."""
+@pytest.mark.parametrize(
+    ("store_of", "absent"),
+    [
+        pytest.param(lambda local: local, True, id="local: nothing at the key"),
+        pytest.param(unreadable, False, id="local: a file that cannot be read"),
+        pytest.param(lambda local: s3_store(), True, id="s3: no such object"),
+        pytest.param(lambda local: failing_s3(denied()), False, id="s3: a refused read"),
+    ],
+)
+def test_an_absent_object_is_told_apart_from_a_store_that_failed(
+    local_store: LocalObjectStore, store_of, absent: bool
+):
+    """Callers recover from an absent object and must not recover from an unreachable store:
+    a rotated credential answers every read the same way, an outage and not an empty bucket."""
     with pytest.raises(StorageError) as raised:
-        failing_s3(denied()).get(KEY)
-    assert not isinstance(raised.value, ObjectNotFoundError)
+        store_of(local_store).get(KEY)
+
+    assert isinstance(raised.value, ObjectNotFoundError) is absent
 
 
-def test_s3_refuses_a_key_that_is_not_a_plain_relative_path():
-    """The local backend refuses these, so the S3 backend must not silently accept them."""
-    with pytest.raises(StorageError, match="access failed"):
-        s3_store().put("../../etc/passwd", HTML)
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(None, id="a missing object is absent"),
+        pytest.param(denied(), id="a refused head is a failure"),
+        pytest.param(
+            EndpointConnectionError(endpoint_url="https://r2.example"),
+            id="so is an unreachable endpoint",
+        ),
+    ],
+)
+def test_s3_exists_answers_false_only_for_a_missing_object(error: Exception | None):
+    if error is None:
+        assert s3_store().exists(KEY) is False
+        return
+    with pytest.raises(StorageError, match="head failed"):
+        failing_s3(error).exists(KEY)
+
+
+@pytest.mark.parametrize(
+    "touch",
+    [
+        pytest.param(lambda local, key: local.get(key), id="local get"),
+        pytest.param(lambda local, key: local.exists(key), id="local exists"),
+        pytest.param(lambda local, key: s3_store().put(key, HTML), id="s3 put"),
+    ],
+)
+def test_a_key_that_is_not_a_plain_relative_path_is_refused_by_both_backends(
+    local_store: LocalObjectStore, touch
+):
+    """exists included: it must not quietly answer absent for a key it would never look up."""
+    for key in ("../../etc/passwd", "/etc/passwd", "a/./b.html", ""):
+        with pytest.raises(StorageError, match="access failed"):
+            touch(local_store, key)
 
 
 def test_the_r2_backend_is_an_s3_store_on_the_configured_bucket(monkeypatch):
