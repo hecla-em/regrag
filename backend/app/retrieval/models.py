@@ -5,6 +5,7 @@ from pydantic import Field, model_validator
 from app.core.models import FrozenModel
 from app.ingestion.chunk.models import Reference, format_citation
 from app.ingestion.chunk.schemas import DocumentChunk
+from app.ingestion.enums import SectionKind
 
 SNIPPET = 160
 """How much of a chunk's text a printed line carries before it is cut."""
@@ -81,6 +82,7 @@ class RetrievedChunk(FrozenModel):
     celex: str
     topic: str
     act_title: str | None = None
+    kind: SectionKind
     citation: str
     article: str | None
     paragraph: str | None = None

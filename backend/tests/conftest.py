@@ -628,6 +628,7 @@ RETRIEVED_CHUNK: dict[str, Any] = {
     "celex": "32023R1805",
     "topic": "fueleu",
     "act_title": "Regulation (EU) 2023/1805 on the use of renewable and low-carbon fuels",
+    "kind": SectionKind.PARAGRAPH,
     "citation": "Article 4(1)",
     "article": "4",
     "paragraph": "1",

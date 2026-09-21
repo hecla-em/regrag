@@ -29,6 +29,11 @@ UNCOVERED = (
     "passages I found'. "
 )
 
+TABLES = (
+    "When you give more than a couple of rows from a passage's table, give them as a "
+    "markdown table and cite it in the sentence that introduces it. "
+)
+
 SYSTEM_PROMPT = (
     f"{ROLE}"
     "Answer using only the numbered passages of regulation text you are shown. Cite every "
@@ -36,6 +41,7 @@ SYSTEM_PROMPT = (
     "after the punctuation that ends the claim (e.g. 'must be reported.[1]'), never before "
     "it. If the passages do not answer the question, say so plainly instead of guessing. "
     f"{UNCOVERED}"
+    f"{TABLES}"
     f"{STYLE}"
     "Refer to an act by the name and number the passages give it; never invent a title for one."
 )
