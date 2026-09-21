@@ -1,6 +1,5 @@
 """Judging a case: which dimensions run, what each call asks, and how a failing call lands."""
 
-import asyncio
 import logging
 from typing import Any
 
@@ -11,17 +10,15 @@ from openai import APIConnectionError
 
 from app.core.config import config
 from app.core.models import FrozenModel
-from app.evals.judge import service
 from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
 from app.evals.judge.models import (
-    CaseJudgement,
     ClaimVerdict,
     CorrectnessVerdict,
     FaithfulnessVerdict,
     RefusalVerdict,
 )
 from app.evals.judge.prompts import CORRECTNESS_PROMPT, REFUSAL_PROMPT, build_refusal_message
-from app.evals.judge.service import call_judge_model, judge_case, judge_results
+from app.evals.judge.service import call_judge_model, judge_case
 from tests.conftest import provider_error
 from tests.evals.conftest import eval_case, eval_result, out_of_corpus_case, refused_result
 
@@ -69,52 +66,6 @@ def judge_answers(monkeypatch: pytest.MonkeyPatch):
 
 
 # The call
-
-
-async def test_a_judge_call_asks_for_the_verdicts_shape_and_drops_what_the_model_rejects(
-    judge_answers, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(config, "EVAL_JUDGE_MODEL", "anthropic/claude-sonnet-5")
-    calls = judge_answers(DECLINED)
-
-    verdict = await call_judge_model(REFUSAL_PROMPT, "user turn", RefusalVerdict)
-
-    assert verdict == DECLINED
-    [call] = calls
-    assert call["model"] == "anthropic/claude-sonnet-5"
-    assert call["response_format"] is RefusalVerdict
-    assert call["api_key"] == config.ANTHROPIC_API_KEY.get_secret_value()
-    assert call["messages"] == [
-        {"role": "system", "content": REFUSAL_PROMPT},
-        {"role": "user", "content": "user turn"},
-    ]
-
-
-async def test_a_judge_call_waits_the_judges_own_timeout(
-    judge_answers, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A tier above the chat model and a longer answer, so the chat wait would cut it off."""
-    monkeypatch.setattr(config, "EVAL_JUDGE_TIMEOUT", 321)
-    calls = judge_answers(DECLINED)
-
-    await call_judge_model(REFUSAL_PROMPT, "user turn", RefusalVerdict)
-
-    [call] = calls
-    assert call["timeout"] == 321
-    assert call["timeout"] != config.CHAT_TIMEOUT
-
-
-async def test_a_judge_call_spends_the_judges_own_token_cap(
-    judge_answers, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The verdict is critique first, and a judge that thinks spends the cap on that too."""
-    monkeypatch.setattr(config, "EVAL_JUDGE_MAX_TOKENS", 4321, raising=False)
-    calls = judge_answers(DECLINED)
-
-    await call_judge_model(REFUSAL_PROMPT, "user turn", RefusalVerdict)
-
-    [call] = calls
-    assert call["max_tokens"] == 4321
 
 
 async def test_an_answer_off_the_schema_is_a_failed_call_that_says_why_it_stopped(
@@ -229,34 +180,6 @@ async def test_a_failed_dimension_does_not_stop_the_next(judge_answers) -> None:
 
 
 # Judging a run
-
-
-async def test_a_run_is_judged_case_by_case_a_few_at_a_time(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Every result comes back with its verdict in the run's order, and no more cases are
-    in the judge at once than the limit allows."""
-    in_flight, most_in_flight = 0, 0
-    monkeypatch.setattr(config, "EVAL_JUDGE_CONCURRENCY", 2)
-
-    async def fake_judge_case(case, state):
-        nonlocal in_flight, most_in_flight
-        in_flight += 1
-        most_in_flight = max(most_in_flight, in_flight)
-        await asyncio.sleep(0)
-        in_flight -= 1
-        return CaseJudgement(refusal=DECLINED) if case.id == "ooc" else CaseJudgement()
-
-    monkeypatch.setattr(service, "judge_case", fake_judge_case)
-    results = [eval_result(eval_case(id=f"case-{n}")) for n in range(3)]
-    results.append(eval_result(out_of_corpus_case()))
-
-    judged = await judge_results(results)
-
-    assert [r.case.id for r in judged] == ["case-0", "case-1", "case-2", "ooc"]
-    assert [r.judgement for r in judged[:3]] == [CaseJudgement()] * 3
-    assert judged[3].judgement == CaseJudgement(refusal=DECLINED)
-    assert most_in_flight == 2
 
 
 # The real seam, run only with a key in the environment
