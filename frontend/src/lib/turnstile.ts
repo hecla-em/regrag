@@ -2,18 +2,10 @@ import * as Sentry from "@sentry/react"
 
 const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js"
 const READY_CALLBACK = "onRegRagTurnstileReady"
-
-/** What the widget stamps on every token, and what the backend requires a token to carry. */
 const ACTION = "chat"
-
-/** How long a question waits for a token before going without one. Cloudflare's own
- * challenge can take a few seconds when it decides the visitor needs one. */
 const MINT_TIMEOUT_MS = 15_000
 
-/** Where the widget shows itself on the rare question Cloudflare wants the visitor to click
- * something for. An interaction-only widget takes no space until that happens, so this sits
- * over the page invisibly until it is needed, and centred rather than hidden, since a
- * challenge the visitor cannot see is one they can never pass. */
+/** Centred rather than hidden, so an interactive challenge can be seen and passed. */
 const CONTAINER_CLASS =
 	"fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2"
 
@@ -40,38 +32,23 @@ declare global {
 	}
 }
 
-/** The rendered widget, as minting uses it: ask for a token, throw the last one away. */
-export type Widget = {
+type Widget = {
 	execute: () => void
 	reset: () => void
 }
 
-/** What a widget reports a mint with: the token, or null when it could not produce one. */
 type DeliverToken = (token: string | null) => void
 
-/** Renders the page's one widget, reporting every token it mints to `deliver`. Replaced in
- * tests, which have no document to render into. */
-export type OpenWidget = (
-	sitekey: string,
-	deliver: DeliverToken,
-) => Promise<Widget>
-
 let reportedMissingSitekey = false
+let pending: DeliverToken | null = null
+let widget: Promise<Widget> | null = null
+let script: Promise<TurnstileApi> | null = null
 
-/** Say once that this build carries no sitekey. Nothing server-side can see a build
- * variable, so a deploy that turned the backend check on would otherwise refuse every
- * question with no sign of why. */
 function reportMissingSitekey(): void {
 	if (reportedMissingSitekey) return
 	reportedMissingSitekey = true
 	Sentry.captureMessage("Turnstile sitekey missing from the build", "warning")
 }
-
-/** The mint in flight, which whatever the widget reports back belongs to. */
-let pending: DeliverToken | null = null
-
-let widget: Promise<Widget> | null = null
-let script: Promise<TurnstileApi> | null = null
 
 function deliverToken(token: string | null): void {
 	pending?.(token)
@@ -92,14 +69,13 @@ function loadScript(): Promise<TurnstileApi> {
 		tag.onerror = () => reject(new Error("Turnstile script did not load"))
 		document.head.append(tag)
 	}).catch((failure: unknown) => {
-		// A question asked once the network is back refetches rather than inheriting this.
 		script = null
 		throw failure
 	})
 	return script
 }
 
-const openTurnstile: OpenWidget = async (sitekey, deliver) => {
+async function openWidget(sitekey: string): Promise<Widget> {
 	const turnstile = await loadScript()
 	const container = document.createElement("div")
 	container.className = CONTAINER_CLASS
@@ -109,10 +85,10 @@ const openTurnstile: OpenWidget = async (sitekey, deliver) => {
 		action: ACTION,
 		execution: "execute",
 		appearance: "interaction-only",
-		callback: deliver,
-		"error-callback": () => deliver(null),
-		"expired-callback": () => deliver(null),
-		"timeout-callback": () => deliver(null),
+		callback: deliverToken,
+		"error-callback": () => deliverToken(null),
+		"expired-callback": () => deliverToken(null),
+		"timeout-callback": () => deliverToken(null),
 	})
 	return {
 		execute: () => turnstile.execute(id),
@@ -120,9 +96,7 @@ const openTurnstile: OpenWidget = async (sitekey, deliver) => {
 	}
 }
 
-/** One token from the widget: the last one is thrown away first, since Cloudflare redeems
- * each token once and a thread's second question needs its own. A mint still waiting when
- * the next one starts gives up there and then, rather than taking the new one's token. */
+/** One fresh token, since Cloudflare redeems each once. A superseded mint gives up. */
 function awaitToken(rendered: Widget): Promise<string | null> {
 	return new Promise((resolve) => {
 		pending?.(null)
@@ -139,19 +113,15 @@ function awaitToken(rendered: Widget): Promise<string | null> {
 	})
 }
 
-/** A fresh token for one question, or null when there is no sitekey to mint against, the
- * widget could not be rendered, or it produced nothing in time. The question then goes
- * without the header, and the backend refuses it if its own check is on. */
-export async function mintToken(
-	openWidget: OpenWidget = openTurnstile,
-): Promise<string | null> {
+/** A token for one question, or null when none could be minted. */
+export async function mintToken(): Promise<string | null> {
 	const sitekey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 	if (!sitekey) {
 		reportMissingSitekey()
 		return null
 	}
 	try {
-		widget ??= openWidget(sitekey, deliverToken)
+		widget ??= openWidget(sitekey)
 		return await awaitToken(await widget)
 	} catch {
 		widget = null

@@ -128,7 +128,6 @@ describe("chatReducer", () => {
 		["ThreadFullError", "thread_full"],
 		["RateLimitedError", "rate_limited"],
 		["SpendCapReachedError", "paused"],
-		["TurnstileFailedError", "unverified"],
 		["InternalServerError", "unexpected"],
 		["TypeError", "unexpected"],
 	] as const)("reads a %s as %s", (error, failure) => {

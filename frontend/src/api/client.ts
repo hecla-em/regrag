@@ -77,7 +77,6 @@ export async function* streamChat(
 		headers: {
 			"content-type": "application/json",
 			"X-Client-ID": readClientId(),
-			// No token minted is no header, which the backend refuses if its check is on.
 			...(token === null ? {} : { "CF-Turnstile-Response": token }),
 		},
 		body: JSON.stringify(body),

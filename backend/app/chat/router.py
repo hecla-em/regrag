@@ -3,16 +3,15 @@
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, status
 from fastapi.sse import EventSourceResponse, ServerSentEvent
 
 from app.chat.events import ChatEvent
 from app.chat.models import ChatQuery
 from app.chat.stream import stream_chat_events
 from app.core.models import ErrorResponse
-from app.core.ratelimit import ClientIdHeader, rate_limit
-from app.core.redis import RedisDep
-from app.core.turnstile import TurnstileHeader, verify_turnstile
+from app.core.ratelimit import rate_limit
+from app.core.turnstile import verify_turnstile
 
 router = APIRouter(tags=["chat"])
 
@@ -27,25 +26,11 @@ rate limit and the browser check refuse before the stream opens with a JSON erro
 FastAPI files under the same media type."""
 
 
-async def guard_question(
-    query: ChatQuery,
-    request: Request,
-    redis: RedisDep,
-    x_client_id: ClientIdHeader = None,
-    cf_turnstile_response: TurnstileHeader = None,
-) -> None:
-    """Both guards, taking the question so a malformed one costs neither: FastAPI resolves
-    route dependencies before the body, and a raise inside the stream is too late. The limit
-    goes first, being a Redis round trip against an outbound call to Cloudflare."""
-    await rate_limit(request, redis, x_client_id)
-    await verify_turnstile(request, cf_turnstile_response)
-
-
 @router.post(
     "/chat",
     response_class=EventSourceResponse,
     responses=CHAT_RESPONSES,
-    dependencies=[Depends(guard_question)],
+    dependencies=[Depends(rate_limit), Depends(verify_turnstile)],
 )
 async def chat(query: ChatQuery) -> AsyncIterator[ServerSentEvent]:
     """Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
