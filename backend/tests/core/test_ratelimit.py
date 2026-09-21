@@ -120,6 +120,18 @@ def test_an_id_naming_an_address_cannot_spend_its_allowance(
     assert ask(rate_limited_client, ip="203.0.113.9").status_code == 200
 
 
+def test_off_fly_a_forged_address_header_buys_no_fresh_allowance(
+    rate_limited_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only Fly sets the header honestly. Anywhere else it is the caller's to write, so the
+    count stays on the address that connected."""
+    monkeypatch.setattr(config, "ENVIRONMENT", Environment.TEST)
+
+    responses = [ask(rate_limited_client, ip=f"203.0.113.{caller}") for caller in range(3)]
+
+    assert [response.status_code for response in responses] == [200, 200, 429]
+
+
 def test_redis_down_lets_the_call_through(
     app: FastAPI, rate_limited_client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
