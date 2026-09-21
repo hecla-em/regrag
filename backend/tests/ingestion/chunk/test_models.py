@@ -1,53 +1,33 @@
+"""The two hashes a chunk carries, which decide what a run re-embeds and what it only updates."""
+
+from typing import Any
+
+import pytest
+
 from tests.conftest import chunk
 
 
-def test_differing_text_hashes_differently():
-    assert chunk().content_hash != chunk(text="Something else entirely.").content_hash
+@pytest.mark.parametrize(
+    ("changed", "content_moves", "metadata_moves"),
+    [
+        pytest.param({"text": "Something else entirely."}, True, False, id="the text is content"),
+        pytest.param({"celex": "32015R0757"}, True, False, id="so is the document it sits in"),
+        pytest.param({"heading_path": ("Chapter I",)}, True, False, id="and the headings above"),
+        pytest.param(
+            {"article": "5"}, True, True, id="a different article moves both, as its citation does"
+        ),
+        pytest.param({"topic": "mrv"}, False, True, id="the topic is where it came from"),
+        pytest.param({"act_title": "FuelEU"}, False, True, id="a renamed act must not re-embed"),
+        pytest.param(
+            {"position": 7}, False, True, id="an inserted paragraph shifts positions, not content"
+        ),
+        pytest.param({"points": ("a",)}, False, True, id="points derive from the text"),
+    ],
+)
+def test_each_changed_field_moves_the_hash_it_belongs_to(
+    changed: dict[str, Any], content_moves: bool, metadata_moves: bool
+) -> None:
+    before, after = chunk(), chunk(**changed)
 
-
-def test_same_text_under_a_different_article_hashes_differently():
-    assert chunk().content_hash != chunk(article="5").content_hash
-
-
-def test_same_text_in_a_different_document_hashes_differently():
-    assert chunk().content_hash != chunk(celex="32015R0757").content_hash
-
-
-def test_topic_does_not_affect_the_hash():
-    assert chunk().content_hash == chunk(topic="mrv").content_hash
-
-
-def test_heading_path_affects_the_hash():
-    assert chunk().content_hash != chunk(heading_path=("Chapter I",)).content_hash
-
-
-def test_position_does_not_affect_the_hash():
-    """An inserted paragraph shifts every position after it; none of those chunks may churn."""
-    shifted = chunk(position=7)
-    assert shifted.position == 7
-    assert shifted.content_hash == chunk().content_hash
-
-
-def test_topic_affects_the_metadata_hash_not_the_content_hash():
-    assert chunk().metadata_hash != chunk(topic="mrv").metadata_hash
-
-
-def test_position_affects_the_metadata_hash_not_the_content_hash():
-    assert chunk().metadata_hash != chunk(position=7).metadata_hash
-
-
-def test_text_affects_the_content_hash_not_the_metadata_hash():
-    """Identity and metadata fields partition the chunk: each change lands in exactly one hash."""
-    assert chunk().metadata_hash == chunk(text="Something else entirely.").metadata_hash
-
-
-def test_points_affect_the_metadata_hash_not_the_content_hash():
-    """Points derive from the text, so they are metadata like the references found in it."""
-    assert chunk(points=("a",)).metadata_hash != chunk().metadata_hash
-    assert chunk(points=("a",)).content_hash == chunk().content_hash
-
-
-def test_act_title_affects_the_metadata_hash_not_the_content_hash():
-    """A title is where the chunk came from, like its topic: a renamed act must not re-embed."""
-    assert chunk(act_title="FuelEU").metadata_hash != chunk().metadata_hash
-    assert chunk(act_title="FuelEU").content_hash == chunk().content_hash
+    assert (after.content_hash != before.content_hash) is content_moves
+    assert (after.metadata_hash != before.metadata_hash) is metadata_moves

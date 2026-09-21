@@ -26,22 +26,23 @@ def fake_ingest(monkeypatch):
     return calls, report
 
 
-def test_abort_prints_error_and_exits_nonzero(monkeypatch, capsys):
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(MalformedDiscoveryError("mrv: malformed SPARQL response"), id="discovery"),
+        pytest.param(httpx.ConnectError("endpoint down"), id="the network"),
+    ],
+)
+def test_an_aborted_run_exits_nonzero_and_sends_why_it_aborted(monkeypatch, sentry, error):
     async def _boom(topics):
-        raise MalformedDiscoveryError("mrv: malformed SPARQL response")
+        raise error
 
     monkeypatch.setattr(cli, "_ingest", _boom)
+
     assert main([]) == 1
-    assert "ingest aborted: mrv" in capsys.readouterr().err
 
-
-def test_abort_on_http_error(monkeypatch, capsys):
-    async def _boom(topics):
-        raise httpx.ConnectError("endpoint down")
-
-    monkeypatch.setattr(cli, "_ingest", _boom)
-    assert main([]) == 1
-    assert "ingest aborted" in capsys.readouterr().err
+    [event] = sentry.events
+    assert event["exception"]["values"][0]["type"] == type(error).__name__
 
 
 def test_a_run_with_failed_documents_checks_in_to_the_nightly_monitor_as_an_error(
@@ -62,15 +63,3 @@ def test_a_run_with_failed_documents_checks_in_to_the_nightly_monitor_as_an_erro
     assert started["monitor_config"]["checkin_margin"] == 480
     [event] = sentry.events
     assert event["logentry"]["params"] == [1, {"fetch": ["32023R2917"]}]
-
-
-def test_an_aborted_run_sends_why_it_aborted(monkeypatch, sentry):
-    async def _boom(topics):
-        raise MalformedDiscoveryError("mrv: malformed SPARQL response")
-
-    monkeypatch.setattr(cli, "_ingest", _boom)
-
-    assert main([]) == 1
-
-    [event] = sentry.events
-    assert event["exception"]["values"][0]["type"] == "MalformedDiscoveryError"

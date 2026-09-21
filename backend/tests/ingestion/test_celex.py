@@ -31,80 +31,122 @@ def test_build_rejects_a_year_no_act_can_have(year: str) -> None:
     ("kind", "pair", "expected"),
     [
         pytest.param(
-            "Regulation", ("765", "2008"), ("765", "2008"), id="Regulation (EC) No 765/2008"
+            "Regulation",
+            ("765", "2008"),
+            ("765", "2008"),
+            id="only one half can be a year: Regulation (EC) No 765/2008",
         ),
         pytest.param(
-            "Regulation", ("2913", "92"), ("2913", "92"), id="Regulation (EEC) No 2913/92"
+            "Regulation",
+            ("2913", "92"),
+            ("2913", "92"),
+            id="only one half can be a year: Regulation (EEC) No 2913/92",
         ),
         pytest.param(
-            "Regulation", ("2015", "757"), ("757", "2015"), id="Regulation (EU) No 2015/757"
+            "Regulation",
+            ("2015", "757"),
+            ("757", "2015"),
+            id="only one half can be a year: Regulation (EU) No 2015/757",
         ),
         pytest.param(
-            "Regulation", ("2018", "2066"), ("2066", "2018"), id="Regulation (EU) 2018/2066"
-        ),
-        pytest.param("Decision", ("1600", "2002"), ("1600", "2002"), id="Decision No 1600/2002/EC"),
-    ],
-)
-def test_the_half_that_cannot_be_a_year_is_the_act_number(kind, pair, expected) -> None:
-    """Where only one half is year-shaped, nothing else needs consulting."""
-    assert celex.order_number_and_year(kind, *pair) == expected
-
-
-@pytest.mark.parametrize(
-    ("kind", "pair", "expected"),
-    [
-        pytest.param("Regulation", ("95", "93"), ("95", "93"), id="Regulation (EEC) No 95/93"),
-        pytest.param(
-            "Regulation", ("2003", "2003"), ("2003", "2003"), id="Regulation (EC) No 2003/2003"
+            "Regulation",
+            ("2018", "2066"),
+            ("2066", "2018"),
+            id="only one half can be a year: Regulation (EU) 2018/2066",
         ),
         pytest.param(
-            "Regulation", ("1907", "2006"), ("1907", "2006"), id="Regulation (EC) 1907/2006"
+            "Decision",
+            ("1600", "2002"),
+            ("1600", "2002"),
+            id="only one half can be a year: Decision No 1600/2002/EC",
         ),
-        pytest.param("Regulation", ("17", "62"), ("17", "62"), id="Regulation 17/62"),
         pytest.param(
-            "Regulation", ("2015", "1998"), ("1998", "2015"), id="Regulation (EU) No 2015/1998"
+            "Regulation",
+            ("95", "93"),
+            ("95", "93"),
+            id="an older regulation, number first: Regulation (EEC) No 95/93",
         ),
         pytest.param(
-            "Regulation", ("2019", "2020"), ("2020", "2019"), id="Regulation (EU) 2019/2020"
+            "Regulation",
+            ("2003", "2003"),
+            ("2003", "2003"),
+            id="an older regulation, number first: Regulation (EC) No 2003/2003",
         ),
-        pytest.param("Directive", ("2003", "87"), ("87", "2003"), id="Directive 2003/87/EC"),
-        pytest.param("Directive", ("92", "43"), ("43", "92"), id="Council Directive 92/43/EEC"),
         pytest.param(
-            "Directive", ("70", "50"), ("50", "70"), id="Commission Directive No 70/50/EEC"
+            "Regulation",
+            ("1907", "2006"),
+            ("1907", "2006"),
+            id="an older regulation, number first: Regulation (EC) 1907/2006",
+        ),
+        pytest.param(
+            "Regulation",
+            ("17", "62"),
+            ("17", "62"),
+            id="an older regulation, number first: Regulation 17/62",
+        ),
+        pytest.param(
+            "Regulation",
+            ("2015", "1998"),
+            ("1998", "2015"),
+            id="a regulation from 2015, year first: Regulation (EU) No 2015/1998",
+        ),
+        pytest.param(
+            "Regulation",
+            ("2019", "2020"),
+            ("2020", "2019"),
+            id="a regulation from 2015, year first: Regulation (EU) 2019/2020",
+        ),
+        pytest.param(
+            "Directive",
+            ("2003", "87"),
+            ("87", "2003"),
+            id="a directive, always year first: Directive 2003/87/EC",
+        ),
+        pytest.param(
+            "Directive",
+            ("92", "43"),
+            ("43", "92"),
+            id="a directive, always year first: Council Directive 92/43/EEC",
+        ),
+        pytest.param(
+            "Directive",
+            ("70", "50"),
+            ("50", "70"),
+            id="a directive, always year first: Commission Directive No 70/50/EEC",
         ),
         pytest.param(
             "Decision",
             ("2002", "584"),
             ("584", "2002"),
-            id="Council Framework Decision 2002/584/JHA",
+            id="a decision, always year first: Council Framework Decision 2002/584/JHA",
         ),
     ],
 )
-def test_two_year_shaped_halves_are_split_by_kind_and_scheme(kind, pair, expected) -> None:
-    """Directives and decisions were always year-first; regulations only from 2015 on."""
+def test_a_cited_pair_is_ordered_as_number_then_year(kind, pair, expected) -> None:
+    """Where both halves are year-shaped the kind and the 2015 scheme settle it."""
     assert celex.order_number_and_year(kind, *pair) == expected
 
 
-@pytest.mark.parametrize("celex_id", ["32015R0757", "32003L0087", "32013D0162"])
-def test_legislation_ids_are_recognised(celex_id: str) -> None:
-    assert celex.is_legislation(celex_id)
-
-
 @pytest.mark.parametrize(
-    "celex_id",
+    ("celex_id", "is_legislation"),
     [
-        "02015R0757-20250101",
-        "52015PC0337",
-        "62015CJ0001",
-        "32015X0757",
-        "3201",
-        "392L0043",
-        "3201XR0757",
-        "32015R075A",
+        pytest.param("32015R0757", True, id="a regulation"),
+        pytest.param("32003L0087", True, id="a directive"),
+        pytest.param("32013D0162", True, id="a decision"),
+        pytest.param("02015R0757-20250101", False, id="a consolidated version"),
+        pytest.param("52015PC0337", False, id="a proposal, from another sector"),
+        pytest.param("62015CJ0001", False, id="case law, from another sector"),
+        pytest.param("32015X0757", False, id="a kind letter that is not an act"),
+        pytest.param("3201", False, id="too short to be an id"),
+        pytest.param("392L0043", False, id="a two-digit year"),
+        pytest.param("3201XR0757", False, id="a year that is not digits"),
+        pytest.param("32015R075A", False, id="a number that is not digits"),
     ],
 )
-def test_non_legislation_ids_are_rejected(celex_id: str) -> None:
-    assert not celex.is_legislation(celex_id)
+def test_only_a_regulation_directive_or_decision_id_is_legislation(
+    celex_id: str, is_legislation: bool
+) -> None:
+    assert celex.is_legislation(celex_id) is is_legislation
 
 
 @pytest.mark.parametrize(

@@ -127,9 +127,11 @@ async def test_the_prune_survives_a_rollback_that_follows_it(
     assert {row.celex for row in await chunk_rows(db_session)} == {"32023R1805"}
 
 
-async def test_cited_celexes_are_the_instruments_a_division_is_cited_of(
+async def test_cited_celexes_are_the_acts_a_topics_own_text_cites_a_division_of(
     db_session: AsyncSession, ingest_run: IngestRun
 ):
+    """An act named whole gives follow_reference nothing to look up, and reading what a hop
+    document cites would follow the graph one step further every run."""
     await sync(
         db_session,
         ingest_run,
@@ -139,7 +141,9 @@ async def test_cited_celexes_are_the_instruments_a_division_is_cited_of(
                     raw="Article 7 of Directive (EU) 2018/2001",
                     instrument="32018L2001",
                     article="7",
-                )
+                ),
+                Reference(raw="Regulation (EU) 2020/852", instrument="32020R0852"),
+                Reference(raw="Article 7", article="7"),
             ]
         ),
         chunk(
@@ -153,32 +157,6 @@ async def test_cited_celexes_are_the_instruments_a_division_is_cited_of(
             article="5",
         ),
     )
-    assert await cited_celexes(db_session) == {"32018L2001", "32008R0765"}
-
-
-async def test_an_instrument_named_whole_is_not_cited(
-    db_session: AsyncSession, ingest_run: IngestRun
-):
-    """A recital naming an act without a division gives follow_reference nothing to look up."""
-    await sync(
-        db_session,
-        ingest_run,
-        chunk(references=[Reference(raw="Regulation (EU) 2020/852", instrument="32020R0852")]),
-    )
-    assert await cited_celexes(db_session) == set()
-
-
-async def test_a_division_of_this_act_is_not_a_citation_of_another(
-    db_session: AsyncSession, ingest_run: IngestRun
-):
-    await sync(db_session, ingest_run, chunk(references=[Reference(raw="Article 7", article="7")]))
-    assert await cited_celexes(db_session) == set()
-
-
-async def test_what_a_hop_document_cites_is_not_cited(
-    db_session: AsyncSession, ingest_run: IngestRun
-):
-    """Reading the hop's own citations would follow the graph one step further every run."""
     await sync(
         db_session,
         ingest_run,
@@ -193,4 +171,5 @@ async def test_what_a_hop_document_cites_is_not_cited(
         ),
         celex="32018L2001",
     )
-    assert await cited_celexes(db_session) == set()
+
+    assert await cited_celexes(db_session) == {"32018L2001", "32008R0765"}

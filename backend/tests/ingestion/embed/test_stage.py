@@ -1,11 +1,9 @@
 """The embed stage: how it sweeps, what it retries, and what a failure costs."""
 
-import asyncio
-
 import pytest
 from sqlalchemy import select
 
-from app.core.config import EMBED_DIMENSIONS, config
+from app.core.config import config
 from app.core.llm.errors import LLMError
 from app.ingestion.chunk.models import ChunkQuery
 from app.ingestion.chunk.schemas import DocumentChunk
@@ -34,63 +32,26 @@ async def test_vectors_land_on_the_rows_in_input_order(db_session, ingest_run, m
     assert [vector[0] for vector in stored.all()] == [0.0, 1.0, 2.0]
 
 
-async def test_a_failed_batch_is_recorded_against_its_document(
+async def test_a_failed_batch_costs_its_document_only_the_chunks_in_it(
     db_session, ingest_run, make_chunk_row, embeddings
 ):
-    embeddings.errors[1] = LLMError("embedding call failed")
-    db_session.add_all(rows(make_chunk_row, ingest_run, "32023R1805", 2))
-    await db_session.flush()
-
-    result = await embed_chunks(db_session)
-
-    assert result.embedded == 0
-    assert result.failures == {"32023R1805": "2 chunks: LLMError: embedding call failed"}
-
-
-async def test_every_failed_batch_of_a_document_counts_towards_its_loss(
-    db_session, ingest_run, make_chunk_row, embeddings
-):
-    """A document spanning several batches reports every chunk it lost, not just the last one's."""
-    embeddings.errors[1] = LLMError("embedding call failed")
+    """Batches never span documents and each commits alone. Ordering is by celex, so calls 1
+    to 3 are 32015R0757's batches and call 4 is 32023R1805's."""
     embeddings.errors[2] = LLMError("embedding call failed")
-    db_session.add_all(rows(make_chunk_row, ingest_run, "32023R1805", 200))
-    await db_session.flush()
-
-    result = await embed_chunks(db_session)
-
-    assert result.embedded == 0
-    assert result.failures == {"32023R1805": "200 chunks: LLMError: embedding call failed"}
-
-
-async def test_one_document_failing_does_not_stop_the_others(
-    db_session, ingest_run, make_chunk_row, embeddings
-):
-    """Ordering is by celex, so 32015R0757's batch is call 1 and 32023R1805's is call 2."""
-    embeddings.errors[1] = LLMError("embedding call failed")
-    db_session.add_all(rows(make_chunk_row, ingest_run, "32015R0757", 1))
+    embeddings.errors[3] = LLMError("embedding call failed")
+    db_session.add_all(rows(make_chunk_row, ingest_run, "32015R0757", 300))
     db_session.add_all(rows(make_chunk_row, ingest_run, "32023R1805", 1))
     await db_session.flush()
 
     result = await embed_chunks(db_session)
 
-    assert list(result.failed) == ["32015R0757"]
-    assert result.embedded == 1
-
-
-async def test_a_later_batch_failing_keeps_the_earlier_batches_vectors(
-    db_session, ingest_run, make_chunk_row, embeddings
-):
-    """Each batch commits alone, so work already done survives a failure further in."""
-    embeddings.errors[2] = LLMError("embedding call failed")
-    db_session.add_all(rows(make_chunk_row, ingest_run, "32023R1805", 200))
-    await db_session.flush()
-
-    result = await embed_chunks(db_session)
-
-    assert [len(call) for call in embeddings.calls] == [128, 72]
-    assert result.embedded == 128
-    assert list(result.failed) == ["32023R1805"]
-    assert len(await get_chunks(db_session, ChunkQuery(has_embedding=False, limit=100))) == 72
+    assert [len(call) for call in embeddings.calls] == [128, 128, 44, 1]
+    assert result.embedded == 129
+    assert {celex: failure.chunks for celex, failure in result.failed.items()} == {
+        "32015R0757": 172
+    }
+    vectorless = await get_chunks(db_session, ChunkQuery(has_embedding=False, limit=500))
+    assert [chunk.celex for chunk in vectorless] == ["32015R0757"] * 172
 
 
 async def test_a_corpus_larger_than_one_page_ends_with_every_chunk_embedded(
@@ -127,18 +88,3 @@ async def test_a_batch_that_keeps_failing_does_not_loop_the_sweep(
     assert sizes == [2, 2, 1]
     assert result.embedded == 0
     assert list(result.failed) == ["32023R1805"]
-
-
-def overlap_tracker(peaks: list[int]):
-    """An embed stub that records how many calls are in flight when each call runs."""
-    active = 0
-
-    async def tracking(texts, *, input_type):
-        nonlocal active
-        active += 1
-        await asyncio.sleep(0)
-        peaks.append(active)
-        active -= 1
-        return [[0.0] * EMBED_DIMENSIONS] * len(texts)
-
-    return tracking

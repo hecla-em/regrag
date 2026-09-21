@@ -1,0 +1,574 @@
+[
+  {
+    "article": "3",
+    "annex": null,
+    "title": "Definitions",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "For the purposes of this Regulation, the following definitions apply:\n(a) ‘greenhouse gas emissions’ means the release of the greenhouse gases covered by this Regulation in accordance with Article 2(1c), first subparagraph, by ships;\n(b) ‘port of call’ means a port of call as defined in Article 3, point (z), of Directive 2003/87/EC of the European Parliament and of the Council;\n(c) ‘voyage’ means any movement of a ship that originates from or terminates in a port of call;\n(d) ‘company’ means the shipping company as defined in Article 3, point (w), of Directive 2003/87/EC;\n(e) ‘gross tonnage’ (GT) means the gross tonnage calculated in accordance with the tonnage measurement regulations contained in Annex I to the International Convention on Tonnage Measurement of Ships, adopted by the International Maritime Organization (IMO) in London on 23 June 1969, or any successor convention;\n(f) ‘verifier’ means a legal entity carrying out verification activities which is accredited by a national accreditation body pursuant to Regulation (EC) No 765/2008 and this Regulation;\n(g) ‘verification’ means the activities carried out by a verifier to assess the conformity of the documents transmitted by the company with the requirements of this Regulation;\n(h) ‘document of compliance’ means a document specific to a ship, issued to a company by a verifier, which confirms that that ship has complied with the requirements of this Regulation for a specific reporting period;\n(i) ‘other relevant information’ means information related to greenhouse gas emissions from the consumption of fuels, to transport work and to the energy efficiency of ships, which enables the analysis of emission trends and the assessment of ships' performances;\n(j) ‘emission factor’ means the average emission rate of a greenhouse gas relative to the activity data of a source stream, assuming complete oxidation for combustion and complete conversion for all other chemical reactions;",
+    "paragraph": null,
+    "part": 1,
+    "parts": 2,
+    "position": 0,
+    "points": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j"
+    ],
+    "references": [
+      {
+        "raw": "Article 2(1c)",
+        "instrument": null,
+        "article": "2",
+        "paragraph": "1c",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 3, point (z), of Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": "3",
+        "paragraph": null,
+        "point": "z",
+        "annex": null
+      },
+      {
+        "raw": "Article 3, point (w), of Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": "3",
+        "paragraph": null,
+        "point": "w",
+        "annex": null
+      },
+      {
+        "raw": "Annex I",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "I"
+      },
+      {
+        "raw": "Regulation (EC) No 765/2008",
+        "instrument": "32008R0765",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 3"
+  },
+  {
+    "article": "3",
+    "annex": null,
+    "title": "Definitions",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "(k) ‘uncertainty’ means a parameter, associated with the result of the determination of a quantity, that characterises the dispersion of the values that could reasonably be attributed to the particular quantity, including the effects of systematic as well as of random factors, expressed as a percentage, and describes a confidence interval around the mean value comprising 95 % of inferred values taking into account any asymmetry of the distribution of values;\n(l) ‘conservative’ means that a set of assumptions is defined in order to ensure that no under-estimation of annual emissions or over-estimation of distances or amounts of cargo carried occurs;\n(m) ‘reporting period’ means the period from 1 January until 31 December of any given year; for voyages starting and ending in two different years, the respective data shall be accounted under the year concerned;\n(n) ‘ship at berth’ means a ship which is securely moored or anchored in a port falling under the jurisdiction of a Member State while it is loading, unloading or hotelling, including the time spent when not engaged in cargo operations;\n(o) ‘ice class’ means the notation assigned to the ship by the competent national authorities of the flag State or an organisation recognised by that State, showing that the ship has been designed for navigation in sea-ice conditions;\n(p) ‘administering authority responsible’ means the administering authority in respect of a shipping company referred to in Article 3gf of Directive 2003/87/EC;\n(q) ‘aggregated emissions data at company level’ means the sum of emissions of the greenhouse gases covered by Directive 2003/87/EC in relation to maritime transport activities in accordance with Annex I to that Directive and to be reported by a company under that Directive, in respect of all ships under its responsibility during the reporting period.",
+    "paragraph": null,
+    "part": 2,
+    "parts": 2,
+    "position": 1,
+    "points": [
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q"
+    ],
+    "references": [
+      {
+        "raw": "Article 3gf of Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": "3gf",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Annex I",
+        "instrument": null,
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "I"
+      },
+      {
+        "raw": "Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 3"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "In accordance with Articles 8 to 12, companies shall, for each of their ships, monitor and report on the relevant parameters during a reporting period. They shall carry out that monitoring and reporting within all ports under the jurisdiction of a Member State and for any voyages to or from a port under the jurisdiction of a Member State.",
+    "paragraph": "1",
+    "part": 1,
+    "parts": 1,
+    "position": 2,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 8",
+        "instrument": null,
+        "article": "8",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 4(1)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Monitoring and reporting shall be complete and cover greenhouse gas emissions from the combustion of fuels, while the ships are at sea as well as at berth. Companies shall apply appropriate measures to prevent any data gaps within the reporting period.",
+    "paragraph": "2",
+    "part": 1,
+    "parts": 1,
+    "position": 3,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(2)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Monitoring and reporting shall be consistent and comparable over time. To that end, companies shall use the same monitoring methodologies and data sets subject to modifications assessed by the verifier.",
+    "paragraph": "3",
+    "part": 1,
+    "parts": 1,
+    "position": 4,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(3)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall obtain, record, compile, analyse and document monitoring data, including assumptions, references, emission factors and activity data, in a transparent manner that enables the reproduction of the determination of greenhouse gas emissions by the verifier.",
+    "paragraph": "4",
+    "part": 1,
+    "parts": 1,
+    "position": 5,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(4)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall ensure that the determination of greenhouse gas emissions is neither systematically nor knowingly inaccurate. They shall identify and reduce any source of inaccuracies.",
+    "paragraph": "5",
+    "part": 1,
+    "parts": 1,
+    "position": 6,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(5)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall enable reasonable assurance of the integrity of the greenhouse gas emission data to be monitored and reported.",
+    "paragraph": "6",
+    "part": 1,
+    "parts": 1,
+    "position": 7,
+    "points": [],
+    "references": [],
+    "citation": "Article 4(6)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall endeavour to take account of the recommendations included in the verification reports issued pursuant to Article 13(3) or (4) in their subsequent monitoring and reporting.",
+    "paragraph": "7",
+    "part": 1,
+    "parts": 1,
+    "position": 8,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 13(3)",
+        "instrument": null,
+        "article": "13",
+        "paragraph": "3",
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 4(7)"
+  },
+  {
+    "article": "4",
+    "annex": null,
+    "title": "Common principles for monitoring and reporting",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall report the aggregated emissions data at company level of the ships under their responsibility during a reporting period pursuant to Article 11a.",
+    "paragraph": "8",
+    "part": 1,
+    "parts": 1,
+    "position": 9,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 11a",
+        "instrument": null,
+        "article": "11a",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 4(8)"
+  },
+  {
+    "article": "11a",
+    "annex": null,
+    "title": "Reporting and submission of the aggregated emissions data at company level",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Companies shall determine the aggregated emissions data at company level during a reporting period, based on the data of the emissions report and the report referred to in Article 11(2) for each ship that was under their responsibility during the reporting period, in accordance with the rules laid down in the delegated acts adopted pursuant to paragraph 4 of this Article.",
+    "paragraph": "1",
+    "part": 1,
+    "parts": 1,
+    "position": 10,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 11(2)",
+        "instrument": null,
+        "article": "11",
+        "paragraph": "2",
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 11a(1)"
+  },
+  {
+    "article": "11a",
+    "annex": null,
+    "title": "Reporting and submission of the aggregated emissions data at company level",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "From 2025, companies shall submit to the administering authority responsible by 31 March of each year the aggregated emissions data at company level that cover the emissions in the reporting period of the previous year to be reported under Directive 2003/87/EC in relation to maritime transport activities, in accordance with the rules laid down in the delegated acts adopted pursuant to paragraph 4 of this Article, and that have been verified in accordance with Chapter III of this Regulation.",
+    "paragraph": "2",
+    "part": 1,
+    "parts": 1,
+    "position": 11,
+    "points": [],
+    "references": [
+      {
+        "raw": "Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 11a(2)"
+  },
+  {
+    "article": "11a",
+    "annex": null,
+    "title": "Reporting and submission of the aggregated emissions data at company level",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The administering authority responsible may require companies to submit the verified aggregated emissions data at company level referred to in paragraph 2 by a date earlier than 31 March, but not earlier than by 28 February.",
+    "paragraph": "3",
+    "part": 1,
+    "parts": 1,
+    "position": 12,
+    "points": [],
+    "references": [],
+    "citation": "Article 11a(3)"
+  },
+  {
+    "article": "11a",
+    "annex": null,
+    "title": "Reporting and submission of the aggregated emissions data at company level",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "The Commission is empowered to adopt delegated acts in accordance with Article 23 to supplement this Regulation with the rules for the monitoring and reporting of the aggregated emissions data at company level and the submission of the aggregated emissions data at company level to the administering authority responsible.",
+    "paragraph": "4",
+    "part": 1,
+    "parts": 1,
+    "position": 13,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 23",
+        "instrument": null,
+        "article": "23",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Article 11a(4)"
+  },
+  {
+    "article": null,
+    "annex": "I",
+    "title": "Methods for monitoring greenhouse gas emissions",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "table",
+    "text": "Term | Explanation\nGHGMRV | Greenhouse gas emissions to be reported under this Regulation, expressed in tonnes CO2 equivalent, where ‘CO2 equivalent’ means the metric measure used to compute the emissions from CO2, CH4 and N2O on the basis of their global warming potential, by converting amounts of CH4 and N2O to the equivalent amount of carbon dioxide with the same global warming potential.\n[formula] | Total aggregated CO2 emitted.\n[formula] | Total aggregated CH4 emitted.\n[formula] | Total aggregated N2O emitted.",
+    "paragraph": null,
+    "part": 1,
+    "parts": 1,
+    "position": 14,
+    "points": [],
+    "references": [],
+    "citation": "Annex I"
+  },
+  {
+    "article": null,
+    "annex": "I",
+    "title": "Methods for monitoring greenhouse gas emissions",
+    "heading_path": [],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "table",
+    "text": "1 | 2 | 3 | 4 | 5 | 6\nFuel Class | Type of Fuel | [formula] [formula] | [formula] [formula] | [formula] [formula] | Cj As % of the mass of the fuel used by the emissions source\nFossil | HFO ISO 8217 Grades RME to RMK | 3,114 | 0,00005 | 0,00018 | —\nLFO ISO 8217 Grades RMA to RMD | 3,151 | 0,00005 | 0,00018 | —\nMDO MGO ISO 8217 Grades DMX to DMB | 3,206 | 0,00005 | 0,00018 | —",
+    "paragraph": null,
+    "part": 1,
+    "parts": 1,
+    "position": 15,
+    "points": [],
+    "references": [],
+    "citation": "Annex I"
+  },
+  {
+    "article": null,
+    "annex": "I",
+    "title": "Methods for monitoring greenhouse gas emissions",
+    "heading_path": [
+      "A. CALCULATION OF GREENHOUSE GAS EMISSIONS (ARTICLE 9)",
+      "1. Formulae for the calculation of greenhouse gas emissions"
+    ],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "For the purposes of calculating greenhouse gas emissions, companies shall apply the following formula:\n[formula]\nCompanies shall calculate CO2 emissions by adding the CO2 emissions of all fuels i used, applying the following formula:\n[formula]\nCompanies shall calculate CH4 emissions by adding the CH4 emissions resulting from the combustion of all fuels i used together with the emissions caused by CH4 slippage, applying the following formula:\n[formula]\nCompanies shall calculate N2O emissions by adding the N2O emissions of all fuels i used, applying the following formula:\n[formula]\nFuel consumption shall be calculated separately for emissions from voyages between ports under a Member State’s jurisdiction, from voyages which departed from ports under a Member State’s jurisdiction, from voyages to ports under a Member State’s jurisdiction, and for emissions within ports under the jurisdiction of a Member State. Fuel consumption within ports under the jurisdiction of a Member State at berth shall be calculated separately.",
+    "paragraph": null,
+    "part": 1,
+    "parts": 1,
+    "position": 16,
+    "points": [],
+    "references": [],
+    "citation": "Annex I"
+  },
+  {
+    "article": null,
+    "annex": "I",
+    "title": "Methods for monitoring greenhouse gas emissions",
+    "heading_path": [
+      "A. CALCULATION OF GREENHOUSE GAS EMISSIONS (ARTICLE 9)",
+      "2. Default emission factors"
+    ],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "In the following table:\n— TBM stands for ‘to be measured’;\n— N/A stands for ‘not available’;\n— The dash means ‘not applicable’.\nThe default values, as contained in the table below, for emission factors for fuels and emission sources used on board the ship shall be applied for the purpose of this Regulation.\nWhere a cell indicates either TBM or N/A, the highest default value of the fuel class in the same column shall be used. Where, for a particular fuel class, all cells in the same column indicate either TBM or N/A, default value of the least favourable fossil fuel type shall be used. This rule does not apply to column 6 where TBM or N/A refers to non available values for the emissions source. In the case of no default value for Cj, a certified value in accordance with Article 10(6) of Regulation (EU) 2023/1805 of the European Parliament and of the Council* shall be used.\nCompanies may diverge from the default values for the emission factors listed in the table below, following, as applicable, the application of the conditions and restrictions provided in Article 10(5) and (6) of Regulation (EU) 2023/1805.\nFor non-fossil fuels not listed in the table below, the company shall determine the emission factors in accordance with Articles 32 to 35 of Commission Implementing Regulation (EU) 2018/2066**.\nWhere there is fuel blending, each fuel shall be considered separately.\nColumn 1 identifies the class of the fuels.\nColumn 2 identifies the name of the relevant types of fuel for each class.\nColumn 3 contains the emission factor EF for carbon dioxide in gCO2/gfuel.\nColumn 4 contains the emission factor EF for methane in gCH4/gfuel.\nColumn 5 contains the emission factor EF for nitrous oxide in gN2O/gfuel.",
+    "paragraph": null,
+    "part": 1,
+    "parts": 2,
+    "position": 17,
+    "points": [],
+    "references": [
+      {
+        "raw": "Article 10(6) of Regulation (EU) 2023/1805",
+        "instrument": "32023R1805",
+        "article": "10",
+        "paragraph": "6",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 10(5)",
+        "instrument": null,
+        "article": "10",
+        "paragraph": "5",
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Article 32",
+        "instrument": null,
+        "article": "32",
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Regulation (EU) 2023/1805",
+        "instrument": "32023R1805",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Commission Implementing Regulation (EU) 2018/2066",
+        "instrument": "32018R2066",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Annex I"
+  },
+  {
+    "article": null,
+    "annex": "I",
+    "title": "Methods for monitoring greenhouse gas emissions",
+    "heading_path": [
+      "A. CALCULATION OF GREENHOUSE GAS EMISSIONS (ARTICLE 9)",
+      "2. Default emission factors"
+    ],
+    "celex": "32015R0757",
+    "topic": "mrv",
+    "act_title": null,
+    "kind": "paragraph",
+    "text": "Column 6 identifies the part of fuel lost as fugitive and slipped emissions (Cj) measured as % of mass of fuel used by the specific emission source. For fuels such as LNG for which fugitive and slipped emissions exist, the amount of fugitive and slipped emissions as presented in the table is expressed in % of the mass of fuel used. The values of Cj in the table are calculated at 50 % of the full engine load.\n* Regulation (EU) 2023/1805 of the European Parliament and of the Council of 13 September 2023 on the use of renewable and low-carbon fuels in maritime transport, and amending Directive 2009/16/EC (OJ L 234, 22.9.2023, p. 48).\n** Commission Implementing Regulation (EU) 2018/2066 of 19 December 2018 on the monitoring and reporting of greenhouse gas emissions pursuant to Directive 2003/87/EC of the European Parliament and of the Council and amending Commission Regulation (EU) No 601/2012 (OJ L 334, 31.12.2018, p. 1).",
+    "paragraph": null,
+    "part": 2,
+    "parts": 2,
+    "position": 18,
+    "points": [],
+    "references": [
+      {
+        "raw": "Regulation (EU) 2023/1805",
+        "instrument": "32023R1805",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Directive 2009/16/EC",
+        "instrument": "32009L0016",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Commission Implementing Regulation (EU) 2018/2066",
+        "instrument": "32018R2066",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Directive 2003/87/EC",
+        "instrument": "32003L0087",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      },
+      {
+        "raw": "Commission Regulation (EU) No 601/2012",
+        "instrument": "32012R0601",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
+    "citation": "Annex I"
+  }
+]
