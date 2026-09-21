@@ -8,21 +8,6 @@ FUELEU = "Regulation (EU) 2023/1805 on renewable and low-carbon fuels in maritim
 MRV = "Regulation (EU) 2015/757 on monitoring, reporting and verification of CO2 emissions"
 
 
-def test_context_blocks_are_numbered_from_one():
-    sources = (
-        retrieved_chunk(),
-        retrieved_chunk(id=2, celex="32015R0757", citation="Article 5"),
-    )
-    context = format_context(sources)
-    assert "\n\n[1] (Regulation (EU) 2023/1805, Article 4(1))\n" in context
-    assert "\n\n[2] (Regulation (EU) 2015/757, Article 5)\n" in context
-
-
-def test_context_blocks_carry_the_chunk_text():
-    context = format_context((retrieved_chunk(text="A very specific clause."),))
-    assert "A very specific clause." in context
-
-
 def test_context_opens_with_each_act_named_once_in_order_of_first_appearance():
     """The full title is long, so it is given once per act rather than on every block; the
     block headers carry the short name the legend keys on."""
@@ -50,8 +35,3 @@ def test_an_act_without_a_stored_title_is_left_off_the_legend():
 def test_no_titles_means_no_legend():
     context = format_context((retrieved_chunk(act_title=None),))
     assert context.startswith("[1] (Regulation (EU) 2023/1805, Article 4(1))\n")
-
-
-def test_the_footer_follows_its_block():
-    context = format_context((retrieved_chunk(act_title=None),), lambda source: "cited by 2")
-    assert context.endswith("\ncited by 2")

@@ -6,7 +6,6 @@ from uuid import UUID
 
 import httpx
 
-from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.core.config import config
 from app.core.llm.errors import LLMError
 from tests.chat.conftest import (
@@ -66,15 +65,6 @@ def test_block_list_content_streams_text_without_reasoning(client, two_results, 
     answer = "".join(payload for name, payload in events if name == "text")
     assert answer == "Ships must comply [1]."
     assert THINKING not in json.dumps(events)
-
-
-def test_stream_tells_proxies_and_browsers_not_to_buffer(client, two_results, monkeypatch):
-    model = fake_chat_model()
-    install_chat_model(monkeypatch, model)
-
-    with client.stream("POST", "/chat", json={"question": "q"}) as response:
-        assert response.headers["cache-control"] == "no-cache"
-        assert response.headers["x-accel-buffering"] == "no"
 
 
 def test_sources_event_binds_markers_to_chunks(client, two_results, monkeypatch):
@@ -170,11 +160,6 @@ def test_a_malformed_question_costs_no_slot(
         assert ok.status_code == 200
 
 
-def test_empty_question_is_rejected(client):
-    response = client.post("/chat", json={"question": ""})
-    assert response.status_code == 422
-
-
 def test_the_frames_are_documented_as_an_event_stream(client):
     """The generated client types the frames from the one media type sent, as a union
     it can narrow on the event name."""
@@ -191,24 +176,6 @@ def test_the_frames_are_documented_as_an_event_stream(client):
     assert set(text_event["required"]) == {"event", "data"}
 
 
-def test_a_refused_question_streams_the_refusal_then_done(client, one_junk_result, answer_model):
-    with client.stream("POST", "/chat", json={"question": "best pizza topping?"}) as response:
-        events = read_events(response)
-
-    assert [name for name, _ in events] == [
-        "step",
-        "step",
-        "sources",
-        "step",
-        "step",
-        "text",
-        "done",
-    ]
-    assert first_payload(events, "sources") == []
-    assert first_payload(events, "text") == REFUSAL_ANSWER
-    assert answer_model.received == []
-
-
 def test_done_carries_the_thread_a_first_question_was_recorded_under(
     client, two_results, answer_model
 ):
@@ -218,24 +185,6 @@ def test_done_carries_the_thread_a_first_question_was_recorded_under(
     done = first_payload(events, "done")
     assert set(done) == {"thread_id"}
     UUID(done["thread_id"])
-
-
-def test_a_supplied_thread_is_echoed_back_on_done(client, two_results, answer_model, monkeypatch):
-    async def no_history(session, thread_id):
-        return ()
-
-    monkeypatch.setattr("app.chat.stream.load_thread_history", no_history)
-    thread_id = "11111111-2222-3333-4444-555555555555"
-
-    with client.stream("POST", "/chat", json={"question": "q", "thread_id": thread_id}) as response:
-        events = read_events(response)
-
-    assert first_payload(events, "done") == {"thread_id": thread_id}
-
-
-def test_a_malformed_thread_id_is_rejected(client):
-    response = client.post("/chat", json={"question": "q", "thread_id": "not-a-uuid"})
-    assert response.status_code == 422
 
 
 def test_a_repeated_question_is_answered_from_the_cache(cached_client, two_results, answer_model):

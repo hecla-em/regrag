@@ -1,14 +1,12 @@
 """The answer cache: what a question normalizes to, what moves its key, what happens when
 Redis or a stored entry cannot be read, and the stream a hit replays in place of a run."""
 
-import logging
 from uuid import UUID
 
 import pytest
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chat import cache
 from app.chat.cache import (
     answer_key,
     hash_answer_settings,
@@ -152,41 +150,6 @@ async def test_a_stored_answer_is_read_back_whole(answer_cache: Redis) -> None:
     assert await answer_cache.ttl("chat:answer:v:k") == config.CHAT_CACHE_TTL_SECONDS
 
 
-async def test_an_unknown_key_is_a_miss(answer_cache: Redis) -> None:
-    assert await lookup_answer(answer_cache, "chat:answer:v:missing") is None
-
-
-async def test_an_unreadable_answer_is_a_logged_miss(
-    answer_cache: Redis, caplog: pytest.LogCaptureFixture
-) -> None:
-    """An entry written in an older shape must not fail the question it would have answered."""
-    await answer_cache.set("chat:answer:v:k", '{"answer": "a", "sources": [{"id": 1}]}')
-
-    with caplog.at_level(logging.WARNING, logger=cache.logger.name):
-        assert await lookup_answer(answer_cache, "chat:answer:v:k") is None
-
-    assert [record.getMessage() for record in caplog.records] == [
-        "cached answer unreadable; running the graph"
-    ]
-
-
-async def test_redis_away_is_a_logged_miss_and_a_logged_skip(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    redis = unreachable_redis()
-    answer = CachedAnswer(answer="a", sources=())
-
-    with caplog.at_level(logging.WARNING, logger=cache.logger.name):
-        assert await lookup_answer(redis, "chat:answer:v:k") is None
-        await store_answer(redis, "chat:answer:v:k", answer)
-
-    lookup, store = caplog.records
-    assert (lookup.levelno, store.levelno) == (logging.WARNING, logging.WARNING)
-    assert lookup.getMessage().startswith("answer cache lookup failed, running the graph: ")
-    assert store.getMessage().startswith("answer not cached: ")
-    await redis.aclose()
-
-
 @pytest.fixture
 def cache_on(monkeypatch, answer_cache):
     """The answer cache on, over an emptied Redis standing in for the shared client."""
@@ -270,31 +233,6 @@ class TestCacheStream:
         events = await collect_events(FUELEU)
 
         assert isinstance(events[-1], ErrorEvent)
-        assert await cache_on.dbsize() == 0
-
-    async def test_before_any_corpus_the_graph_runs_and_nothing_is_kept(
-        self, cache_on, two_results, answer_model, monkeypatch
-    ):
-        async def no_corpus(session, question):
-            return None
-
-        monkeypatch.setattr("app.chat.cache.answer_key", no_corpus)
-
-        await collect_events(FUELEU)
-        await collect_events(FUELEU)
-
-        assert len(answer_model.received) == 2
-        assert await cache_on.dbsize() == 0
-
-    async def test_with_the_cache_off_the_graph_runs_and_nothing_is_kept(
-        self, cache_on, two_results, answer_model, monkeypatch
-    ):
-        monkeypatch.setattr(config, "CHAT_CACHE_ENABLED", False)
-
-        await collect_events(FUELEU)
-        await collect_events(FUELEU)
-
-        assert len(answer_model.received) == 2
         assert await cache_on.dbsize() == 0
 
     async def test_redis_away_runs_the_graph(

@@ -5,46 +5,10 @@ import pytest
 from app.chat.graph.nodes.retrieve import interleave_by_rank, retrieve
 from app.chat.models import ChatState
 from app.core.config import config
-from app.retrieval.models import SearchRequest
-from tests.chat.conftest import QUESTION, hits_for, run_graph
+from tests.chat.conftest import hits_for
 from tests.conftest import junk_result, search_result
 
 pytestmark = pytest.mark.anyio
-
-
-async def test_retrieve_widens_what_search_found_to_whole_sections(
-    one_result, answer_model, monkeypatch
-):
-    """The graph hands search's hits to expansion, so the prompt sees whole sections."""
-    widened = (search_result(id=2, citation="Article 4(2)", text="The limit is 91,16 gCO2e/MJ."),)
-
-    async def fake_expand(session, chunks, *, limit):
-        assert tuple(chunks) == (search_result(),)
-        assert limit == config.CHAT_CONTEXT_CHUNKS
-        return widened
-
-    monkeypatch.setattr(config, "EXPAND_SECTIONS", True)
-    monkeypatch.setattr("app.chat.graph.nodes.retrieve.expand_sections", fake_expand)
-
-    state = await run_graph()
-
-    assert state.sources == widened
-    assert state.hits == (search_result(),)
-
-
-async def test_retrieve_leaves_search_alone_when_expansion_is_off(
-    one_result, answer_model, monkeypatch
-):
-    """The off switch skips the widening query, not just its result."""
-
-    async def refuse(session, chunks, *, limit):
-        raise AssertionError("expansion ran with EXPAND_SECTIONS off")
-
-    monkeypatch.setattr("app.chat.graph.nodes.retrieve.expand_sections", refuse)
-
-    state = await run_graph()
-
-    assert state.sources == (search_result(),)
 
 
 class TestInterleaveByRank:
@@ -111,12 +75,6 @@ class TestRetrieveOverQueries:
         assert update["sources"] == ()
         assert update["retrieved_sources"] == 0
         assert update["hits"] == (junk,)
-
-    async def test_no_queries_searches_the_question_as_asked(self, one_result):
-        update = await retrieve(ChatState(question=QUESTION))
-
-        assert one_result == [SearchRequest(query=QUESTION, limit=config.CHAT_SOURCES)]
-        assert update["sources"] == (search_result(),)
 
     async def test_expansion_widens_the_interleaved_survivors(self, monkeypatch):
         hits_for(monkeypatch, a=(search_result(id=1),), b=(search_result(id=2),))

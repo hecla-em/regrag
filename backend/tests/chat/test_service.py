@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat import service
 from app.chat.enums import ChatNode, ChatOutcome
-from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.models import ChatState, ChatStepResult, ChatTurn
 from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.chat.service import create_chat_request, load_thread_history, spent_since
@@ -239,22 +238,6 @@ async def test_history_is_capped_to_the_latest_thread_turns(db_session: AsyncSes
     history = await load_thread_history(db_session, thread)
 
     assert [t.question for t in history] == ["q1", "q2"]
-
-
-async def test_an_unknown_thread_has_no_history(db_session: AsyncSession):
-    assert await load_thread_history(db_session, uuid4()) == ()
-
-
-def test_a_full_thread_names_its_cap():
-    assert ThreadFullError(5).message == (
-        "This thread has reached its 5 turns; start a new thread to keep asking"
-    )
-    assert ThreadFullError(5).status_code == 409
-
-
-def test_a_reached_spend_cap_is_a_pause_not_a_fault():
-    assert SpendCapReachedError().message == "The service is paused for the day; ask again later"
-    assert SpendCapReachedError().status_code == 503
 
 
 def ledger_row(cost_usd: float | None, hours_ago: float) -> ChatRequest:

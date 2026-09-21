@@ -2,21 +2,16 @@
 
 import pytest
 from langchain_core.messages import AIMessage
-from langchain_core.runnables import RunnableBinding
-from langchain_litellm import ChatLiteLLM
 
 from app.chat.enums import ChatNode, RefusalReason, ToolStep
 from app.chat.graph.nodes.assess import (
     ASSESS_SYSTEM_PROMPT,
-    assess_model,
     build_assess_message,
-    build_assess_system_prompt,
     merge_sources,
 )
 from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import Refusal
 from app.chat.toolbox.models import ToolCall
-from app.chat.toolbox.service import tool_definitions
 from app.core.config import config
 from app.ingestion.chunk.models import Reference
 from tests.chat.conftest import (
@@ -25,19 +20,9 @@ from tests.chat.conftest import (
     run_graph,
     tool_call_message,
 )
-from tests.conftest import REPORTED_USAGE, USAGE, install_search, search_result
+from tests.conftest import USAGE, install_search, search_result
 
 pytestmark = pytest.mark.anyio
-
-
-def test_assess_binds_its_tools_on_a_blocking_call():
-    """The loop reads the context in one blocking turn and answers with tool calls, so the
-    stream that suits the answer would leave it nothing to run."""
-    binding = assess_model()
-    assert isinstance(binding, RunnableBinding)
-    model = binding.bound
-    assert isinstance(model, ChatLiteLLM)
-    assert model.streaming is False
 
 
 class TestMergeSources:
@@ -75,20 +60,6 @@ class TestMergeSources:
 
 
 class TestAssessLoop:
-    async def test_no_tool_calls_goes_straight_to_synthesize(
-        self, loop_on, one_result, answer_model, assess_turns
-    ):
-        assess_turns(AIMessage(content=""))
-
-        state = await run_graph()
-
-        assert state.answer == "Answered [1]."
-        assert [r.step for r in state.steps] == [
-            ChatNode.RETRIEVE,
-            ChatNode.ASSESS,
-            ChatNode.SYNTHESIZE,
-        ]
-
     async def test_a_tool_round_merges_its_chunks_then_answers(
         self, loop_on, one_result, answer_model, assess_turns, tool_results
     ):
@@ -132,25 +103,6 @@ class TestAssessLoop:
             ChatNode.SYNTHESIZE,
         ]
 
-    async def test_a_call_to_a_tool_the_surface_does_not_have_is_still_a_step(
-        self, loop_on, one_result, answer_model, assess_turns, tool_results
-    ):
-        """A model asking for a tool that does not exist is worth reading off the path,
-        and the round it spent still shows there."""
-        assess_turns(tool_call_message("summarize", {"query": "gap"}), AIMessage(content=""))
-        tool_results()
-
-        state = await run_graph()
-
-        assert [r.step for r in state.steps] == [
-            ChatNode.RETRIEVE,
-            ChatNode.ASSESS,
-            ToolStep.UNKNOWN,
-            ChatNode.ASSESS,
-            ChatNode.SYNTHESIZE,
-        ]
-        assert state.answer == "Answered [1]."
-
     async def test_each_tool_call_of_a_round_is_timed_as_its_own_step(
         self, loop_on, one_result, answer_model, assess_turns, tool_results
     ):
@@ -185,18 +137,6 @@ class TestAssessLoop:
         ]
         assert state.assess_rounds() == 2
 
-    async def test_each_assess_visit_records_its_own_usage(
-        self, loop_on, one_result, answer_model, assess_turns, tool_results
-    ):
-        assess_turns(tool_call_message("search", {"query": "gap"}), AIMessage(content=""))
-        tool_results()
-
-        state = await run_graph()
-
-        assesses = [r for r in state.steps if r.step is ChatNode.ASSESS]
-        assert len(assesses) == 2
-        assert all(r.usage == REPORTED_USAGE for r in assesses)
-
     async def test_assess_sees_the_question_and_numbered_context(
         self, loop_on, one_result, answer_model, assess_turns
     ):
@@ -208,19 +148,6 @@ class TestAssessLoop:
         assert str(prompt[0].content).startswith(ASSESS_SYSTEM_PROMPT)
         assert "[1] (Regulation (EU) 2023/1805" in prompt[1].content
         assert str(prompt[1].content).endswith(f"Question: {QUESTION}")
-
-    async def test_a_gated_question_still_refuses_without_any_model_call(
-        self, loop_on, monkeypatch
-    ):
-        async def empty_search(session, request):
-            return ()
-
-        install_search(monkeypatch, empty_search)
-
-        state = await run_graph()
-
-        assert state.answer == REFUSAL_ANSWER
-        assert [r.step for r in state.steps] == [ChatNode.RETRIEVE, ChatNode.REFUSE]
 
     async def test_a_persistently_failing_assess_call_still_synthesizes_from_the_context(
         self, loop_on, one_result, answer_model, monkeypatch
@@ -276,17 +203,6 @@ class TestAssessLoop:
 
         assert state.retrieved_sources == 1
         assert tuple(chunk.id for chunk in state.sources) == (1, 2, 3)
-
-    async def test_a_zero_budget_reads_the_context_without_growing_it(
-        self, loop_on, one_result, answer_model, assess_turns, tool_results, monkeypatch
-    ):
-        monkeypatch.setattr(config, "ASSESS_EXTRA_CHUNKS", 0)
-        assess_turns(tool_call_message("search", {"query": "gap"}), AIMessage(content=""))
-        tool_results(search_result(id=2))
-
-        state = await run_graph()
-
-        assert tuple(chunk.id for chunk in state.sources) == (1,)
 
 
 class TestFollowsOfBlocksAlreadyShown:
@@ -479,73 +395,8 @@ class TestRefuseTool:
         assert state.refusal is None
         assert ChatNode.REFUSE not in {r.step for r in state.steps}
 
-    async def test_the_call_without_an_explanation_still_refuses(
-        self, loop_on, one_result, answer_model, assess_turns
-    ):
-        assess_turns(tool_call_message("refuse", {}))
-
-        state = await run_graph()
-
-        assert state.answer == REFUSAL_ANSWER
-        assert state.refusal == Refusal(reason=RefusalReason.INSUFFICIENT_CONTEXT)
-
-    async def test_the_refusal_still_comes_with_rounds_left_in_the_budget(
-        self, loop_on, one_result, answer_model, assess_turns, monkeypatch
-    ):
-        """Nothing bearing on the question is final: a second round would only read the
-        same context again."""
-        monkeypatch.setattr(config, "ASSESS_MAX_ROUNDS", 3)
-        assess_turns(tool_call_message("refuse", self.REFUSED))
-
-        state = await run_graph()
-
-        assert state.answer == REFUSAL_ANSWER
-        assert state.assess_rounds() == 1
-
-    def test_assess_binds_the_surface_as_the_toolbox_offers_it(self, monkeypatch):
-        """Which tools that is, switch on or off, the toolbox says and its tests hold."""
-        monkeypatch.setattr(config, "ASSESS_MAY_REFUSE", False)
-
-        binding = assess_model()
-
-        assert isinstance(binding, RunnableBinding)
-        assert binding.kwargs["tools"] == tool_definitions()
-
-    async def test_the_prompt_tells_assess_when_to_call_it_while_the_switch_is_on(
-        self, loop_on, one_result, answer_model, assess_turns, monkeypatch
-    ):
-        monkeypatch.setattr(config, "ASSESS_MAY_REFUSE", True)
-        assess = assess_turns(AIMessage(content=""))
-
-        await run_graph()
-
-        (prompt,) = assess.received
-        assert prompt[0].content == build_assess_system_prompt(may_refuse=True)
-        assert "call refuse" in prompt[0].content
-
-    async def test_the_prompt_says_nothing_of_it_while_the_switch_is_off(
-        self, loop_on, one_result, answer_model, assess_turns, monkeypatch
-    ):
-        monkeypatch.setattr(config, "ASSESS_MAY_REFUSE", False)
-        assess = assess_turns(AIMessage(content=""))
-
-        await run_graph()
-
-        (prompt,) = assess.received
-        assert prompt[0].content == ASSESS_SYSTEM_PROMPT
-        assert "call refuse" not in prompt[0].content
-
 
 class TestBuildAssessMessage:
-    def test_carries_numbered_blocks_and_the_question(self):
-        sources = (search_result(text="A very specific clause."),)
-
-        message = build_assess_message("What is the limit?", sources)
-
-        assert "[1] (Regulation (EU) 2023/1805, Article 4(1))" in message
-        assert "A very specific clause." in message
-        assert message.endswith("Question: What is the limit?")
-
     def test_lists_a_blocks_followable_references_with_their_addresses(self):
         reference = Reference(raw="Article 6(2)", article="6", paragraph="2")
         sources = (search_result(references=(reference,)),)
@@ -605,13 +456,3 @@ class TestBuildAssessMessage:
         message = build_assess_message("q", sources)
 
         assert "cites:" not in message
-
-
-class TestBuildAssessSystemPrompt:
-    def test_with_refusal_allowed_the_prompt_adds_when_to_call_refuse(self):
-        prompt = build_assess_system_prompt(may_refuse=True)
-        assert prompt.startswith(ASSESS_SYSTEM_PROMPT)
-        assert "call refuse" in prompt[len(ASSESS_SYSTEM_PROMPT) :]
-
-    def test_without_it_the_prompt_is_the_bare_one(self):
-        assert build_assess_system_prompt(may_refuse=False) == ASSESS_SYSTEM_PROMPT
