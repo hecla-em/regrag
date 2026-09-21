@@ -119,6 +119,18 @@ class S3ObjectStore:
         except BOTO_ERRORS as exc:
             raise StorageError("put", key, exc) from exc
 
+    def get_file(self, key: str, path: Path) -> None:
+        """Download to disk in parts, for a file too large to hold in memory."""
+        validate_key(key)
+        try:
+            self.client.download_file(self.bucket, key, str(path))
+        except ClientError as exc:
+            if is_missing_object(exc):
+                raise ObjectNotFoundError("get", key, exc) from exc
+            raise StorageError("get", key, exc) from exc
+        except BotoCoreError as exc:
+            raise StorageError("get", key, exc) from exc
+
     def get(self, key: str) -> bytes:
         validate_key(key)
         try:
@@ -141,6 +153,16 @@ class S3ObjectStore:
         except BotoCoreError as exc:
             raise StorageError("head", key, exc) from exc
         return True
+
+    def list_keys(self, prefix: str) -> list[str]:
+        """Every key that starts with the prefix."""
+        pages = self.client.get_paginator("list_objects_v2").paginate(
+            Bucket=self.bucket, Prefix=prefix
+        )
+        try:
+            return [item["Key"] for page in pages for item in page.get("Contents", [])]
+        except BOTO_ERRORS as exc:
+            raise StorageError("list", prefix, exc) from exc
 
 
 def r2_client(r2: R2Config) -> Any:

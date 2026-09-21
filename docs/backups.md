@@ -20,18 +20,18 @@ read `.env.prod`. `uv run db shell` opens psql the same way, read-only unless `-
 
 ## Restore
 
-Not yet rehearsed against a real prod dump. Restore into a fresh database on a Postgres with
-pgvector (the compose `db` service is one), check it, and only then point anything at it.
+`uv run db restore` fetches the newest prod dump from `BACKUP_BUCKET` and runs `pg_restore` into
+the configured database, which must exist and be empty. That is the recovery path: point
+`.env.prod` at a new cluster with pgvector, then run it with `ENVIRONMENT=prod`.
+
+It restores in one transaction, so a database that already holds the tables makes it fail and
+roll back. It cannot overwrite one.
+
+To rehearse on the compose `db` service, name another database. A dump argument picks an
+older dump by name, or a local file:
 
 ```bash
-aws s3 cp s3://regrag-db-backups/daily/<dump> . --region auto \
-  --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
-
-createdb -h 127.0.0.1 -U postgres regrag_restored
-pg_restore -h 127.0.0.1 -U postgres -d regrag_restored --no-owner --no-privileges <dump>
-
-psql -h 127.0.0.1 -U postgres -d regrag_restored -c "select count(*) from chat_requests"
+uv run db shell --writable -c "create database regrag_restored"
+uv run db restore --database regrag_restored
+uv run db shell -d regrag_restored -c "select count(*) from chat_requests"
 ```
-
-`aws s3 ls s3://regrag-db-backups/daily/` with the same two flags lists what is there. The
-`aws` commands need `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set to the R2 token.

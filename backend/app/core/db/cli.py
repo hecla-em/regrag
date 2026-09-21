@@ -1,4 +1,5 @@
-"""Database CLI: `uv run db backup [--no-upload]`, `uv run db shell [--writable] [psql args]`."""
+"""Database CLI: `uv run db backup [--no-upload]`, `uv run db restore [dump] [--database NAME]`,
+`uv run db shell [--writable] [psql args]`."""
 
 import argparse
 import logging
@@ -13,7 +14,14 @@ from sentry_sdk.types import MonitorConfig
 
 from app.core.clock import utc_now
 from app.core.config import config
-from app.core.db.backup import DUMP_PREFIX, dump_database, get_backup_store, name_dump
+from app.core.db.backup import (
+    DUMP_PREFIX,
+    dump_database,
+    fetch_dump,
+    get_backup_store,
+    name_dump,
+    restore_database,
+)
 from app.core.logger import setup_logging
 from app.core.sentry import monitor_cron_job
 from app.core.storage import StorageError
@@ -32,6 +40,7 @@ MONITOR_CONFIG: MonitorConfig = {
     "recovery_threshold": 1,
 }
 READ_ONLY_OPTIONS = "-c default_transaction_read_only=on"
+COMMAND_ERRORS = (subprocess.CalledProcessError, OSError, StorageError, ValidationError)
 
 
 def register_backup_command(commands: Any) -> None:
@@ -40,6 +49,20 @@ def register_backup_command(commands: Any) -> None:
         "--no-upload",
         action="store_true",
         help="leave the dump in the working directory rather than sending it to R2",
+    )
+
+
+def register_restore_command(commands: Any) -> None:
+    restore = commands.add_parser("restore", help="pg_restore a dump into an empty database")
+    restore.add_argument(
+        "dump",
+        nargs="?",
+        help="a local dump file, or the name of one in R2 (default: the newest prod dump in R2)",
+    )
+    restore.add_argument(
+        "--database",
+        default=config.DB_NAME,
+        help="an existing, empty database on the configured server (default: %(default)s)",
     )
 
 
@@ -56,6 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="db", description="RegRag database", allow_abbrev=False)
     commands = parser.add_subparsers(dest="command", required=True)
     register_backup_command(commands)
+    register_restore_command(commands)
     register_shell_command(commands)
     return parser
 
@@ -69,7 +93,7 @@ def run_backup(upload: bool) -> int:
         dump_database(path)
         if store:
             store.put_file(key, path)
-    except (subprocess.CalledProcessError, OSError, StorageError, ValidationError) as exc:
+    except COMMAND_ERRORS as exc:
         logger.exception("backup aborted")
         print(f"backup aborted: {exc}", file=sys.stderr)
         return 1
@@ -81,6 +105,19 @@ def run_backup(upload: bool) -> int:
 def run_stored_backup() -> int:
     """Only a run that stores its dump checks in, so a local dump never clears a failed night."""
     return run_backup(upload=True)
+
+
+def run_restore(dump: str | None, database: str) -> int:
+    """One restore's exit code. Anything but a local file is fetched from R2 first."""
+    try:
+        path = Path(dump) if dump and Path(dump).is_file() else fetch_dump(dump)
+        restore_database(path, database)
+    except COMMAND_ERRORS as exc:
+        print(f"restore aborted: {exc}", file=sys.stderr)
+        return 1
+    target = f"{config.DB_HOST}:{config.DB_PORT}/{database}"
+    print(f"restored {path} into {target} ({config.ENVIRONMENT.value})")
+    return 0
 
 
 def run_shell(writable: bool, psql_args: list[str]) -> int:
@@ -105,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
         return run_shell(args.writable, psql_args)
     if psql_args:
         parser.error(f"unrecognized arguments: {' '.join(psql_args)}")
+    if args.command == "restore":
+        return run_restore(args.dump, args.database)
     setup_logging()
     if args.no_upload:
         return run_backup(upload=False)

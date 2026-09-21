@@ -99,6 +99,7 @@ uv run evals compare 41 42     # print two stored runs side by side
 uv run evals tune              # sweep retrieval settings against the same cases
 uv run db shell                # psql on the configured database, read-only unless --writable
 uv run db backup --no-upload   # pg_dump the configured database, see docs/backups.md
+uv run db restore              # pg_restore the newest prod dump from R2 into an empty database
 ```
 
 Each is an argparse entry point that self-documents: `--help` prints what it
