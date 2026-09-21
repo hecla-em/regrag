@@ -5,7 +5,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from app.core.config import BackupR2Config, Environment, config
+from app.core.config import Environment, R2Config, config
 from app.core.storage import S3ObjectStore, r2_object_store
 
 DUMP_PREFIX = "daily"
@@ -26,8 +26,9 @@ def dump_database(path: Path) -> None:
 
 
 def get_backup_store() -> S3ObjectStore:
-    """The backups bucket, its settings read now so a missing one fails before the dump."""
-    return r2_object_store(BackupR2Config())
+    """The R2 credentials pointed at the backups bucket rather than the one R2_BUCKET names,
+    read now so a missing one fails before the dump."""
+    return r2_object_store(R2Config(R2_BUCKET=config.BACKUP_BUCKET))
 
 
 def upload_dump(store: S3ObjectStore, path: Path) -> str:

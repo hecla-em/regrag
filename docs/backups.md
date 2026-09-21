@@ -6,17 +6,17 @@ backups with it.
 
 ## What runs
 
-`.github/workflows/backup.yml` runs `uv run backup` daily at 02:00 UTC. It writes a
+`.github/workflows/backup.yml` runs `uv run db backup` daily at 02:00 UTC. It writes a
 `pg_dump` of the whole `regrag` database to `daily/regrag-prod-<timestamp>.dump` in the
 `regrag-db-backups` bucket, which deletes objects after 30 days by a lifecycle rule set in
 Cloudflare. Each run checks in with Sentry as `nightly-backup`, so a night that fails or never
 starts raises an issue.
 
-The bucket has a token of its own, read from `BACKUP_R2_*`, so neither bucket's credentials
-reach the other. `pg_dump` needs the direct port 5432, not a pooler.
+The upload uses the same R2 credentials as the raw documents, pointed at `BACKUP_BUCKET`, so
+that token must cover both buckets. `pg_dump` needs the direct port 5432, not a pooler.
 
-For a dump on your own machine: `uv run backup --no-upload`, with `ENVIRONMENT=prod` to read
-`.env.prod`.
+For a dump on your own machine: `uv run db backup --no-upload`, with `ENVIRONMENT=prod` to
+read `.env.prod`. `uv run db shell` opens psql the same way, read-only unless `--writable`.
 
 ## Restore
 
@@ -34,4 +34,4 @@ psql -h 127.0.0.1 -U postgres -d regrag_restored -c "select count(*) from chat_r
 ```
 
 `aws s3 ls s3://regrag-db-backups/daily/` with the same two flags lists what is there. The
-`aws` commands need `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set to the backup token.
+`aws` commands need `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` set to the R2 token.

@@ -78,10 +78,12 @@ class StorageBackend(StrEnum):
 
 
 class StorageConfig(BaseConfig):
-    """Which backend holds raw source documents, and where the local one keeps them."""
+    """Which backend holds raw source documents, where the local one keeps them, and the
+    bucket database dumps go to."""
 
     STORAGE_BACKEND: StorageBackend = StorageBackend.LOCAL
     RAW_DATA_DIR: Path = PROJECT_ROOT / "data" / "raw"
+    BACKUP_BUCKET: str = "regrag-db-backups"
 
 
 class R2Config(BaseConfig):
@@ -96,13 +98,6 @@ class R2Config(BaseConfig):
     def R2_ENDPOINT_URL(self) -> str:
         """The S3-compatible endpoint R2 serves this account's buckets on."""
         return f"https://{self.R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-
-
-class BackupR2Config(R2Config):
-    """The backups bucket under a token of its own, read as BACKUP_R2_*, so a dump can never
-    land in the raw-docs bucket the R2_* settings name."""
-
-    model_config = SettingsConfigDict(env_prefix="BACKUP_")
 
 
 class SslMode(StrEnum):

@@ -97,8 +97,8 @@ uv run retrieve "query"        # search it from the terminal
 uv run evals run               # score the chat graph against the golden dataset, and store the run
 uv run evals compare 41 42     # print two stored runs side by side
 uv run evals tune              # sweep retrieval settings against the same cases
-uv run dbshell                 # psql on the configured database, read-only unless --writable
-uv run backup --no-upload      # pg_dump the configured database, see docs/backups.md
+uv run db shell                # psql on the configured database, read-only unless --writable
+uv run db backup --no-upload   # pg_dump the configured database, see docs/backups.md
 ```
 
 Each is an argparse entry point that self-documents: `--help` prints what it
