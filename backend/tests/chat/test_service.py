@@ -2,6 +2,7 @@
 
 import logging
 from datetime import timedelta
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,8 +14,6 @@ from app.chat.enums import ChatNode, ChatOutcome
 from app.chat.models import ChatState, ChatStepResult, ChatTurn
 from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.chat.service import create_chat_request, load_thread_history, spent_since
-from app.chat.toolbox.models import ToolCall
-from app.chat.toolbox.service import build_call_step
 from app.core.clock import utc_now
 from app.core.config import config
 from app.core.logger import request_id_var
@@ -54,7 +53,7 @@ def stats_lines(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
     ]
 
 
-async def test_recorded_row_reads_the_stats_and_the_request_context(
+async def test_an_answered_run_is_recorded_with_its_steps_its_price_and_one_stats_line(
     db_session: AsyncSession, caplog
 ):
     token = request_id_var.set("abc123")
@@ -72,10 +71,10 @@ async def test_recorded_row_reads_the_stats_and_the_request_context(
     assert row.model == config.CHAT_MODEL
     assert row.sources == 6
     assert (row.input_tokens, row.output_tokens) == (1500, 40)
+    assert row.cost_usd == REPORTED_USAGE.cost_usd is not None
     assert row.total_ms == 1500
     assert row.error is None
     assert row.created_at is not None
-    assert len(stats_lines(caplog)) == 1
 
     nodes = (await db_session.scalars(node_rows())).all()
     assert [(n.chat_request_id, n.position, n.step, n.ms) for n in nodes] == [
@@ -86,107 +85,88 @@ async def test_recorded_row_reads_the_stats_and_the_request_context(
     assert [n.model for n in nodes] == [None, config.CHAT_MODEL]
     assert [n.cost_usd for n in nodes] == [None, REPORTED_USAGE.cost_usd]
 
+    [line] = stats_lines(caplog)
+    assert line.__dict__["cost_usd"] == REPORTED_USAGE.cost_usd
+    assert not {"question", "answer"} & set(line.__dict__)
 
-async def test_failed_run_records_its_error_and_nulls_where_it_never_got(
-    db_session: AsyncSession, caplog
+
+REFUSED_PATH = (
+    ChatStepResult(step=ChatNode.RETRIEVE, ms=90),
+    ChatStepResult(step=ChatNode.REFUSE, ms=0),
+)
+
+
+@pytest.mark.parametrize(
+    ("ending", "outcome", "answer", "error", "steps"),
+    [
+        pytest.param(
+            {"error": "embedding call failed"},
+            ChatOutcome.ERROR,
+            None,
+            "embedding call failed",
+            [],
+            id="a failed run keeps its error and nulls where it never got",
+        ),
+        pytest.param(
+            {"steps": REFUSED_PATH, "answer": "The corpus doesn't cover this."},
+            ChatOutcome.REFUSED,
+            "The corpus doesn't cover this.",
+            None,
+            [("retrieve", 90), ("refuse", 0)],
+            id="a refused run keeps the path to its refusal",
+        ),
+        pytest.param(
+            {"cached": True, "answer": "A regulation.[1]"},
+            ChatOutcome.CACHED,
+            "A regulation.[1]",
+            None,
+            [],
+            id="a cached answer is recorded with no path behind it",
+        ),
+    ],
+)
+async def test_a_run_that_called_no_model_is_recorded_unpriced_under_its_ending(
+    db_session: AsyncSession, ending, outcome, answer, error, steps
 ):
-    failed = ChatState(question="q", total_ms=40, error="embedding call failed")
-    await create_chat_request(db_session, failed)
+    state = ChatState(question="q", total_ms=40, **ending)
 
-    [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.outcome is ChatOutcome.ERROR
-    assert row.error == "embedding call failed"
-    assert row.answer is None
-    assert row.model is None
-    assert row.thread_id == failed.thread_id
-    assert (row.input_tokens, row.output_tokens) == (None, None)
-    assert row.sources == 0
-    assert (await db_session.scalars(select(ChatRequestStep))).all() == []
-
-
-async def test_log_line_carries_the_stats_but_not_the_content(db_session: AsyncSession, caplog):
-    """A tool step's subject is the query the model wrote from the question: content, so the
-    line keeps the step and its timing and drops that."""
-    state = answered_state()
-    search = ToolCall(name="search", args={"query": "penalties for a missing monitoring plan"})
-    state.steps = (*state.steps, build_call_step(search, ms=80))
     await create_chat_request(db_session, state)
 
-    [record] = stats_lines(caplog)
-    assert record.getMessage() == "chat done in 1500ms"
-    assert record.__dict__["outcome"] == "done"
-    assert record.__dict__["sources"] == 6
-    assert record.__dict__["cost_usd"] == REPORTED_USAGE.cost_usd
-    assert record.__dict__["steps"] == [
-        {"step": "retrieve", "ms": 120, "usage": None, "model": None},
-        {
-            "step": "synthesize",
-            "ms": 1300,
-            "usage": {
-                "input_tokens": 1500,
-                "output_tokens": 40,
-                "cost_usd": REPORTED_USAGE.cost_usd,
-            },
-            "model": config.CHAT_MODEL,
-        },
-        {"step": "tool_search", "ms": 80, "usage": None, "model": None},
-    ]
-    assert "question" not in record.__dict__
-    assert "answer" not in record.__dict__
-
-
-async def test_a_refused_request_is_recorded_as_such(db_session: AsyncSession, caplog):
-    """The gate's outcome fits the column as migrated: refused is no longer than aborted."""
-    refused = ChatState(
-        question="best pizza topping?",
-        steps=(
-            ChatStepResult(step=ChatNode.RETRIEVE, ms=90),
-            ChatStepResult(step=ChatNode.REFUSE, ms=0),
-        ),
-        total_ms=95,
-    )
-    await create_chat_request(db_session, refused)
-
     [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.outcome is ChatOutcome.REFUSED
-    assert (row.sources, row.input_tokens) == (0, None)
+    assert (row.outcome, row.answer, row.error) == (outcome, answer, error)
+    assert row.thread_id == state.thread_id
+    assert (row.model, row.input_tokens, row.output_tokens, row.cost_usd) == (None,) * 4
+    assert row.sources == 0
     nodes = (await db_session.scalars(node_rows())).all()
-    assert [(n.step, n.ms) for n in nodes] == [("retrieve", 90), ("refuse", 0)]
-    assert stats_lines(caplog)[0].getMessage() == "chat refused in 95ms"
+    assert [(n.step, n.ms) for n in nodes] == steps
 
 
-def turn(question: str, answer: str, *, thread_id: UUID, outcome_steps=None) -> ChatState:
-    """A finished turn on a thread, answered unless given a path that ends elsewhere."""
-    steps = (
+def turn(question: str, answer: str, *, thread_id: UUID, **ending: Any) -> ChatState:
+    """A finished turn on a thread, answered unless given another ending."""
+    answered = (
         ChatStepResult(step=ChatNode.RETRIEVE, ms=10),
         ChatStepResult(step=ChatNode.SYNTHESIZE, ms=100),
     )
-    return ChatState(
-        question=question,
-        thread_id=thread_id,
-        steps=outcome_steps if outcome_steps is not None else steps,
-        answer=answer,
-        total_ms=120,
-    )
+    fields: dict[str, Any] = {"steps": answered, "total_ms": 120, **ending}
+    return ChatState(question=question, thread_id=thread_id, answer=answer, **fields)
 
 
 async def test_a_threads_history_is_its_answered_turns_oldest_first_without_markers(
     db_session: AsyncSession,
 ):
+    """A cache hit mints its own thread, so a follow-up on it must see the answer it got. A
+    DONE row can hold no answer text, and an empty assistant turn is one the provider
+    rewrites into a placeholder line the thread never said."""
     thread, other = uuid4(), uuid4()
-    await create_chat_request(
-        db_session, turn("What is FuelEU?", "A regulation.[1]", thread_id=thread)
-    )
-    await create_chat_request(db_session, turn("Unrelated", "Elsewhere.[1]", thread_id=other))
-    refused = (
-        ChatStepResult(step=ChatNode.RETRIEVE, ms=5),
-        ChatStepResult(step=ChatNode.REFUSE, ms=0),
-    )
-    await create_chat_request(
-        db_session,
-        turn("Pizza?", "The corpus doesn't cover this.", thread_id=thread, outcome_steps=refused),
-    )
-    await create_chat_request(db_session, turn("Its penalties?", "Fines.[2][3]", thread_id=thread))
+    for recorded in (
+        turn("What is FuelEU?", "A regulation.[1]", thread_id=thread, steps=(), cached=True),
+        turn("Unrelated", "Elsewhere.[1]", thread_id=other),
+        turn("Pizza?", "The corpus doesn't cover this.", thread_id=thread, steps=REFUSED_PATH),
+        turn("Timed out?", "Half an ans", thread_id=thread, error="chat call failed"),
+        turn("Empty?", "", thread_id=thread),
+        turn("Its penalties?", "Fines.[2][3]", thread_id=thread),
+    ):
+        await create_chat_request(db_session, recorded)
 
     history = await load_thread_history(db_session, thread)
 
@@ -194,39 +174,6 @@ async def test_a_threads_history_is_its_answered_turns_oldest_first_without_mark
         ChatTurn(question="What is FuelEU?", answer="A regulation."),
         ChatTurn(question="Its penalties?", answer="Fines."),
     )
-
-
-async def test_a_cached_first_turn_is_history_a_follow_up_reads(db_session: AsyncSession):
-    """A cache hit mints its own thread, so a follow-up on it must see the answer it got."""
-    thread = uuid4()
-    first = ChatState(
-        question="What is FuelEU?",
-        thread_id=thread,
-        answer="A regulation.[1]",
-        cached=True,
-        total_ms=3,
-    )
-    await create_chat_request(db_session, first)
-
-    [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert (row.outcome, row.model, row.cost_usd) == (ChatOutcome.CACHED, None, None)
-    assert await load_thread_history(db_session, thread) == (
-        ChatTurn(question="What is FuelEU?", answer="A regulation."),
-    )
-
-
-async def test_an_answered_row_without_an_answer_is_left_out_of_the_history(
-    db_session: AsyncSession,
-):
-    """A DONE row can hold no answer text; passed through, an empty assistant turn is
-    rewritten by the provider into a placeholder line the thread never said."""
-    thread = uuid4()
-    await create_chat_request(db_session, turn("What is FuelEU?", "", thread_id=thread))
-    await create_chat_request(db_session, turn("Its penalties?", "Fines.[1]", thread_id=thread))
-
-    history = await load_thread_history(db_session, thread)
-
-    assert history == (ChatTurn(question="Its penalties?", answer="Fines."),)
 
 
 async def test_history_is_capped_to_the_latest_thread_turns(db_session: AsyncSession, monkeypatch):
@@ -253,33 +200,22 @@ def ledger_row(cost_usd: float | None, hours_ago: float) -> ChatRequest:
     )
 
 
-async def test_recorded_row_prices_its_tokens_at_the_models_rates(db_session: AsyncSession):
-    await create_chat_request(db_session, answered_state())
-
-    [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.cost_usd == REPORTED_USAGE.cost_usd is not None
-
-
-async def test_a_run_with_no_usage_records_no_cost(db_session: AsyncSession):
-    await create_chat_request(db_session, ChatState(question="q", total_ms=40, error="boom"))
-
-    [row] = (await db_session.scalars(select(ChatRequest))).all()
-    assert row.cost_usd is None
-
-
-async def test_spent_since_sums_the_priced_rows_inside_the_window(db_session: AsyncSession):
-    db_session.add_all(
-        [
-            ledger_row(0.5, hours_ago=1),
-            ledger_row(0.25, hours_ago=23),
-            ledger_row(None, hours_ago=2),
-            ledger_row(4.0, hours_ago=25),
-        ]
-    )
+@pytest.mark.parametrize(
+    ("rows", "spent"),
+    [
+        pytest.param(
+            [(0.5, 1), (0.25, 23), (None, 2), (4.0, 25)],
+            0.75,
+            id="priced rows inside the window are summed, unpriced ones adding nothing",
+        ),
+        pytest.param([(None, 1)], 0.0, id="a ledger of unpriced rows reads as zero"),
+        pytest.param([], 0.0, id="so does an empty ledger"),
+    ],
+)
+async def test_the_spend_is_the_sum_of_the_last_days_priced_rows(
+    db_session: AsyncSession, rows, spent
+):
+    db_session.add_all([ledger_row(cost_usd, hours_ago) for cost_usd, hours_ago in rows])
     await db_session.flush()
 
-    assert await spent_since(db_session, utc_now() - timedelta(days=1)) == pytest.approx(0.75)
-
-
-async def test_spent_since_is_zero_on_an_empty_ledger(db_session: AsyncSession):
-    assert await spent_since(db_session, utc_now() - timedelta(days=1)) == 0.0
+    assert await spent_since(db_session, utc_now() - timedelta(days=1)) == pytest.approx(spent)

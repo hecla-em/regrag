@@ -8,17 +8,16 @@ import pytest
 from langchain_core.messages import AIMessage
 
 from app.chat.enums import ChatNode
-from app.chat.graph.nodes.decompose import (
-    DecomposedQuestion,
-    decompose,
-)
+from app.chat.graph.nodes.decompose import DecomposedQuestion, decompose
+from app.chat.graph.nodes.decompose import logger as decompose_logger
 from app.chat.models import ChatState
 from tests.chat.conftest import (
     QUESTION,
-    FailingModel,
     hits_for,
+    model_answering,
     run_graph,
     split_message,
+    warnings_from,
 )
 from tests.conftest import search_result
 
@@ -88,33 +87,26 @@ class TestDecomposeInTheGraph:
         assert messages[1].content.endswith("Question: What are A and B?")
 
 
-class TestDecompose:
-    async def test_a_single_part_question_leaves_queries_empty(self, decompose_turns):
-        """One query back means the question asked one thing; the original text is what
-        retrieve searches, so a lightly rephrased echo cannot change retrieval."""
-        decompose_turns(split_message("What is the GHG intensity limit, rephrased?"))
+@pytest.mark.parametrize(
+    ("turn", "warned"),
+    [
+        pytest.param(
+            split_message("What is the GHG intensity limit, rephrased?"),
+            False,
+            id="one part back is an echo, so the question asked one thing",
+        ),
+        pytest.param(
+            AIMessage(content="I'd split this into two."), True, id="an answer off the schema"
+        ),
+        pytest.param(None, True, id="a call that keeps failing"),
+    ],
+)
+async def test_without_a_split_the_question_is_searched_as_asked(monkeypatch, caplog, turn, warned):
+    """The split is best-effort: losing it costs the split, never the request."""
+    model = model_answering(turn)
+    monkeypatch.setattr("app.chat.graph.nodes.decompose.decompose_model", lambda: model)
 
-        update = await decompose(ChatState(question=QUESTION))
+    update = await decompose(ChatState(question=QUESTION))
 
-        assert update["queries"] == ()
-
-    async def test_an_answer_off_the_schema_falls_back_to_the_question(
-        self, decompose_turns, caplog
-    ):
-        decompose_turns(AIMessage(content="I'd split this into two."))
-
-        update = await decompose(ChatState(question=QUESTION))
-
-        assert update["queries"] == ()
-        assert "decompose answered off its schema" in caplog.text
-
-    async def test_a_failing_call_falls_back_to_the_question(self, monkeypatch, caplog):
-        monkeypatch.setattr(
-            "app.chat.graph.nodes.decompose.decompose_model",
-            lambda: FailingModel(messages=iter([]), failures=9),
-        )
-
-        update = await decompose(ChatState(question=QUESTION))
-
-        assert update["queries"] == ()
-        assert "decompose call failed" in caplog.text
+    assert update["queries"] == ()
+    assert bool(warnings_from(caplog, decompose_logger)) is warned

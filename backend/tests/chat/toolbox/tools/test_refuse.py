@@ -1,30 +1,32 @@
-"""refuse: the explanation it asks for, that it fetches nothing, and the step it leaves."""
+"""refuse: the refusal a call carries, and the calls that carry none."""
 
 import pytest
 
 from app.chat.enums import RefusalReason
+from app.chat.models import Refusal
 from app.chat.toolbox.models import ToolCall
 from app.chat.toolbox.tools.refuse import refusal_from
 
-pytestmark = pytest.mark.anyio
+NO_CONTEXT = RefusalReason.INSUFFICIENT_CONTEXT
 
 
-def test_a_refuse_call_carries_its_explanation_as_the_refusal():
-    refusal = refusal_from(ToolCall(name="refuse", args={"explanation": "nothing bears on it"}))
-
-    assert refusal is not None
-    assert (refusal.reason, refusal.explanation) == (
-        RefusalReason.INSUFFICIENT_CONTEXT,
-        "nothing bears on it",
-    )
-
-
-def test_a_refuse_call_without_an_explanation_is_recorded_as_empty():
-    refusal = refusal_from(ToolCall(name="refuse", args={}))
-
-    assert refusal is not None
-    assert refusal.explanation == ""
-
-
-def test_a_fetch_carries_no_refusal():
-    assert refusal_from(ToolCall(name="search", args={"query": "refuse"})) is None
+@pytest.mark.parametrize(
+    ("call", "refusal"),
+    [
+        pytest.param(
+            ToolCall(name="refuse", args={"explanation": "nothing bears on it"}),
+            Refusal(reason=NO_CONTEXT, explanation="nothing bears on it"),
+            id="a refuse call carries its explanation",
+        ),
+        pytest.param(
+            ToolCall(name="refuse", args={}),
+            Refusal(reason=NO_CONTEXT, explanation=""),
+            id="an explanation left off is recorded as empty",
+        ),
+        pytest.param(
+            ToolCall(name="search", args={"query": "refuse"}), None, id="a fetch carries no refusal"
+        ),
+    ],
+)
+def test_only_a_refuse_call_carries_a_refusal(call, refusal):
+    assert refusal_from(call) == refusal

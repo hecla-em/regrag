@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import logging
 import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime
@@ -10,7 +11,6 @@ from typing import Any
 import httpx
 import openai
 import pytest
-from fastapi.testclient import TestClient
 from langchain_core.language_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
@@ -25,14 +25,12 @@ from app.chat.models import ChatQuery, ChatState
 from app.chat.stream import stream_chat_events
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
-from app.core.redis import redis_client
 from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
 from tests.conftest import (
     REPLY_METADATA,
     USAGE,
     install_chat_model,
     install_search,
-    junk_result,
     no_session,
     provider_error,
     search_result,
@@ -104,11 +102,21 @@ def fake_chat_model(answer: str = "Ships must comply [1].") -> RecordingChatMode
     return RecordingChatModel(messages=iter([AIMessage(content=answer)]), usage=USAGE)
 
 
-def tool_call_message(name: str, args: dict) -> AIMessage:
-    """An assess turn asking for one tool, shaped as litellm parses provider tool calls."""
+def tool_calls_message(*calls: tuple[str, dict]) -> AIMessage:
+    """An assess turn asking for these tools in this order, shaped as litellm parses
+    provider tool calls."""
     return AIMessage(
-        content="", tool_calls=[{"name": name, "args": args, "id": "call_1", "type": "tool_call"}]
+        content="",
+        tool_calls=[
+            {"name": name, "args": args, "id": f"call_{number}", "type": "tool_call"}
+            for number, (name, args) in enumerate(calls, start=1)
+        ],
     )
+
+
+def tool_call_message(name: str, args: dict) -> AIMessage:
+    """An assess turn asking for one tool."""
+    return tool_calls_message((name, args))
 
 
 THINKING = "weighing the context"
@@ -146,6 +154,17 @@ def recording_search(monkeypatch: pytest.MonkeyPatch, *hits: SearchResult) -> li
     return requests
 
 
+def search_giving(monkeypatch: pytest.MonkeyPatch, gives: tuple[SearchResult, ...] | Exception):
+    """Install a search that finds these hits, or fails this way."""
+
+    async def fake_search(session, request):
+        if isinstance(gives, Exception):
+            raise gives
+        return gives
+
+    install_search(monkeypatch, fake_search)
+
+
 @pytest.fixture
 def one_result(monkeypatch: pytest.MonkeyPatch) -> list[SearchRequest]:
     """Search finds one chunk; the returned list collects what it was asked for."""
@@ -158,13 +177,6 @@ def two_results(monkeypatch: pytest.MonkeyPatch) -> list[SearchRequest]:
     return recording_search(
         monkeypatch, search_result(), search_result(id=2, citation="Article 5(1)")
     )
-
-
-@pytest.fixture
-def one_junk_result(monkeypatch: pytest.MonkeyPatch) -> list[SearchRequest]:
-    """Search finds one chunk below the bar, so nothing clears the gate; the returned list
-    collects what it was asked for."""
-    return recording_search(monkeypatch, junk_result())
 
 
 @pytest.fixture(autouse=True)
@@ -334,6 +346,24 @@ class FailingModel(RecordingChatModel):
         return super()._generate(messages, *args, **kwargs)
 
 
+def model_answering(turn: AIMessage | None) -> RecordingChatModel:
+    """A model giving this one turn, or failing every call when there is none to give."""
+    if turn is None:
+        return FailingModel(messages=iter([]), failures=9)
+    return RecordingChatModel(messages=iter([turn]), usage=USAGE)
+
+
+def warnings_from(
+    caplog: pytest.LogCaptureFixture, logger: logging.Logger
+) -> list[logging.LogRecord]:
+    """The warnings one module's logger wrote."""
+    return [
+        record
+        for record in caplog.records
+        if record.name == logger.name and record.levelno == logging.WARNING
+    ]
+
+
 @pytest.fixture
 def answer_model(monkeypatch):
     model = fake_chat_model("Answered [1].")
@@ -401,12 +431,3 @@ async def answer_cache() -> AsyncIterator[Redis]:
     await redis.flushdb()
     yield redis
     await redis.aclose()
-
-
-@pytest.fixture
-def cached_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    """The answer cache on, in the suite's Redis index, emptied first."""
-    assert client.portal is not None
-    client.portal.call(redis_client.flushdb)
-    install_versioned_key(monkeypatch)
-    return client

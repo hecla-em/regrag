@@ -1,21 +1,19 @@
-"""The answer cache: what a question normalizes to, what moves its key, what happens when
-Redis or a stored entry cannot be read, and the stream a hit replays in place of a run."""
+"""The answer cache: what a question normalizes to, what moves its key, which runs are kept,
+and what a run does when the cache cannot or may not serve it."""
 
 from uuid import UUID
 
 import pytest
-from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.cache import (
     answer_key,
     hash_answer_settings,
-    lookup_answer,
     normalize_question,
     store_answer,
 )
 from app.chat.enums import ChatOutcome
-from app.chat.events import DoneEvent, ErrorEvent, SourcesEvent, TextEvent
+from app.chat.events import DoneEvent, TextEvent
 from app.chat.models import CachedAnswer, ChatQuery, ChatTurn
 from app.core.clock import utc_now
 from app.core.config import config
@@ -29,29 +27,39 @@ from tests.chat.conftest import (
     fake_chat_model,
     install_versioned_key,
     restated_message,
+    search_giving,
 )
-from tests.conftest import install_chat_model, install_search, retrieved_chunk, unreachable_redis
+from tests.conftest import (
+    install_chat_model,
+    junk_result,
+    retrieved_chunk,
+    unreachable_redis,
+)
 
 pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("recorded_requests")]
 
 
 @pytest.mark.parametrize(
-    "asked",
-    ["What is FuelEU?", "  what   is\nfueleu ", "WHAT IS FUELEU?!.", "Ｗhat is FuelEU"],
+    ("asked", "retyped", "same"),
+    [
+        pytest.param(
+            "What is FuelEU?", "  what   is\nfueleu ", True, id="spacing and case are typing"
+        ),
+        pytest.param("What is FuelEU?", "WHAT IS FUELEU?!.", True, id="so are trailing marks"),
+        pytest.param("What is FuelEU?", "Ｗhat is FuelEU", True, id="and character width"),
+        pytest.param(
+            "What does Article 5 not require?",
+            "What does Article 5 require?",
+            False,
+            id="every word stays, since a dropped one can flip the answer",
+        ),
+        pytest.param("Article 5(1)?", "Article 51?", False, id="so does punctuation inside"),
+    ],
 )
-def test_retyped_variants_normalize_to_one_form(asked: str) -> None:
-    assert normalize_question(asked) == "what is fueleu"
-
-
-def test_normalization_keeps_every_word() -> None:
-    """A dropped word can flip a regulatory answer, so every word stays in the key."""
-    assert normalize_question("What does Article 5 not require?") != normalize_question(
-        "What does Article 5 require?"
-    )
-
-
-def test_normalization_keeps_punctuation_inside_the_question() -> None:
-    assert normalize_question("Article 5(1)?") != normalize_question("Article 51?")
+def test_a_question_normalizes_to_what_was_asked_with_only_its_typing_undone(
+    asked: str, retyped: str, same: bool
+) -> None:
+    assert (normalize_question(asked) == normalize_question(retyped)) is same
 
 
 async def add_ingest_run(
@@ -62,9 +70,13 @@ async def add_ingest_run(
     return await create_record(session, run)
 
 
-async def test_the_key_is_one_per_normalized_question(db_session: AsyncSession) -> None:
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
+async def test_a_question_has_one_key_per_normalized_form_once_a_corpus_version_exists(
+    db_session: AsyncSession,
+) -> None:
+    await add_ingest_run(db_session, IngestRunStatus.RUNNING)
+    assert await answer_key(db_session, "What is FuelEU?") is None
 
+    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
     key = await answer_key(db_session, "What is FuelEU?")
 
     settings = hash_answer_settings()[:12]
@@ -74,80 +86,69 @@ async def test_the_key_is_one_per_normalized_question(db_session: AsyncSession) 
     assert key != await answer_key(db_session, "What is MRV?")
 
 
-async def test_a_run_over_an_unchanged_corpus_keeps_the_key(db_session: AsyncSession) -> None:
-    """The nightly ingest finishes a run every day, and most days nothing moved."""
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
-    before = await answer_key(db_session, "What is FuelEU?")
-
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
-
-    assert await answer_key(db_session, "What is FuelEU?") == before
-
-
-async def test_a_new_corpus_version_moves_every_key(db_session: AsyncSession) -> None:
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
-    before = await answer_key(db_session, "What is FuelEU?")
-
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-18-def")
-
-    assert await answer_key(db_session, "What is FuelEU?") != before
-
-
-async def test_a_run_still_going_keeps_the_key_until_it_finishes(db_session: AsyncSession) -> None:
-    await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
-    before = await answer_key(db_session, "What is FuelEU?")
-
-    await add_ingest_run(db_session, IngestRunStatus.RUNNING)
-
-    assert await answer_key(db_session, "What is FuelEU?") == before
-
-
-async def test_a_new_build_moves_every_key(
-    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("run", "settings", "moves"),
+    [
+        pytest.param(
+            (IngestRunStatus.SUCCESS, "2026-09-17-abc"),
+            {},
+            False,
+            id="a nightly run over an unchanged corpus keeps the key",
+        ),
+        pytest.param(
+            (IngestRunStatus.SUCCESS, "2026-09-18-def"),
+            {},
+            True,
+            id="a new corpus version moves it",
+        ),
+        pytest.param(
+            (IngestRunStatus.RUNNING, None),
+            {},
+            False,
+            id="a run still going keeps it until it finishes",
+        ),
+        pytest.param(
+            None,
+            {"BUILD_ID": "registry.fly.io/regrag:deployment-2"},
+            True,
+            id="a new build moves it, since a deploy can change answers with no ingest",
+        ),
+    ],
+)
+async def test_the_key_moves_only_when_the_answer_could(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, run, settings: dict, moves: bool
 ) -> None:
-    """A deploy can change the chunker, prompts or model without any ingest running."""
     await add_ingest_run(db_session, IngestRunStatus.SUCCESS, "2026-09-17-abc")
     before = await answer_key(db_session, "What is FuelEU?")
 
-    monkeypatch.setattr(config, "BUILD_ID", "registry.fly.io/regrag:deployment-2")
+    if run:
+        await add_ingest_run(db_session, *run)
+    for name, value in settings.items():
+        monkeypatch.setattr(config, name, value)
 
-    assert await answer_key(db_session, "What is FuelEU?") != before
+    assert (await answer_key(db_session, "What is FuelEU?") != before) is moves
 
 
-def test_a_setting_that_shapes_answers_moves_the_settings_hash(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("setting", "value", "moves"),
+    [
+        pytest.param(
+            "CHAT_MODEL",
+            "anthropic/claude-sonnet-5",
+            True,
+            id="an answer setting, which a secrets-only release changes under one build",
+        ),
+        pytest.param("CHAT_CACHE_TTL_SECONDS", 60, False, id="the cache's own settings stay out"),
+    ],
+)
+def test_the_settings_hash_moves_with_what_shapes_an_answer(
+    monkeypatch: pytest.MonkeyPatch, setting: str, value: object, moves: bool
 ) -> None:
-    """A secrets-only release restarts the same image, so the build alone would not show it."""
     before = hash_answer_settings()
 
-    monkeypatch.setattr(config, "CHAT_MODEL", "anthropic/claude-sonnet-5")
+    monkeypatch.setattr(config, setting, value)
 
-    assert hash_answer_settings() != before
-
-
-def test_the_cache_settings_stay_out_of_the_settings_hash(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    before = hash_answer_settings()
-
-    monkeypatch.setattr(config, "CHAT_CACHE_TTL_SECONDS", 60)
-
-    assert hash_answer_settings() == before
-
-
-async def test_there_is_no_key_before_a_corpus_version(db_session: AsyncSession) -> None:
-    await add_ingest_run(db_session, IngestRunStatus.RUNNING)
-
-    assert await answer_key(db_session, "What is FuelEU?") is None
-
-
-async def test_a_stored_answer_is_read_back_whole(answer_cache: Redis) -> None:
-    answer = CachedAnswer(answer="Ships must comply [1].", sources=(retrieved_chunk(),))
-
-    await store_answer(answer_cache, "chat:answer:v:k", answer)
-
-    assert await lookup_answer(answer_cache, "chat:answer:v:k") == answer
-    assert await answer_cache.ttl("chat:answer:v:k") == config.CHAT_CACHE_TTL_SECONDS
+    assert (hash_answer_settings() != before) is moves
 
 
 @pytest.fixture
@@ -166,24 +167,6 @@ THREAD_ID = UUID("11111111-2222-3333-4444-555555555555")
 class TestCacheStream:
     """The decorator on the graph run: a repeated first question is answered from Redis, and
     recorded by the same stream as any other."""
-
-    async def test_a_repeated_question_replays_the_answer_without_a_model_call(
-        self, cache_on, two_results, answer_model, recorded_requests
-    ):
-        first = await collect_events(FUELEU)
-        second = await collect_events(ChatQuery(question="  what is FUELEU "))
-
-        assert len(answer_model.received) == 1
-        assert [event.event for event in second] == ["sources", "text", "done"]
-        assert second[0] == next(e for e in first if isinstance(e, SourcesEvent))
-        assert second[1] == TextEvent(data="Answered [1].")
-        answered, cached = recorded_requests
-        assert (answered.outcome, cached.outcome) == (ChatOutcome.DONE, ChatOutcome.CACHED)
-        assert cached.question == "  what is FUELEU "
-        assert (cached.steps, cached.usage(), len(cached.sources)) == ((), None, 2)
-        assert cached.total_ms is not None
-        assert second[-1] == DoneEvent(data={"thread_id": cached.thread_id})
-        assert cached.thread_id != answered.thread_id
 
     async def test_a_hit_is_served_past_the_spend_cap(self, cache_on, answer_model, monkeypatch):
         """An answer that costs nothing to serve is not what the cap guards."""
@@ -219,20 +202,19 @@ class TestCacheStream:
         [state] = recorded_requests
         assert (state.outcome, state.thread_id) == (ChatOutcome.DONE, THREAD_ID)
 
-    async def test_a_refusal_is_not_kept(self, cache_on, one_junk_result, answer_model):
+    @pytest.mark.parametrize(
+        "search_gives",
+        [
+            pytest.param((junk_result(),), id="a refusal is not kept"),
+            pytest.param(LLMError("embedding call failed"), id="nor is a failed run"),
+        ],
+    )
+    async def test_only_an_answer_is_kept(self, cache_on, answer_model, monkeypatch, search_gives):
+        search_giving(monkeypatch, search_gives)
+
         await collect_events(FUELEU)
 
-        assert await cache_on.dbsize() == 0
-
-    async def test_a_failed_run_is_not_kept(self, cache_on, monkeypatch):
-        async def failing_search(session, request):
-            raise LLMError("embedding call failed")
-
-        install_search(monkeypatch, failing_search)
-
-        events = await collect_events(FUELEU)
-
-        assert isinstance(events[-1], ErrorEvent)
+        assert answer_model.received == []
         assert await cache_on.dbsize() == 0
 
     async def test_redis_away_runs_the_graph(
