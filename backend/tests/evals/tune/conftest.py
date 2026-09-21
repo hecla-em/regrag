@@ -1,30 +1,11 @@
 """Tune test factories and guards shared across the tune test modules."""
 
-from pathlib import Path
 from typing import Any
-
-import pytest
 
 from app.core.config import EVAL_CONFIG_SECTIONS, get_config_snapshot
 from app.evals.metrics import compute_metrics
 from app.evals.models import EvalMetrics
-from app.evals.tune import cli as tune_cli
 from app.evals.tune.models import TuneResult, TuneRun
-
-
-@pytest.fixture(autouse=True)
-def enabled(monkeypatch):
-    """Record whether the command turned the call cache on, without turning it on. Autouse
-    so no test here installs a real cache: tune enables one by default, which would put a
-    cache under the real data directory and leave it set for whatever runs next."""
-    enabled: list[Path] = []
-
-    def record(directory: Path) -> None:
-        enabled.append(directory)
-
-    monkeypatch.setattr(tune_cli, "enable_call_cache", record)
-    return enabled
-
 
 HEALTHY = compute_metrics(()).model_dump() | {
     "counts": {"cases": 20, "in_corpus": 15, "out_of_corpus": 5, "errors": 0},

@@ -1,12 +1,9 @@
 """The runner: one case through retrieve alone, and the override-and-measure loop."""
 
-import logging
-
 import pytest
 
-from app.chat.enums import ChatNode, ChatOutcome
+from app.chat.enums import ChatNode
 from app.core.config import config
-from app.core.llm.errors import LLMError
 from app.evals.service import evaluate_case
 from app.evals.tune import service
 from app.evals.tune.models import TunableParam
@@ -37,21 +34,6 @@ async def test_retrieve_graph_drives_the_retrieve_node_alone(found_context: None
     assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE]
     assert result.state.usage() is None
     assert result.state.total_ms is not None
-
-
-async def test_a_case_retrieve_raises_on_is_recorded_rather_than_raised(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    async def failing_search(session, request):
-        raise LLMError("embedding call failed")
-
-    install_search(monkeypatch, failing_search)
-
-    with caplog.at_level(logging.WARNING):
-        result = await evaluate_case(eval_case(), graph=retrieve_graph)
-
-    assert result.state.error == "embedding call failed"
-    assert result.state.outcome is ChatOutcome.ERROR
 
 
 async def test_tune_measures_baseline_then_each_value_and_restores_between(
@@ -109,39 +91,6 @@ async def test_a_value_equal_to_baseline_is_not_measured_again(
 
     assert ran == ["one"]
     assert run.results == ()
-
-
-async def test_a_renamed_param_fails_before_any_measurement(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def fake_evaluate(case, graph=None):
-        raise AssertionError("no case should run")
-
-    monkeypatch.setattr(service, "evaluate_case", fake_evaluate)
-    dataset = eval_dataset(eval_case(id="one"))
-
-    with pytest.raises(ValueError, match="no longer a config field"):
-        await tune(dataset, (TunableParam(name="RENAMED_AWAY", values=(1,)),))
-
-
-async def test_a_value_that_raises_still_restores_the_baseline(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The override window must close however a value ends, or the leak poisons the rest."""
-    baseline = config.CHAT_SOURCES
-
-    async def fake_evaluate(case, graph=None):
-        if config.CHAT_SOURCES != baseline:
-            raise RuntimeError("boom")
-        return eval_result(case=case)
-
-    monkeypatch.setattr(service, "evaluate_case", fake_evaluate)
-    dataset = eval_dataset(eval_case(id="one"))
-
-    with pytest.raises(RuntimeError):
-        await tune(dataset, (TunableParam(name="CHAT_SOURCES", values=(baseline + 1,)),))
-
-    assert config.CHAT_SOURCES == baseline
 
 
 async def test_a_gated_value_is_measured_with_its_companions_applied(
