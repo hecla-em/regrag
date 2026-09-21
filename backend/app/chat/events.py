@@ -31,7 +31,7 @@ class ChatSource(FrozenModel):
             marker=marker,
             chunk_id=result.id,
             celex=result.celex,
-            act=celex.format_act_name(result.celex),
+            act=celex.format_act_name(result.celex, result.act_title),
             citation=result.citation,
             title=result.title,
             text=result.text,

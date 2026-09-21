@@ -25,7 +25,8 @@ def system_prompt(base: str, history: Sequence[ChatTurn]) -> str:
 def format_context_block(marker: int, source: RetrievedChunk) -> str:
     """One chunk as the numbered block a citation marker refers to, under the act's name
     as it is cited."""
-    return f"[{marker}] ({format_act_name(source.celex)}, {source.citation})\n{source.text}"
+    name = format_act_name(source.celex, source.act_title)
+    return f"[{marker}] ({name}, {source.citation})\n{source.text}"
 
 
 def format_acts_legend(sources: Sequence[RetrievedChunk]) -> str:
@@ -38,7 +39,7 @@ def format_acts_legend(sources: Sequence[RetrievedChunk]) -> str:
             titles[source.celex] = source.act_title
     if not titles:
         return ""
-    lines = [f"{format_act_name(celex)}: {title}" for celex, title in titles.items()]
+    lines = [f"{format_act_name(celex, title)}: {title}" for celex, title in titles.items()]
     return "\n".join(["Acts:", *lines])
 
 
