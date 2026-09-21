@@ -2,10 +2,12 @@
 
 import asyncio
 import json
+import re
 from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import datetime
 from typing import Any
 
+import httpx
 import openai
 import pytest
 from fastapi.testclient import TestClient
@@ -66,6 +68,35 @@ class RecordingChatModel(GenericFakeChatModel):
                     content="", usage_metadata=self.usage, response_metadata=REPLY_METADATA
                 )
             )
+
+
+class ToolCallStreamingModel(RecordingChatModel):
+    """Streams tool calls as litellm's real chunks do; the base fake's `_stream` only
+    carries content, so an assess call driven through the messages stream would lose them."""
+
+    def _stream(self, messages, *args, **kwargs):
+        message = self._generate(messages, *args, **kwargs).generations[0].message
+        assert isinstance(message, AIMessage)
+        if message.tool_calls:
+            for index, call in enumerate(message.tool_calls):
+                yield ChatGenerationChunk(
+                    message=AIMessageChunk(
+                        content="",
+                        tool_call_chunks=[
+                            {
+                                "name": call["name"],
+                                "args": json.dumps(call["args"]),
+                                "id": call["id"],
+                                "index": index,
+                            }
+                        ],
+                    )
+                )
+        elif isinstance(message.content, str) and message.content:
+            for token in re.split(r"(\s)", message.content):
+                yield ChatGenerationChunk(message=AIMessageChunk(content=token))
+        if self.usage:
+            yield ChatGenerationChunk(message=AIMessageChunk(content="", usage_metadata=self.usage))
 
 
 def fake_chat_model(answer: str = "Ships must comply [1].") -> RecordingChatModel:
@@ -178,7 +209,7 @@ def assess_turns(
     fake, whose `received` holds the prompts it saw."""
 
     def install(*turns: AIMessage) -> RecordingChatModel:
-        model = RecordingChatModel(messages=iter(turns), usage=USAGE)
+        model = ToolCallStreamingModel(messages=iter(turns), usage=USAGE)
         monkeypatch.setattr("app.chat.graph.nodes.assess.assess_model", lambda: model)
         return model
 
@@ -243,19 +274,19 @@ def tool_results(monkeypatch: pytest.MonkeyPatch) -> Callable[..., list[ToolCall
     return install
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def no_tool_session(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A tool call opens its own session; the faked tool paths never touch it, so a null
-    one stands in and no chat test reaches the database."""
+    """A tool call opens its own session; a module whose tool paths are faked never touches
+    it, so it asks for this null one and stays off the database."""
 
     monkeypatch.setattr("app.chat.toolbox.service.get_session", no_session)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
     """Capture the state record_run hands to create_chat_request, and give it no session
-    to hand over: the write is covered in test_service, so no streaming test needs the
-    database."""
+    to hand over. Asked for by the modules that stream without a database; test_router
+    streams over the real ledger instead."""
     states: list[ChatState] = []
 
     async def fake_create_chat_request(session: None, state: ChatState) -> None:
@@ -268,6 +299,24 @@ def recorded_requests(monkeypatch: pytest.MonkeyPatch) -> list[ChatState]:
     monkeypatch.setattr("app.chat.stream.create_chat_request", fake_create_chat_request)
     monkeypatch.setattr("app.chat.stream.spent_since", nothing_spent)
     return states
+
+
+def read_events(response: httpx.Response) -> list[tuple[str, Any]]:
+    """Parse the SSE body into (event, payload) pairs, ignoring pings."""
+    events: list[tuple[str, Any]] = []
+    name = None
+    for line in response.iter_lines():
+        if line.startswith("event:"):
+            name = line.removeprefix("event:").strip()
+        elif line.startswith("data:") and name is not None:
+            events.append((name, json.loads(line.removeprefix("data:").strip())))
+            name = None
+    return events
+
+
+def first_payload(events: list[tuple[str, Any]], name: str) -> Any:
+    """The payload of the first frame with this event name."""
+    return next(payload for event, payload in events if event == name)
 
 
 QUESTION = "What is the GHG intensity limit?"

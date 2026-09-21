@@ -18,7 +18,7 @@ from app.retrieval.search import (
     hybrid_search,
     search,
 )
-from tests.retrieval.conftest import toy_embed
+from tests.conftest import toy_embed
 
 pytestmark = pytest.mark.anyio
 

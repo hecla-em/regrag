@@ -32,7 +32,7 @@ from tests.chat.conftest import (
 )
 from tests.conftest import install_chat_model, install_search, retrieved_chunk, unreachable_redis
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("recorded_requests")]
 
 
 @pytest.mark.parametrize(

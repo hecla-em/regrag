@@ -7,7 +7,7 @@ from app.chat.enums import ToolStep
 from app.chat.toolbox.models import ToolCall
 from app.chat.toolbox.service import build_call_step, describe_call, run_tool_call
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("no_tool_session")]
 
 
 async def test_an_unknown_tool_name_returns_nothing():

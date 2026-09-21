@@ -7,7 +7,7 @@ from app.chat.toolbox.service import run_tool_call
 from app.retrieval.models import ReferenceTarget
 from tests.conftest import search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("no_tool_session")]
 
 
 async def test_follow_reference_call_dispatches_to_the_named_division(monkeypatch):

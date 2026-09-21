@@ -10,7 +10,7 @@ from app.core.llm.errors import LLMError
 from app.retrieval.models import SearchFilters, SearchRequest
 from tests.conftest import junk_result, search_result
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.usefixtures("no_tool_session")]
 
 
 async def test_search_call_dispatches_with_filters_and_the_assess_limit(monkeypatch):
