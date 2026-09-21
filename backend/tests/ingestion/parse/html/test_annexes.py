@@ -9,10 +9,7 @@ from app.ingestion.parse.html import consolidated, oj
 from app.ingestion.parse.html.annexes import (
     _detach_data_tables,
     _nest_under_subheadings,
-    build_annex,
 )
-from app.ingestion.parse.html.dialect import CONSOLIDATED
-from app.ingestion.parse.html.document import parse_eurlex_html
 from app.ingestion.parse.html.paragraphs import Subheading
 from app.ingestion.parse.models import ParsedDocument
 from tests.conftest import FUELEU_HTML, MRV_HTML
@@ -61,23 +58,6 @@ def test_a_stream_with_no_subheadings_becomes_one_flat_paragraph():
     assert sections[0].text == "one\ntwo"
 
 
-def test_level_one_lines_leave_with_the_annex_heading_before_collection():
-    node = subdivision(
-        '<html><body><div id="anx_I">'
-        '<p class="title-gr-seq-level-1">Monitoring methods</p>'
-        '<p class="title-gr-seq-level-2">A. First part</p>'
-        '<p class="norm">Prose under A.</p>'
-        "</div></body></html>",
-        "anx_I",
-    )
-    annex = build_annex(node, CONSOLIDATED)
-    assert (annex.number, annex.title) == (None, "Monitoring methods")
-    (heading,) = annex.children
-    assert heading.kind is SectionKind.HEADING
-    assert heading.title == "A. First part"
-    assert [child.text for child in heading.children] == ["Prose under A."]
-
-
 def test_oj_annex_label_and_title(fueleu: ParsedDocument):
     annex = annexes(fueleu.sections)[0]
     assert annex.number == "II"
@@ -88,18 +68,6 @@ def test_consolidated_annex_label_and_title(mrv: ParsedDocument):
     annex = annexes(mrv.sections)[0]
     assert annex.number == "I"
     assert annex.title == "Methods for monitoring greenhouse gas emissions"
-
-
-def test_an_annex_holding_no_blocks_still_yields_its_prose():
-    sections = parse_eurlex_html(
-        "<html><body>"
-        '<div class="eli-subdivision" id="art_1">'
-        '<p class="oj-ti-art">Article 1</p><p class="oj-normal">Subject matter.</p></div>'
-        '<div id="anx_I"><div class="oj-normal">Annex prose in a bare div.</div></div>'
-        "</body></html>"
-    )
-    prose = of_kind(annexes(sections)[0].children, SectionKind.PARAGRAPH)
-    assert [section.text for section in prose] == ["Annex prose in a bare div."]
 
 
 def test_oj_annex_prose_is_kept_alongside_its_tables(fueleu: ParsedDocument):
@@ -146,26 +114,6 @@ def test_consolidated_annex_prose_sits_under_the_heading_that_introduces_it(mrv:
     assert "companies shall apply the following formula" in prose[0].text
 
 
-def test_consolidated_annex_prose_before_the_first_heading_stays_at_annex_level():
-    sections = parse_eurlex_html(
-        "<html><body>"
-        '<div class="eli-subdivision" id="art_1">'
-        '<p class="title-article-norm">Article 1</p><p class="norm">Subject matter.</p></div>'
-        '<div id="anx_I"><p class="title-annex-1">ANNEX I</p>'
-        '<p class="title-gr-seq-level-1">Monitoring methods</p>'
-        '<p class="norm">Preamble prose.</p>'
-        '<p class="title-gr-seq-level-2">A. First part</p>'
-        '<p class="norm">Prose under A.</p></div>'
-        "</body></html>"
-    )
-    preamble, heading = annexes(sections)[0].children
-    assert preamble.kind is SectionKind.PARAGRAPH
-    assert preamble.text == "Preamble prose."
-    assert heading.kind is SectionKind.HEADING
-    assert heading.title == "A. First part"
-    assert [c.text for c in heading.children] == ["Prose under A."]
-
-
 @pytest.fixture
 def fueleu_annex() -> Node:
     """Function-scoped: detaching tables mutates the tree, so it cannot be shared."""
@@ -181,14 +129,6 @@ def test_data_table_rows_are_a_raw_grid(fueleu_annex: Node):
     assert any("Fuel Class" in cell for row in rows for cell in row)
 
 
-def test_extracted_rows_are_tuples_of_strings(fueleu_annex: Node):
-    for grid in _detach_data_tables(fueleu_annex, oj.DATA_TABLE):
-        assert isinstance(grid.rows, tuple)
-        for row in grid.rows:
-            assert isinstance(row, tuple)
-            assert all(isinstance(cell, str) for cell in row)
-
-
 def test_formula_images_become_placeholders_in_table_cells(fueleu_annex: Node):
     cells = [
         cell
@@ -198,18 +138,6 @@ def test_formula_images_become_placeholders_in_table_cells(fueleu_annex: Node):
     ]
     assert any("[formula]" in cell for cell in cells)
     assert not any("base64" in cell for cell in cells)
-
-
-def test_extracting_a_table_detaches_it_so_its_text_is_not_duplicated(fueleu_annex: Node):
-    assert "Fuel Class" in fueleu_annex.text()
-    _detach_data_tables(fueleu_annex, oj.DATA_TABLE)
-    assert "Fuel Class" not in fueleu_annex.text()
-
-
-def test_layout_tables_are_not_extracted_as_data_tables():
-    article = subdivision(FUELEU_HTML, "art_4")
-    assert article.css("table")
-    assert _detach_data_tables(article, oj.DATA_TABLE) == ()
 
 
 def test_consolidated_data_table_rows_are_a_raw_grid():

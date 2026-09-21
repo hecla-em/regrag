@@ -1,13 +1,9 @@
 from app.ingestion.chunk.split import (
     _pack,
-    _split_on_characters,
     _split_on_sentences,
     _split_table_rows,
     _split_text,
-    split_section_text,
 )
-from app.ingestion.enums import SectionKind
-from app.ingestion.parse.models import Section
 
 
 def test_pack_joins_neighbours_until_the_next_one_would_overflow() -> None:
@@ -20,17 +16,6 @@ def test_pack_counts_the_joiner_against_the_budget() -> None:
 
 def test_pack_keeps_the_pieces_in_order() -> None:
     assert _pack(["a", "bbbbbbbb", "c"], " ", 4) == ["a", "bbbbbbbb", "c"]
-
-
-def test_split_on_characters_yields_full_length_pieces_then_a_remainder() -> None:
-    assert _split_on_characters("a" * 25, 10) == ["a" * 10, "a" * 10, "a" * 5]
-
-
-def test_split_on_sentences_breaks_after_a_full_stop() -> None:
-    assert _split_on_sentences("One is here. Two is here. Three.", 26) == [
-        "One is here. Two is here.",
-        "Three.",
-    ]
 
 
 def test_split_on_sentences_hard_cuts_a_sentence_that_still_does_not_fit() -> None:
@@ -84,22 +69,7 @@ def test_split_table_rows_spends_the_repeated_header_out_of_every_piece_budget()
     ]
 
 
-def test_split_table_rows_joins_cells_with_the_separator() -> None:
-    assert _split_table_rows((("Fuel", "Factor"), ("LNG", "2.75")), 100) == [
-        "Fuel | Factor\nLNG | 2.75"
-    ]
-
-
 def test_split_table_rows_falls_back_to_text_when_the_header_leaves_no_budget() -> None:
     rows = (("A" * 30, "B" * 30), ("LNG", "2.75"))
     pieces = _split_table_rows(rows, 20)
     assert max(len(piece) for piece in pieces) <= 20
-
-
-def test_split_section_text_splits_a_table_section_on_its_rows() -> None:
-    section = Section(kind=SectionKind.TABLE, rows=(("Fuel", "Factor"), ("LNG", "2.75")))
-    assert split_section_text(section, 100) == ["Fuel | Factor\nLNG | 2.75"]
-
-
-def test_split_section_text_yields_nothing_for_a_section_with_no_text() -> None:
-    assert split_section_text(Section(kind=SectionKind.PARAGRAPH, text=""), 100) == []

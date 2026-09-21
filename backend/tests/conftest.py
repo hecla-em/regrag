@@ -44,7 +44,7 @@ from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
 from app.ingestion.chunk.references import list_points
 from app.ingestion.chunk.schemas import DocumentChunk
-from app.ingestion.discover.models import ActsQueryRow, DiscoveredDocument
+from app.ingestion.discover.models import ActsQueryRow
 from app.ingestion.discover.sparql import run_acts_by_topic_query
 from app.ingestion.embed.batch import embed_batch
 from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
@@ -448,18 +448,6 @@ def act_row(
 MRV_SPARQL = httpx.Response(
     200, json=payload(binding("32015R0757", force="1"), binding("32023R2449", force="1"))
 )
-
-
-def discovered_document(
-    celex: str = "32015R0757",
-    topic: str = "mrv",
-    candidates: tuple[str, ...] = (),
-    title: str | None = None,
-) -> DiscoveredDocument:
-    """What discovery would hand fetch for one act, overridable per field."""
-    return DiscoveredDocument(
-        topic=topic, source="eurlex", celex=celex, candidates=candidates, title=title
-    )
 
 
 async def chunk_versions(session: AsyncSession, celex: str | None = None) -> set[str | None]:

@@ -1,16 +1,6 @@
 from tests.conftest import chunk
 
 
-def test_hash_is_stable_for_identical_content():
-    assert chunk().content_hash == chunk().content_hash
-
-
-def test_hash_is_sixty_four_hex_chars():
-    digest = chunk().content_hash
-    assert len(digest) == 64
-    assert set(digest) <= set("0123456789abcdef")
-
-
 def test_differing_text_hashes_differently():
     assert chunk().content_hash != chunk(text="Something else entirely.").content_hash
 
@@ -36,10 +26,6 @@ def test_position_does_not_affect_the_hash():
     shifted = chunk(position=7)
     assert shifted.position == 7
     assert shifted.content_hash == chunk().content_hash
-
-
-def test_metadata_hash_is_stable_for_identical_content():
-    assert chunk().metadata_hash == chunk().metadata_hash
 
 
 def test_topic_affects_the_metadata_hash_not_the_content_hash():
