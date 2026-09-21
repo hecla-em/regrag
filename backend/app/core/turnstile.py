@@ -36,6 +36,17 @@ async def ask_cloudflare(token: str, ip: str | None) -> dict[str, Any] | None:
         return None
 
 
+def is_from_chat_page(verdict: dict[str, Any]) -> bool:
+    """Whether the token was minted by the chat page's widget. Cloudflare's test keys answer
+    as example.com with no action, so their verdicts are taken as they come."""
+    if verdict.get("metadata", {}).get("result_with_testing_key"):
+        return True
+    return (
+        verdict.get("action") == TURNSTILE_ACTION
+        and verdict.get("hostname") == urlparse(config.FRONTEND_URL).hostname
+    )
+
+
 async def verify_turnstile(request: Request, cf_turnstile_response: TurnstileHeader = None) -> None:
     """Refuse the request unless Cloudflare vouches for its token, action and page. A check
     that cannot be made lets it through: the rate limit and spend cap are the backstops."""
@@ -49,11 +60,7 @@ async def verify_turnstile(request: Request, cf_turnstile_response: TurnstileHea
     verdict = await ask_cloudflare(cf_turnstile_response, client_ip(request))
     if verdict is None:
         return
-    if (
-        not verdict.get("success")
-        or verdict.get("action") != TURNSTILE_ACTION
-        or verdict.get("hostname") != urlparse(config.FRONTEND_URL).hostname
-    ):
+    if not verdict.get("success") or not is_from_chat_page(verdict):
         logger.warning(
             "turnstile refused the request: codes=%s action=%s hostname=%s",
             verdict.get("error-codes"),

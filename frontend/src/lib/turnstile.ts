@@ -18,6 +18,7 @@ type TurnstileOptions = {
 	"error-callback": () => void
 	"expired-callback": () => void
 	"timeout-callback": () => void
+	"before-interactive-callback": () => void
 }
 
 type TurnstileApi = {
@@ -41,6 +42,7 @@ type DeliverToken = (token: string | null) => void
 
 let reportedMissingSitekey = false
 let pending: DeliverToken | null = null
+let mintTimer: ReturnType<typeof setTimeout> | undefined
 let widget: Promise<Widget> | null = null
 let script: Promise<TurnstileApi> | null = null
 
@@ -52,6 +54,11 @@ function reportMissingSitekey(): void {
 
 function deliverToken(token: string | null): void {
 	pending?.(token)
+}
+
+/** A challenge the reader must click runs to Cloudflare's own timeout, not the mint's. */
+function awaitReader(): void {
+	clearTimeout(mintTimer)
 }
 
 function loadScript(): Promise<TurnstileApi> {
@@ -89,6 +96,7 @@ async function openWidget(sitekey: string): Promise<Widget> {
 		"error-callback": () => deliverToken(null),
 		"expired-callback": () => deliverToken(null),
 		"timeout-callback": () => deliverToken(null),
+		"before-interactive-callback": awaitReader,
 	})
 	return {
 		execute: () => turnstile.execute(id),
@@ -102,12 +110,12 @@ function awaitToken(rendered: Widget): Promise<string | null> {
 		pending?.(null)
 		const finish = (token: string | null) => {
 			if (pending !== finish) return
-			clearTimeout(timer)
+			clearTimeout(mintTimer)
 			pending = null
 			resolve(token)
 		}
 		pending = finish
-		const timer = setTimeout(() => finish(null), MINT_TIMEOUT_MS)
+		mintTimer = setTimeout(() => finish(null), MINT_TIMEOUT_MS)
 		rendered.reset()
 		rendered.execute()
 	})
