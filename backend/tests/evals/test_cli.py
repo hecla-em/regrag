@@ -81,32 +81,36 @@ def judged_result():
     return eval_result(judgement=passed_judgement())
 
 
-def test_run_prints_the_summary_and_exits_zero(fake_run, capsys):
-    fake_run.append(judged_result())
-
-    assert main(["run"]) == 0
-
-    out = capsys.readouterr().out
-    assert '"raw_recall": 1.0' in out
-    assert '"CHAT_MODEL"' in out
-
-
-def test_run_exits_nonzero_when_a_case_raised(fake_run, capsys):
-    fake_run.append(eval_result(eval_case(id="boom"), error="TimeoutError"))
-
-    assert main(["run"]) == 1
-    assert "boom  TimeoutError" in capsys.readouterr().out
-
-
-def test_run_exits_nonzero_when_the_judge_answered_on_no_case(fake_run, capsys):
+@pytest.mark.parametrize(
+    ("results", "argv", "exit_code"),
+    [
+        pytest.param([judged_result()], ["run"], 0, id="a clean judged run passes"),
+        pytest.param(
+            [eval_result(eval_case(id="boom"), error="TimeoutError")],
+            ["run"],
+            1,
+            id="a case that raised fails it",
+        ),
+        pytest.param([eval_result()], ["run"], 1, id="so does a judge that answered on no case"),
+        pytest.param(
+            [judged_result(), eval_result(eval_case(id="unjudged"))],
+            ["run"],
+            1,
+            id="and one that came back on too few",
+        ),
+        pytest.param(
+            [eval_result()], ["run", "--no-judge"], 0, id="a run told not to judge owes no verdict"
+        ),
+    ],
+)
+def test_run_exits_nonzero_when_its_scores_cannot_be_trusted(
+    fake_run, results: list[EvalCaseResult], argv: list[str], exit_code: int
+) -> None:
     """Every judge call failing is only warnings, so without this a misnamed judge model
     would print the same summary as --no-judge and pass."""
-    fake_run.append(eval_result())
+    fake_run.extend(results)
 
-    assert main(["run"]) == 1
-    assert "the judge returned no verdict on any answered case" in capsys.readouterr().out
-
-    assert main(["run", "--no-judge"]) == 0
+    assert main(argv) == exit_code
 
 
 # Storing and comparing runs

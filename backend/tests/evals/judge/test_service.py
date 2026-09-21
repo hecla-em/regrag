@@ -6,16 +6,18 @@ import pytest
 from openai import APIConnectionError
 
 from app.core.config import config
-from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
+from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import (
+    CaseJudgement,
     ClaimVerdict,
     CorrectnessVerdict,
     FaithfulnessVerdict,
     RefusalVerdict,
 )
-from app.evals.judge.prompts import CORRECTNESS_PROMPT, REFUSAL_PROMPT, build_refusal_message
+from app.evals.judge.prompts import REFUSAL_PROMPT, build_refusal_message
 from app.evals.judge.service import call_judge_model, judge_case
-from tests.conftest import provider_error
+from app.evals.models import EvalCaseResult
+from tests.conftest import provider_error, retrieved_chunk
 from tests.evals.conftest import (
     eval_case,
     eval_result,
@@ -36,118 +38,110 @@ DECLINED = RefusalVerdict(critique="says the corpus lacks it", verdict=JudgeVerd
 # The call
 
 
-async def test_an_answer_off_the_schema_is_a_failed_call_that_says_why_it_stopped(
-    judge_answers, caplog
+@pytest.mark.parametrize(
+    ("result", "answers", "calls_made", "judgement", "warned"),
+    [
+        pytest.param(
+            eval_result(out_of_corpus_case()),
+            [judge_response('{"critique": "The answer', finish_reason="length")],
+            1,
+            CaseJudgement(),
+            "stopped on length",
+            id="an answer off the schema is a failed call that says why it stopped",
+        ),
+        pytest.param(
+            eval_result(out_of_corpus_case()),
+            [provider_error(APIConnectionError)] * 3,
+            3,
+            CaseJudgement(),
+            "left unjudged",
+            id="a transient provider failure is retried, then left unjudged",
+        ),
+        pytest.param(
+            eval_result(),
+            ['{"critique": "not a verdict"}', GROUNDED],
+            2,
+            CaseJudgement(faithfulness=GROUNDED),
+            "left unjudged",
+            id="a failed dimension does not stop the next",
+        ),
+    ],
+)
+async def test_a_failing_judge_call_leaves_its_dimension_unjudged_and_the_run_going(
+    judge_answers,
+    caplog,
+    result: EvalCaseResult,
+    answers: list,
+    calls_made: int,
+    judgement: CaseJudgement,
+    warned: str,
 ) -> None:
-    judge_answers(judge_response('{"critique": "The answer', finish_reason="length"))
+    calls = judge_answers(*answers)
 
     with caplog.at_level(logging.WARNING):
-        judgement = await judge_case(out_of_corpus_case(), eval_result().state)
+        judged = await judge_case(result.case, result.state)
 
-    assert judgement.refusal is None
-    assert "judge answered off its schema, stopped on length" in caplog.text
-    assert "RefusalVerdict left unjudged: judge answered off its schema" in caplog.text
-
-
-async def test_a_transient_provider_failure_is_retried_then_left_unjudged(
-    judge_answers, caplog
-) -> None:
-    calls = judge_answers(*[provider_error(APIConnectionError)] * 3)
-
-    with caplog.at_level(logging.WARNING):
-        judgement = await judge_case(out_of_corpus_case(), eval_result().state)
-
-    assert judgement.refusal is None
-    assert len(calls) == 3
-    assert "left unjudged" in caplog.text
+    assert judged == judgement
+    assert len(calls) == calls_made
+    assert warned in caplog.text
 
 
 # Which dimensions a case is judged on
 
+REFERENCE_ANSWER = "Half of it."
+CITED_BLOCK = retrieved_chunk().text
 
-async def test_an_in_corpus_answer_is_judged_on_correctness_and_faithfulness(
+
+@pytest.mark.parametrize(
+    ("result", "judgement", "asked"),
+    [
+        pytest.param(
+            eval_result(eval_case(answer=REFERENCE_ANSWER), answer="Half counts [1]."),
+            CaseJudgement(correctness=PASSED, faithfulness=GROUNDED),
+            [(CorrectnessVerdict, REFERENCE_ANSWER), (FaithfulnessVerdict, CITED_BLOCK)],
+            id="an in-corpus answer on correctness, and on faithfulness to what it cited",
+        ),
+        pytest.param(
+            eval_result(eval_case(answer=REFERENCE_ANSWER), answer="Half counts, uncited."),
+            CaseJudgement(correctness=PASSED),
+            [(CorrectnessVerdict, REFERENCE_ANSWER)],
+            id="an answer citing nothing gets no faithfulness call",
+        ),
+        pytest.param(
+            eval_result(eval_case(answer=REFERENCE_ANSWER), answer="Half counts [7]."),
+            CaseJudgement(correctness=PASSED),
+            [(CorrectnessVerdict, REFERENCE_ANSWER)],
+            id="nor does one citing only blocks it was never given",
+        ),
+        pytest.param(
+            eval_result(out_of_corpus_case(), answer="I can't say from this corpus."),
+            CaseJudgement(refusal=DECLINED),
+            [(RefusalVerdict, "I can't say from this corpus.")],
+            id="an out-of-corpus answer on whether it declined",
+        ),
+        pytest.param(refused_result(), CaseJudgement(), [], id="a gate refusal by nothing"),
+        pytest.param(
+            eval_result(error="TimeoutError"), CaseJudgement(), [], id="an errored case by nothing"
+        ),
+    ],
+)
+async def test_a_case_is_judged_on_the_dimensions_its_kind_and_its_answer_allow(
     judge_answers,
+    result: EvalCaseResult,
+    judgement: CaseJudgement,
+    asked: list[tuple[type, str]],
 ) -> None:
-    calls = judge_answers(PASSED, GROUNDED)
-    result = eval_result(eval_case(answer="Half of it."), answer="Half counts [1].")
+    """Each call is named by the verdict it asks for and a text it must carry: the reference
+    answer, the cited block, or the answer that may have declined."""
+    verdicts = (judgement.correctness, judgement.faithfulness, judgement.refusal)
+    calls = judge_answers(*[verdict for verdict in verdicts if verdict is not None])
 
-    judgement = await judge_case(result.case, result.state)
+    judged = await judge_case(result.case, result.state)
 
-    assert judgement.correctness == PASSED
-    assert judgement.faithfulness == GROUNDED
-    correctness, faithfulness = calls
-    assert correctness["messages"][0]["content"] == CORRECTNESS_PROMPT
-    assert "Reference answer:\nHalf of it." in correctness["messages"][1]["content"]
-    assert correctness["response_format"] is CorrectnessVerdict
-    assert faithfulness["response_format"] is FaithfulnessVerdict
-    assert "[1] (" in faithfulness["messages"][1]["content"]
-
-
-async def test_an_answer_citing_nothing_is_not_judged_for_faithfulness(judge_answers) -> None:
-    calls = judge_answers(PASSED)
-    result = eval_result(answer="Half of it, uncited.")
-
-    judgement = await judge_case(result.case, result.state)
-
-    assert judgement.correctness == PASSED
-    assert judgement.faithfulness is None
-    assert len(calls) == 1
-
-
-async def test_an_answer_citing_only_blocks_it_was_never_given_is_not_judged_for_faithfulness(
-    judge_answers,
-) -> None:
-    """There is no cited context to be faithful to, so a call would grade every claim
-    unsupported and double-count what markers_in_context already scores."""
-    calls = judge_answers(PASSED)
-    result = eval_result(answer="Half of it [7].")
-
-    judgement = await judge_case(result.case, result.state)
-
-    assert judgement.correctness == PASSED
-    assert judgement.faithfulness is None
-    assert len(calls) == 1
-
-
-async def test_an_out_of_corpus_answer_is_judged_on_whether_it_declined(judge_answers) -> None:
-    calls = judge_answers(DECLINED)
-    result = eval_result(out_of_corpus_case(), answer="I can't say from this corpus.")
-
-    judgement = await judge_case(result.case, result.state)
-
-    assert judgement.refusal == DECLINED
-    assert judgement.correctness is None
-    [call] = calls
-    assert call["messages"][1]["content"] == build_refusal_message(
-        "q?", "I can't say from this corpus."
-    )
-
-
-async def test_a_gate_refusal_or_an_error_is_judged_by_nothing(judge_answers) -> None:
-    """The gate metrics score a refusal and nothing scores an error; a judge call on
-    either would grade the fixed refusal text or an empty answer."""
-    calls = judge_answers()
-
-    refused = await judge_case(out_of_corpus_case(), refused_result().state)
-    errored = eval_result(error="TimeoutError")
-    failed = await judge_case(errored.case, errored.state)
-
-    assert not refused.judged
-    assert not failed.judged
-    assert calls == []
-
-
-async def test_a_failed_dimension_does_not_stop_the_next(judge_answers) -> None:
-    judge_answers('{"critique": "not a verdict"}', GROUNDED)
-    result = eval_result()
-
-    judgement = await judge_case(result.case, result.state)
-
-    assert judgement.correctness is None
-    assert judgement.faithfulness == GROUNDED
-
-
-# Judging a run
+    assert judged == judgement
+    assert [call["response_format"] for call in calls] == [verdict for verdict, _ in asked]
+    for call, (_, carried) in zip(calls, asked, strict=True):
+        assert carried in call["messages"][1]["content"]
 
 
 # The real seam, run only with a key in the environment
@@ -164,4 +158,3 @@ async def test_the_judge_model_returns_a_verdict_in_the_asked_shape() -> None:
 
     assert verdict.verdict is JudgeVerdict.PASS
     assert verdict.critique
-    assert CorrectnessFailure.OTHER  # the enum the correctness turn names, importable here

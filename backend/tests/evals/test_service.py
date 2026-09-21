@@ -37,21 +37,6 @@ def answering_graph(monkeypatch: pytest.MonkeyPatch) -> None:
     install_chat_model(monkeypatch, fake_chat_model("Half of it [1]."))
 
 
-async def test_a_case_runs_through_the_graph_and_keeps_the_state_it_ended_in(
-    answering_graph: None,
-) -> None:
-    result = await evaluate_case(eval_case())
-
-    assert result.case == eval_case()
-    assert result.state.question == "q?"
-    assert result.state.answer == "Half of it [1]."
-    assert result.state.hits == (search_result(),)
-    assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE, ChatNode.SYNTHESIZE]
-    assert result.state.outcome is ChatOutcome.DONE
-    assert result.state.total_ms is not None
-    assert result.state.usage() == REPORTED_USAGE
-
-
 async def test_a_case_the_graph_raises_on_is_recorded_rather_than_raised(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -71,28 +56,30 @@ async def test_a_case_the_graph_raises_on_is_recorded_rather_than_raised(
     assert "eval case case failed: embedding call failed" in caplog.text
 
 
-async def test_a_run_scores_every_case_and_records_what_it_ran_against(
+async def test_a_run_scores_the_selected_cases_and_records_what_it_ran_against(
     answering_graph: None,
 ) -> None:
-    case = eval_case(id="fueleu-one", traits=(EvalTrait.MULTI_PART,))
-    dataset = eval_dataset(case, id_contains="fueleu", trait=EvalTrait.MULTI_PART)
+    """Each result keeps the state its chat request ended in, which the run is scored off."""
+    selected = eval_case(id="fueleu-one", traits=(EvalTrait.MULTI_PART,))
+    dataset = eval_dataset(
+        selected, eval_case(id="mrv-one"), id_contains="fueleu", trait=EvalTrait.MULTI_PART
+    )
 
     run = await evaluate_all_cases(dataset)
 
-    assert [r.case.id for r in run.results] == ["fueleu-one"]
+    [result] = run.results
+    assert result.case == selected
+    assert result.state.answer == "Half of it [1]."
+    assert result.state.hits == (search_result(),)
+    assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE, ChatNode.SYNTHESIZE]
+    assert result.state.outcome is ChatOutcome.DONE
+    assert result.state.total_ms is not None
+    assert result.state.usage() == REPORTED_USAGE
     assert run.selection == dataset.selection
     assert run.dataset_sha == dataset.sha256
     assert run.metrics.counts.cases == 1
     assert run.settings["EXPAND_SECTIONS"] is False
     assert run.cached is False
-
-
-async def test_a_filtered_run_scores_only_the_selected_cases(answering_graph: None) -> None:
-    dataset = eval_dataset(eval_case(id="fueleu-one"), eval_case(id="mrv-one"), id_contains="mrv")
-
-    run = await evaluate_all_cases(dataset)
-
-    assert [r.case.id for r in run.results] == ["mrv-one"]
 
 
 async def test_a_no_retrieval_run_answers_every_case_from_memory_and_says_so(
@@ -144,6 +131,3 @@ async def test_a_stored_run_keeps_its_setup_and_metrics(db_session) -> None:
     assert stored.settings["CHAT_MODEL"] == config.CHAT_MODEL
     assert stored.metrics["judge"]["correctness"] == 1.0
     assert type(run.metrics).model_validate(stored.metrics) == run.metrics
-
-
-# Judging
