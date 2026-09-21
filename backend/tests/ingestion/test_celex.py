@@ -155,3 +155,42 @@ def test_act_names_read_as_the_act_is_cited(celex_id: str, expected: str) -> Non
 )
 def test_act_names_fall_back_to_the_id_outside_the_year_first_scheme(celex_id: str) -> None:
     assert celex.format_act_name(celex_id) == celex_id
+
+
+@pytest.mark.parametrize(
+    ("celex_id", "title", "expected"),
+    [
+        (
+            "32003L0087",
+            "Directive 2003/87/EC of the European Parliament and of the Council of 13 October 2003",
+            "Directive 2003/87/EC",
+        ),
+        (
+            "32006R0336",
+            "Regulation (EC) No 336/2006 of the European Parliament and of the Council of  15 Feb",
+            "Regulation (EC) No 336/2006",
+        ),
+        (
+            "32003L0096",
+            "Council Directive 2003/96/EC of 27 October 2003 restructuring the Community framework",
+            "Directive 2003/96/EC",
+        ),
+        (
+            "32010R1095",
+            "Regulation (EU) No 1095/2010 of the European Parliament and of the Council",
+            "Regulation (EU) No 1095/2010",
+        ),
+    ],
+)
+def test_older_act_names_are_read_off_their_title(celex_id: str, title: str, expected: str) -> None:
+    assert celex.format_act_name(celex_id, title) == expected
+
+
+def test_older_act_names_fall_back_to_the_id_on_a_title_without_a_citation() -> None:
+    title = "Directive on the use of emissions trading"
+    assert celex.format_act_name("32003L0087", title) == "32003L0087"
+
+
+def test_year_first_act_names_ignore_the_title() -> None:
+    title = "Commission Implementing Regulation (EU) 2023/2599 of 22 November 2023"
+    assert celex.format_act_name("32023R2599", title) == "Regulation (EU) 2023/2599"
