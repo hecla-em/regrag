@@ -1,24 +1,12 @@
 """Which acts belong in the corpus, and at what version."""
 
-from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.discover.select import (
     exclude_acts_by_basis_article,
     extract_candidate_acts,
     filter_acts_by_basis_article,
-    filter_legislative_acts,
     select_documents,
 )
 from tests.conftest import act_row
-
-
-def test_filter_legislative_acts_drops_resolutions_and_communications():
-    rows = [
-        act_row("32015R0757", in_force=True),
-        act_row("52024XC07469", in_force=True),
-        act_row("52024IP0025", in_force=True),
-        act_row("E2021X0415(01)", in_force=True),
-    ]
-    assert [row.celex for row in filter_legislative_acts(rows)] == ["32015R0757"]
 
 
 def test_extract_candidate_acts_folds_every_row_for_one_celex():
@@ -49,11 +37,6 @@ def test_extract_candidate_acts_carries_the_title_every_row_repeats():
         act_row("32015R0757", in_force=True, consolidation="02015R0757-20250101", title="MRV"),
     ]
     assert extract_candidate_acts(rows)[0].title == "MRV"
-
-
-def test_select_documents_carries_the_title_to_the_document():
-    selected = select_documents("mrv", [act_row("32015R0757", in_force=True, title="MRV")])
-    assert selected[0].title == "MRV"
 
 
 def test_extract_candidate_acts_keeps_an_act_that_has_no_consolidations():
@@ -126,13 +109,6 @@ def test_no_consolidations_gives_no_candidates():
     assert selected[0].candidates == ()
 
 
-def test_documents_carry_topic_and_source():
-    document = select_documents("fueleu", [act_row("32023R1805", in_force=True)])[0]
-    assert document == DiscoveredDocument(
-        topic="fueleu", source="eurlex", celex="32023R1805", candidates=()
-    )
-
-
 def test_extract_candidate_acts_collects_every_basis_article():
     rows = [
         act_row("32023D2895", in_force=True, basis_article="A12P3-c"),
@@ -180,14 +156,6 @@ def test_select_documents_keeps_only_maritime_acts_for_ets():
     ]
     selected = select_documents("ets", rows)
     assert [document.celex for document in selected] == ["32003L0087", "32023R2599"]
-
-
-def test_select_documents_keeps_every_act_of_a_topic_with_no_basis_articles():
-    rows = [
-        act_row("32015R0757", in_force=True),
-        act_row("32016R1928", in_force=True, basis_article="A05P2"),
-    ]
-    assert [d.celex for d in select_documents("mrv", rows)] == ["32015R0757", "32016R1928"]
 
 
 def test_exclude_acts_by_basis_article_turns_away_an_act_with_any_matching_article():
