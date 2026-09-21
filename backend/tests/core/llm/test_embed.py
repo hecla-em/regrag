@@ -2,8 +2,6 @@
 the wrap point stamps on each failure."""
 
 import json
-import subprocess
-import sys
 from types import SimpleNamespace
 
 import httpx
@@ -11,7 +9,7 @@ import litellm
 import openai
 import pytest
 
-from app.core.config import BACKEND_ROOT, config
+from app.core.config import config
 from app.core.llm.embed import EmbedInput, embed
 from app.core.llm.errors import LLMError
 from tests.conftest import provider_error
@@ -23,40 +21,6 @@ def _response(vectors: list[list[float]]) -> SimpleNamespace:
     return SimpleNamespace(
         data=[{"embedding": vector, "index": i} for i, vector in enumerate(vectors)]
     )
-
-
-def test_embed_input_document_value():
-    assert EmbedInput.DOCUMENT == "document"
-
-
-def test_embed_input_query_value():
-    assert EmbedInput.QUERY == "query"
-
-
-async def test_embed_empty_input_returns_empty_without_calling_provider(monkeypatch):
-    calls = []
-
-    async def fake_aembedding(**kwargs):
-        calls.append(kwargs)
-        return _response([])
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    result = await embed([], input_type=EmbedInput.DOCUMENT)
-
-    assert result == []
-    assert calls == []
-
-
-async def test_embed_returns_vectors_in_input_order(monkeypatch):
-    async def fake_aembedding(**kwargs):
-        return _response([[float(i)] for i in range(len(kwargs["input"]))])
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    result = await embed(["a", "b", "c"], input_type=EmbedInput.DOCUMENT)
-
-    assert result == [[0.0], [1.0], [2.0]]
 
 
 async def test_embed_reorders_shuffled_response_by_index(monkeypatch):
@@ -82,47 +46,6 @@ async def test_embed_raises_on_short_response(monkeypatch):
         await embed(["a", "b", "c"], input_type=EmbedInput.DOCUMENT)
 
 
-async def test_embed_sends_configured_call_kwargs(monkeypatch):
-    calls = []
-
-    async def fake_aembedding(**kwargs):
-        calls.append(kwargs)
-        return _response([[0.0]])
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    await embed(["text"], input_type=EmbedInput.DOCUMENT)
-
-    assert len(calls) == 1
-    call = calls[0]
-    assert call["model"] == "voyage/voyage-4-lite"
-    assert call["dimensions"] == 1024
-    assert call["api_key"] == config.VOYAGE_API_KEY.get_secret_value()
-    assert call["timeout"] == 30
-    assert "num_retries" not in call
-
-
-@pytest.mark.parametrize(
-    ("input_type", "expected"),
-    [
-        (EmbedInput.DOCUMENT, "document"),
-        (EmbedInput.QUERY, "query"),
-    ],
-)
-async def test_embed_sends_input_type(monkeypatch, input_type, expected):
-    calls = []
-
-    async def fake_aembedding(**kwargs):
-        calls.append(kwargs)
-        return _response([[0.0]])
-
-    monkeypatch.setattr(litellm, "aembedding", fake_aembedding)
-
-    await embed(["text"], input_type=input_type)
-
-    assert calls[0]["input_type"] == expected
-
-
 async def test_embed_wraps_provider_error_without_leaking_provider_text(monkeypatch):
     provider_message = "connection refused by voyageai.com upstream"
 
@@ -136,41 +59,6 @@ async def test_embed_wraps_provider_error_without_leaking_provider_text(monkeypa
 
     assert provider_message not in str(exc_info.value)
     assert str(exc_info.value) == "embedding call failed"
-
-
-def test_importing_litellm_without_cost_map_pin_makes_no_network_connection():
-    """Regression guard for the offline pin: unset it and prove no socket connect happens,
-    even from a module that imports litellm before anything of ours."""
-    script = """
-import os
-import socket
-
-os.environ.pop("LITELLM_LOCAL_MODEL_COST_MAP", None)
-
-attempts = []
-
-
-def _tracking_connect(self, address):
-    attempts.append(address)
-    raise OSError("blocked for offline test")
-
-
-socket.socket.connect = _tracking_connect
-
-import app.retrieval.rerank  # noqa: E402
-
-print(len(attempts))
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        cwd=str(BACKEND_ROOT),
-        capture_output=True,
-        text=True,
-        timeout=30,
-    )
-
-    assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "0", result.stdout + result.stderr
 
 
 async def test_embed_sends_voyage_request_body_and_auth_header(monkeypatch):

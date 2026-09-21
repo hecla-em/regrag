@@ -34,7 +34,7 @@ from app.chat.graph.nodes.decompose import call_decompose_model
 from app.chat.graph.nodes.rewrite import call_rewrite_model
 from app.chat.graph.nodes.synthesize import synthesize
 from app.core.clock import utc_now
-from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, Environment, R2Config, config
+from app.core.config import BACKEND_ROOT, EMBED_DIMENSIONS, Environment, config
 from app.core.db.session import async_session_factory
 from app.core.llm.models import Usage
 from app.core.redis import redis_client
@@ -71,20 +71,6 @@ RETRIED = (
 PARSE_FIXTURES = Path(__file__).parent / "ingestion" / "parse" / "fixtures"
 FUELEU_HTML = (PARSE_FIXTURES / "32023R1805.html").read_text()
 MRV_HTML = (PARSE_FIXTURES / "32015R0757.html").read_text()
-
-R2_ENV = {
-    "R2_ACCOUNT_ID": "acc",
-    "R2_ACCESS_KEY_ID": "key",
-    "R2_SECRET_ACCESS_KEY": "secret",
-    "R2_BUCKET": "regrag-raw",
-}
-
-
-def r2_config(monkeypatch: pytest.MonkeyPatch, **overrides: str) -> R2Config:
-    """R2 settings as they really arrive — from the environment; an empty one is left unset."""
-    for name, value in {**R2_ENV, **overrides}.items():
-        monkeypatch.setenv(name, value)
-    return R2Config()
 
 
 @pytest.fixture
@@ -124,6 +110,9 @@ def test_database() -> None:
     needs no server. Migrating every session is what keeps the schema honest: a new revision
     would otherwise only reach the suite once someone ran alembic against it by hand.
     """
+    assert config.DB_NAME == "regrag_test", (
+        "the suite deletes rows, so it never runs on a dev database"
+    )
     _create_database_if_missing(config.SQLALCHEMY_DATABASE_URI)
     alembic = AlembicConfig(str(BACKEND_ROOT / "alembic.ini"))
     alembic.set_main_option("script_location", str(BACKEND_ROOT / "migrations"))
@@ -300,6 +289,17 @@ def client(app: FastAPI) -> Generator[TestClient, None, None]:
     and the Redis pool and engine are drained on it before the next test opens its own."""
     with TestClient(app) as client:
         yield client
+
+
+def assert_error_shape(response: httpx.Response, status_code: int, error: str) -> dict[str, Any]:
+    """Assert the single error schema: {error, message, request_id} + optional detail."""
+    assert response.status_code == status_code
+    body = response.json()
+    assert body["error"] == error
+    assert isinstance(body["message"], str) and body["message"]
+    assert body["request_id"] == response.headers["X-Request-ID"]
+    assert set(body) <= {"error", "message", "request_id", "detail"}
+    return body
 
 
 class RecordingTransport(Transport):

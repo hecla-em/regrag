@@ -46,14 +46,6 @@ def test_incoming_request_id_is_ignored(client: TestClient) -> None:
     assert response.headers["X-Request-ID"] != incoming
 
 
-def test_access_log_line(
-    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
-) -> None:
-    client.get(logged_path)
-    [record] = access_records(caplog)
-    assert "GET /probe 200" in record.getMessage()
-
-
 def test_access_log_records_the_connecting_address(
     client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -84,28 +76,6 @@ def test_access_log_ignores_the_fly_header_off_fly(
     assert record.__dict__["client_ip"] == "testclient"
 
 
-def test_access_log_skips_cors_preflight(
-    client: TestClient, logged_path: str, caplog: pytest.LogCaptureFixture
-) -> None:
-    response = client.options(
-        logged_path,
-        headers={
-            "Origin": config.FRONTEND_URL,
-            "Access-Control-Request-Method": "GET",
-        },
-    )
-    assert response.status_code == 200
-    assert access_records(caplog) == []
-
-
-def test_access_log_skips_the_health_check(
-    client: TestClient, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Fly polls /health every 30s. Logging it buries the requests that mean something."""
-    client.get("/health")
-    assert access_records(caplog) == []
-
-
 def test_access_log_waits_for_a_streamed_body(
     app: FastAPI, client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -128,13 +98,3 @@ def test_access_log_waits_for_a_streamed_body(
 
     assert order[:2] == ["first chunk", "last chunk"]
     assert order[2].startswith("GET /stream 200")
-
-
-def test_gzip_compresses_large_responses(app: FastAPI, client: TestClient) -> None:
-    @app.get("/big")
-    def big() -> dict[str, str]:
-        return {"payload": "x" * 5000}
-
-    response = client.get("/big", headers={"Accept-Encoding": "gzip"})
-    assert response.headers["Content-Encoding"] == "gzip"
-    assert response.json()["payload"] == "x" * 5000

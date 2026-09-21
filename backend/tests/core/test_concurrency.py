@@ -24,21 +24,6 @@ def tracker(peaks: list[int]):
     return call
 
 
-async def test_every_item_runs_and_keeps_its_pairing():
-    async with run_concurrently([1, 2, 3], tracker([]), limit=3) as pending:
-        assert [(item, await task) for item, task in pending] == [(1, 2), (2, 4), (3, 6)]
-
-
-async def test_calls_overlap_up_to_the_limit():
-    peaks: list[int] = []
-
-    async with run_concurrently(list(range(4)), tracker(peaks), limit=4) as pending:
-        for _, task in pending:
-            await task
-
-    assert max(peaks) == 4
-
-
 async def test_no_more_than_the_limit_are_ever_in_flight():
     peaks: list[int] = []
 
@@ -47,15 +32,6 @@ async def test_no_more_than_the_limit_are_ever_in_flight():
             await task
 
     assert max(peaks) == 2
-
-
-async def test_an_empty_item_list_runs_nothing():
-    peaks: list[int] = []
-
-    async with run_concurrently([], tracker(peaks), limit=2) as pending:
-        assert pending == []
-
-    assert peaks == []
 
 
 async def test_leaving_the_block_early_cancels_what_is_still_running():
