@@ -113,13 +113,6 @@ async def db_session(
         yield session
 
 
-@pytest.fixture
-async def empty_session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
-    """A session that hides the committed corpus, for the one test about an empty table."""
-    async with rolled_back_session(db_engine) as session:
-        yield session
-
-
 @pytest.fixture(autouse=True)
 def query_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Query vectors share the corpus's space, so a search is a real nearest-neighbour test."""
