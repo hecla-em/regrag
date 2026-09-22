@@ -5,7 +5,8 @@ function ask(id: string, question: string): ThreadsAction {
 	return {
 		type: "turn",
 		id,
-		action: { type: "ask", id: `${id}-${question}`, question, askedAt: 0 },
+		action: { type: "ask", id: `${id}-${question}`, question },
+		at: 0,
 	}
 }
 
@@ -18,6 +19,7 @@ it("keeps the server's thread id from the done event", () => {
 		type: "turn",
 		id: "a",
 		action: { event: "done", data: { thread_id: "server-1" } },
+		at: 0,
 	})
 
 	expect(state.threads[0].threadId).toBe("server-1")
@@ -31,6 +33,7 @@ it("routes stream events to their own thread, not the open one", () => {
 			type: "turn",
 			id: "a",
 			action: { event: "text", data: "answer" },
+			at: 0,
 		},
 	)
 

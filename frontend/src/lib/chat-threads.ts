@@ -14,7 +14,7 @@ export type ThreadsState = {
 
 export type ThreadsAction =
 	| { type: "open"; id: string | null }
-	| { type: "turn"; id: string; action: ChatAction }
+	| { type: "turn"; id: string; action: ChatAction; at: number }
 
 export const NO_THREADS: ThreadsState = { threads: [], activeId: null }
 
@@ -22,12 +22,16 @@ export function activeThread(state: ThreadsState): TabThread | undefined {
 	return state.threads.find((thread) => thread.id === state.activeId)
 }
 
-function applyToThread(thread: TabThread, action: ChatAction): TabThread {
+function applyToThread(
+	thread: TabThread,
+	action: ChatAction,
+	at: number,
+): TabThread {
 	const threadId =
 		"event" in action && action.event === "done"
 			? action.data.thread_id
 			: thread.threadId
-	return { ...thread, threadId, turns: chatReducer(thread.turns, action) }
+	return { ...thread, threadId, turns: chatReducer(thread.turns, action, at) }
 }
 
 /** Opening `null` shows a blank page, and the first question asked there starts a thread at the
@@ -46,7 +50,9 @@ export function threadsReducer(
 	return {
 		activeId: isAsk ? action.id : state.activeId,
 		threads: threads.map((thread) =>
-			thread.id === action.id ? applyToThread(thread, action.action) : thread,
+			thread.id === action.id
+				? applyToThread(thread, action.action, action.at)
+				: thread,
 		),
 	}
 }

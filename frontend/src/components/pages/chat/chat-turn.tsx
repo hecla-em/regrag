@@ -95,6 +95,7 @@ export const ChatTurn = memo(function ChatTurn({
 						steps={turn.steps}
 						isRunning={isTurnRunning(turn)}
 						askedAt={turn.askedAt}
+						endedAt={turn.endedAt}
 					/>
 					{turn.status === "failed" ? (
 						<TurnError

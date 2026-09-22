@@ -33,8 +33,3 @@ export function stepLabel(step: ChatStep): string {
 export function formatMs(ms: number): string {
 	return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
 }
-
-/** How long the run spent on the steps it finished, as the settled chip reports it. */
-export function formatDuration(steps: ChatStep[]): string {
-	return formatMs(steps.reduce((total, step) => total + step.ms, 0))
-}

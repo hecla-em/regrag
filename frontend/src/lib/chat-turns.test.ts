@@ -3,11 +3,14 @@ import type { ChatStep } from "@/api/types"
 import { type ChatAction, type ChatTurn, chatReducer } from "./chat-turns"
 
 function asked(): ChatTurn[] {
-	return chatReducer([], { type: "ask", id: "t1", question: "q", askedAt: 0 })
+	return chatReducer([], { type: "ask", id: "t1", question: "q" }, 0)
 }
 
 function run(...actions: ChatAction[]): ChatTurn {
-	return actions.reduce(chatReducer, asked())[0]
+	return actions.reduce(
+		(turns, action) => chatReducer(turns, action, 0),
+		asked(),
+	)[0]
 }
 
 function started(
@@ -113,12 +116,11 @@ it.each([
 	],
 	["keeps an answered turn", settle, ["t1", "t2"]],
 ] as const)("a new question %s", (_rule, ending, expected) => {
-	const turns = chatReducer(chatReducer(asked(), ending), {
-		type: "ask",
-		id: "t2",
-		question: "q2",
-		askedAt: 0,
-	})
+	const turns = chatReducer(
+		chatReducer(asked(), ending, 0),
+		{ type: "ask", id: "t2", question: "q2" },
+		0,
+	)
 
 	expect(turns.map((turn) => turn.id)).toEqual(expected)
 })
