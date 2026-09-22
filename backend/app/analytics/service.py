@@ -10,10 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute
 from sqlalchemy.sql.functions import WithinGroup
 
-from app.chat.cache import normalize_question
-from app.chat.enums import ChatOutcome, MetricsDays
-from app.chat.graph.service import chat_graph
-from app.chat.metrics.models import (
+from app.analytics.enums import AnalyticsDays
+from app.analytics.models import (
     ChatGraphMetrics,
     ChatSummary,
     CostSummary,
@@ -22,6 +20,9 @@ from app.chat.metrics.models import (
     StepMetrics,
     TopQuestion,
 )
+from app.chat.cache import normalize_question
+from app.chat.enums import ChatOutcome
+from app.chat.graph.service import chat_graph
 from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.core.clock import utc_today
 
@@ -29,7 +30,7 @@ ANSWERED = ChatRequest.outcome == ChatOutcome.DONE
 UNCACHED = ChatRequest.outcome != ChatOutcome.CACHED
 
 
-def range_start(days: MetricsDays) -> datetime:
+def range_start(days: AnalyticsDays) -> datetime:
     """Midnight UTC on the range's first day, so a range of 7 is today and the six before it."""
     return datetime.combine(utc_today() - timedelta(days=days - 1), time(), tzinfo=UTC)
 
@@ -43,7 +44,7 @@ def whole_ms(value: float | None) -> int | None:
     return None if value is None else round(value)
 
 
-async def summarize_requests(session: AsyncSession, days: MetricsDays) -> ChatSummary:
+async def summarize_requests(session: AsyncSession, days: AnalyticsDays) -> ChatSummary:
     outcome = ChatRequest.outcome
     range_stmt = select(
         func.count().label("requests"),
@@ -85,7 +86,7 @@ async def summarize_requests(session: AsyncSession, days: MetricsDays) -> ChatSu
     )
 
 
-async def list_step_metrics(session: AsyncSession, days: MetricsDays) -> list[StepMetrics]:
+async def list_step_metrics(session: AsyncSession, days: AnalyticsDays) -> list[StepMetrics]:
     stmt = (
         select(
             ChatRequestStep.step,
@@ -109,7 +110,7 @@ async def list_step_metrics(session: AsyncSession, days: MetricsDays) -> list[St
     ]
 
 
-async def get_graph_metrics(session: AsyncSession, days: MetricsDays) -> ChatGraphMetrics:
+async def get_graph_metrics(session: AsyncSession, days: AnalyticsDays) -> ChatGraphMetrics:
     """The graph as compiled, so the drawing cannot drift from the code, with each step's
     measures over the range."""
     drawable = chat_graph.get_graph()
@@ -127,7 +128,7 @@ async def get_graph_metrics(session: AsyncSession, days: MetricsDays) -> ChatGra
 
 
 async def list_top_questions(
-    session: AsyncSession, days: MetricsDays, limit: int
+    session: AsyncSession, days: AnalyticsDays, limit: int
 ) -> list[TopQuestion]:
     """The range's questions grouped as the answer cache keys them, most asked first. Grouped
     here rather than in SQL, so the grouping is normalize_question itself."""

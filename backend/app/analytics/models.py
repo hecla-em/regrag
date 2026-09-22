@@ -3,7 +3,7 @@ questions asked most."""
 
 from datetime import datetime
 
-from app.chat.enums import MetricsDays
+from app.analytics.enums import AnalyticsDays
 from app.core.models import FrozenModel
 
 
@@ -28,7 +28,7 @@ class ChatSummary(FrozenModel):
     """The range's requests by how they ended, and what the uncached ones cost and took. A
     cached answer counts toward the hit rate only. kept_since: the oldest request kept."""
 
-    days: MetricsDays
+    days: AnalyticsDays
     requests: int
     answered: int
     refused: int
@@ -61,7 +61,7 @@ class GraphEdge(FrozenModel):
 class ChatGraphMetrics(FrozenModel):
     """The compiled graph's nodes and edges, and what each step measured over the range."""
 
-    days: MetricsDays
+    days: AnalyticsDays
     nodes: tuple[str, ...]
     edges: tuple[GraphEdge, ...]
     steps: tuple[StepMetrics, ...]
