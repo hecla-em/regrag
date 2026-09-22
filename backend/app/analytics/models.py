@@ -61,7 +61,7 @@ class ChatGraphMetrics(FrozenModel):
 
 
 class TopQuestion(FrozenModel):
-    """A question as the answer cache keys it, in the words it was last asked in."""
+    """A first question as the answer cache folds it, in the words it was last asked in."""
 
     question: str
     asked: int

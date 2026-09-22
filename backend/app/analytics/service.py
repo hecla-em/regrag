@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import QueryableAttribute
+from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.functions import WithinGroup
 
 from app.analytics.enums import AnalyticsDays
@@ -126,11 +126,17 @@ async def get_graph_metrics(session: AsyncSession, days: AnalyticsDays) -> ChatG
 async def list_top_questions(
     session: AsyncSession, days: AnalyticsDays, limit: int
 ) -> list[TopQuestion]:
-    """The range's questions grouped by normalize_question, which folds their typing the way
-    the answer cache does, most asked first."""
+    """The range's first questions, grouped by normalize_question as the answer cache folds
+    them, most asked first. A follow-up is left out, since it means nothing outside its thread."""
+    earlier = aliased(ChatRequest)
+    continues_thread = (
+        select(earlier.id)
+        .where(earlier.thread_id == ChatRequest.thread_id, earlier.id < ChatRequest.id)
+        .exists()
+    )
     stmt = (
         select(ChatRequest.question, ChatRequest.outcome, ChatRequest.created_at)
-        .where(ChatRequest.created_at >= range_start(days))
+        .where(ChatRequest.created_at >= range_start(days), ~continues_thread)
         .order_by(ChatRequest.created_at)
     )
     questions: dict[str, TopQuestion] = {}
