@@ -12,14 +12,16 @@ class EvalKind(StrEnum):
 
 class EvalTrait(StrEnum):
     """What makes a case a test of something beyond plain retrieval; a case may hold several,
-    and none changes how it is scored.
+    and references, not traits, decide what is scored.
 
     MULTI_HOP: the answer sits a chain of citations away from where search lands.
     MULTI_PART: the question asks more than one thing.
+    DATASET: the answer needs a figure from a dataset tool, so a case may name no corpus reference.
     """
 
     MULTI_HOP = "multi_hop"
     MULTI_PART = "multi_part"
+    DATASET = "dataset"
 
 
 class DriftKind(StrEnum):

@@ -1420,10 +1420,11 @@
       "kind": "in_corpus",
       "traits": [
         "multi_hop",
-        "multi_part"
+        "multi_part",
+        "dataset"
       ],
       "question": "When looking at the Thetis MRV download for 2025, in order to arrive at the gross number of CO2 tonnes to be surrendered against, I should add the total reportable CO2 columns of both the Full ERs and the Partial ER tabs of the MRV dataset (and apply the 70% phase-in for last year). True or False?",
-      "answer": "True on the law, with one caveat the regulations cannot settle. The figure to surrender against is each ship's total aggregated emissions to be reported under Directive 2003/87/EC, calculated under Annex II Part C of Regulation (EU) 2015/757: the amount within the Article 3ga scope (100 % of emissions on voyages between EU ports and within them, 50 % of voyages to or from a port outside the EU), less the Article 12(3) derogations, with the Article 3gb phase-in applied, which is 40 % of verified emissions reported for 2024, 70 % for 2025 and 100 % from 2026. A partial report is the verified report the previous company submits on a change of company for the part of the year the ship was under its responsibility (Article 11(2)), and company totals are built from the emissions reports and those partial reports together (Article 11a(1)), so a fleet total takes both. Whether the dataset's column already applies the 70 % is a question about the dataset, which the regulations do not describe.",
+      "answer": "True on the law, with one caveat the regulations cannot settle. The figure to surrender against is each ship's total aggregated emissions to be reported under Directive 2003/87/EC, calculated under Annex II Part C of Regulation (EU) 2015/757: the amount within the Article 3ga scope (100 % of emissions on voyages between EU ports and within them, 50 % of voyages to or from a port outside the EU), less the Article 12(3) derogations, with the Article 3gb phase-in applied, which is 40 % of verified emissions reported for 2024, 70 % for 2025 and 100 % from 2026. A partial report is the verified report the previous company submits on a change of company for the part of the year the ship was under its responsibility (Article 11(2)), and company totals are built from the emissions reports and those partial reports together (Article 11a(1)), so a fleet total takes both. The dataset settles the rest: in the 2025 file (version 58 of 2026-09-15) the column to be reported under Directive 2003/87/EC carries no phase-in, since each ship's figure equals 100 % of voyages between EU ports and at berth plus 50 % of voyages to or from them. Full reports total 88.26 Mt and partial reports 3.55 Mt, 91.80 Mt together, and 70 % of that is 64.26 Mt. The 61.8 and 2.48 million quoted are already 70 % of the columns, so applying the phase-in again would count it twice.",
       "references": [
         {
           "celex": "32003L0087",
@@ -1476,6 +1477,33 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ets-surrender-2024-mrv-fleet",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "Per the THETIS-MRV data, how many tonnes of CO2 did shipping companies have to surrender allowances for, for 2024?",
+      "answer": "About 36.3 Mt. The 2024 file's column to be reported under Directive 2003/87/EC totals 87.56 Mt on full reports and 3.20 Mt on partial reports, 90.76 Mt together, and under Article 3gb only 40 % of 2024 emissions are surrendered for.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-total-co2-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What was the total CO2 reported by ships in THETIS-MRV for 2025?",
+      "answer": "150.99 Mt on full emissions reports and 5.91 Mt on partial reports, 156.90 Mt together, per the 2025 file (version 58 of 2026-09-15)."
     }
   ]
 }

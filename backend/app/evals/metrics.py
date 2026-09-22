@@ -108,6 +108,11 @@ def scored_out_of_corpus(results: Sequence[EvalCaseResult]) -> list[EvalCaseResu
     return [r for r in _scored(results) if r.case.kind is EvalKind.OUT_OF_CORPUS]
 
 
+def scored_referenced(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
+    """In-corpus cases that name references, the only ones recall can score."""
+    return [r for r in scored_in_corpus(results) if r.case.references]
+
+
 # Counts: the run's shape
 
 
@@ -142,23 +147,23 @@ def _expanded_recall(result: EvalCaseResult) -> float:
 
 
 def compute_raw_hit_rate(results: Sequence[EvalCaseResult]) -> float | None:
-    """Share of in-corpus cases where search found at least one authored reference."""
-    return mean_or_none([_raw_recall(r) > 0 for r in scored_in_corpus(results)])
+    """Share of referenced cases where search found at least one authored reference."""
+    return mean_or_none([_raw_recall(r) > 0 for r in scored_referenced(results)])
 
 
 def compute_raw_recall(results: Sequence[EvalCaseResult]) -> float | None:
     """Mean share of authored references search found, before expansion widened it."""
-    return mean_or_none([_raw_recall(r) for r in scored_in_corpus(results)])
+    return mean_or_none([_raw_recall(r) for r in scored_referenced(results)])
 
 
 def compute_expanded_hit_rate(results: Sequence[EvalCaseResult]) -> float | None:
-    """Share of in-corpus cases where at least one authored reference reached the prompt."""
-    return mean_or_none([_expanded_recall(r) > 0 for r in scored_in_corpus(results)])
+    """Share of referenced cases where at least one authored reference reached the prompt."""
+    return mean_or_none([_expanded_recall(r) > 0 for r in scored_referenced(results)])
 
 
 def compute_expanded_recall(results: Sequence[EvalCaseResult]) -> float | None:
     """Mean share of authored references that reached the prompt."""
-    return mean_or_none([_expanded_recall(r) for r in scored_in_corpus(results)])
+    return mean_or_none([_expanded_recall(r) for r in scored_referenced(results)])
 
 
 def compute_retrieval_metrics(results: Sequence[EvalCaseResult]) -> RetrievalMetrics:
@@ -228,8 +233,8 @@ def compute_gate_refusal_rate(results: Sequence[EvalCaseResult]) -> float | None
 
 
 def count_false_refusals(results: Sequence[EvalCaseResult]) -> int:
-    """In-corpus cases the gate refused."""
-    return sum(_gate_refused(r) for r in scored_in_corpus(results))
+    """Referenced cases the gate refused."""
+    return sum(_gate_refused(r) for r in scored_referenced(results))
 
 
 def count_refusals_of_a_found_reference(results: Sequence[EvalCaseResult]) -> int:
