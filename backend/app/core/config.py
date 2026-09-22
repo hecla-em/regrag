@@ -380,9 +380,18 @@ class IngestConfig(BaseConfig):
     MAX_FAILURE_CHARS: int = 500
 
 
+class TextRanker(StrEnum):
+    """How the text leg orders the chunks that match the query."""
+
+    TS_RANK_CD = "ts_rank_cd"
+    BM25 = "bm25"
+
+
 class RetrievalConfig(BaseConfig):
     """Search tunables.
 
+    TEXT_RANKER: BM25 weighs a term by its rarity and saturates repeats, so a rare exact
+        term outranks a common one repeated; ts_rank_cd is Postgres's own, which does neither.
     SEARCH_CANDIDATES: per-leg candidate pool feeding Reciprocal Rank Fusion.
     SEARCH_DEFAULT_LIMIT: results returned when the caller does not say how many.
     EF_SEARCH_PER_CANDIDATE: how far the HNSW walk looks per candidate; pgvector caps the
@@ -399,6 +408,7 @@ class RetrievalConfig(BaseConfig):
         is for junk and a false refusal costs more than a wasted call.
     """
 
+    TEXT_RANKER: TextRanker = TextRanker.BM25
     SEARCH_CANDIDATES: int = Field(default=50, ge=1)
     SEARCH_DEFAULT_LIMIT: int = Field(default=10, ge=1)
     EF_SEARCH_PER_CANDIDATE: int = Field(default=4, ge=1)
