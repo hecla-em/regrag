@@ -6,6 +6,7 @@ from typing import Any
 import litellm
 import pytest
 
+from app.chat.enums import ChatNode
 from app.chat.graph.nodes.synthesize import (
     BASELINE_SYSTEM_PROMPT,
     synthesize,
@@ -31,6 +32,12 @@ def streamed_text(data: Any) -> str:
     """The text of one messages-mode stream item, a (chunk, metadata) pair."""
     chunk, _ = data
     return chunk.text
+
+
+def streamed_by(data: Any) -> str:
+    """The node whose model call streamed one messages-mode item."""
+    _, metadata = data
+    return metadata["langgraph_node"]
 
 
 def finished_steps(data: Any) -> list[ChatStepResult]:
@@ -91,16 +98,16 @@ async def test_the_chat_client_streams_each_litellm_delta_and_the_usage_sent_aft
     async for mode, data in chat_graph.astream(
         ChatState(question=QUESTION), stream_mode=["updates", "messages"]
     ):
-        if mode == "messages":
-            texts.append(streamed_text(data))
-        else:
+        if mode == "updates":
             steps += finished_steps(data)
+        elif streamed_by(data) == ChatNode.SYNTHESIZE:
+            texts.append(streamed_text(data))
 
     assert calls[0]["stream"] is True
     assert calls[0]["stream_options"] == {"include_usage": True}
     assert calls[0]["model"] == config.CHAT_MODEL
     assert [text for text in texts if text] == ["Ships must ", "comply [1]."]
-    [_retrieve, synthesized] = steps
+    [_rewrite, _retrieve, synthesized] = steps
     assert synthesized.usage == REPORTED_USAGE
 
 

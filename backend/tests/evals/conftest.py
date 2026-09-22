@@ -12,6 +12,7 @@ from app.chat.graph.nodes.refuse import REFUSAL_ANSWER
 from app.chat.models import ChatState, ChatStepResult, Refusal
 from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.models import FrozenModel
+from app.evals.capabilities import CapabilityCheck, ModelCapability
 from app.evals.dataset.enums import EvalKind
 from app.evals.dataset.models import CaseReference, CaseSelection, EvalCase, EvalDataset
 from app.evals.judge.enums import CorrectnessFailure, JudgeVerdict
@@ -35,6 +36,17 @@ def no_assess_loop(monkeypatch: pytest.MonkeyPatch) -> None:
     """Eval tests fake the chat model, not assess — the loop stays off here; its
     coverage lives in tests/chat."""
     monkeypatch.setattr(config, "ASSESS_ENABLED", False)
+
+
+@pytest.fixture(autouse=True)
+def no_structured_answer_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rewrite runs on every retrieval run, so its probe would too; here it passes without a
+    model call, as the loop's is never made with the loop off."""
+
+    async def answered_in_shape() -> CapabilityCheck:
+        return CapabilityCheck(capability=ModelCapability.STRUCTURED_ANSWER, supported=True)
+
+    monkeypatch.setattr("app.evals.capabilities.check_structured_answer", answered_in_shape)
 
 
 @pytest.fixture(autouse=True)

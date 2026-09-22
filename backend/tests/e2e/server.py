@@ -35,7 +35,8 @@ LONG_ANSWER_CUE = "at length"
 LONG_ANSWER = " ".join(["The limit tightens every five years [1]."] * 60)
 TOKEN_DELAY = 0.03
 RESTATED = "What is the greenhouse gas intensity limit for energy used on board a ship?"
-"""What every follow-up is restated as, on topic so it clears the refusal gate."""
+"""What every follow-up is restated as, on topic so it clears the refusal gate; a first
+question comes back as asked."""
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -74,7 +75,8 @@ class ScriptedChatModel(BaseChatModel):
 def reply_to(messages: list[BaseMessage], kwargs: dict[str, Any]) -> str:
     """A call bound to a response format is the rewrite; any other is the answer."""
     if "response_format" in kwargs:
-        return restated_message(RESTATED).text
+        asked = messages[-1].text
+        return restated_message(RESTATED if "Latest question: " in asked else asked).text
     return LONG_ANSWER if LONG_ANSWER_CUE in messages[-1].text else ANSWER
 
 

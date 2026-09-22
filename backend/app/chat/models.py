@@ -101,7 +101,7 @@ class ChatState(AppModel):
         name the turn by; None when the state was run outside one, as in evals.
     history: the thread's earlier answered turns, oldest first; empty on a first question.
     standalone_question: the question as rewrite restated it for retrieval, or empty when
-        there was nothing to restate or the call failed, so the question as asked is searched.
+        the call failed, so the question as asked is searched.
     queries: the searches decompose split the question into, in the order asked; empty
         when the node was skipped, found one part, or failed, so retrieve searches the
         question as asked.

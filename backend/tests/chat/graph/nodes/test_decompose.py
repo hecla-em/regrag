@@ -76,6 +76,7 @@ class TestDecomposeInTheGraph:
         state = await run_graph(state)
 
         assert [r.step for r in state.steps] == [
+            ChatNode.REWRITE,
             ChatNode.DECOMPOSE,
             ChatNode.RETRIEVE,
             ChatNode.SYNTHESIZE,
