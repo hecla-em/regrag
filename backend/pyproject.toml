@@ -14,6 +14,7 @@ dependencies = [
     "langgraph>=1.0",
     "litellm[caching]>=1.96.2",
     "openai>=1.0",
+    "openpyxl>=3.1.5",
     "pgvector>=0.4",
     "psycopg[binary]>=3.2",
     "pydantic>=2.13",
@@ -32,6 +33,7 @@ ingest = "app.ingestion.cli:main"
 retrieve = "app.retrieval.cli:main"
 evals = "app.evals.cli:main"
 db = "app.core.db.cli:main"
+mrv = "app.mrv.cli:main"
 
 [dependency-groups]
 dev = [
