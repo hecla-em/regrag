@@ -97,6 +97,8 @@ class ChatState(AppModel):
     graph merges them by name; they are grouped here, not nested, for that reason.
 
     thread_id: the thread the question belongs to, minted here when the caller sent none.
+    request_id: the request the question arrived on, which the ledger row and the done frame
+        name the turn by; None when the state was run outside one, as in evals.
     history: the thread's earlier answered turns, oldest first; empty on a first question.
     standalone_question: the question as rewrite restated it for retrieval, or empty when
         there was nothing to restate or the call failed, so the question as asked is searched.
@@ -121,6 +123,7 @@ class ChatState(AppModel):
     # What was asked
     question: str
     thread_id: UUID = Field(default_factory=uuid4)
+    request_id: str | None = None
     history: tuple[ChatTurn, ...] = ()
     standalone_question: str = ""
 

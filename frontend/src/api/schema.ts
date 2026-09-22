@@ -167,7 +167,7 @@ export interface components {
         };
         /**
          * DoneEvent
-         * @description The last event of a completed stream: where the turn was recorded.
+         * @description The last event of a completed stream, sent once the turn is recorded: where it was.
          */
         DoneEvent: {
             /**
@@ -285,7 +285,7 @@ export interface components {
         /**
          * TurnRecord
          * @description Where the turn was recorded: the thread it joined, which a follow-up sends back, and
-         *     the request it was written as, which a vote names. No request outside one, as in evals.
+         *     the request it was written as, which a vote names; None when the write failed.
          */
         TurnRecord: {
             /**

@@ -148,6 +148,7 @@ async def test_failed_write_is_logged_not_raised(two_results, monkeypatch, caplo
     events = await collect_events(ChatQuery(question="q"))
 
     assert isinstance(events[-1], DoneEvent)
+    assert events[-1].data.request_id is None
     [error] = [
         r for r in caplog.records if r.name == stream.logger.name and r.levelno == logging.ERROR
     ]

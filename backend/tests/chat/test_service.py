@@ -16,7 +16,6 @@ from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.chat.service import create_chat_request, load_thread_history, spent_since
 from app.core.clock import utc_now
 from app.core.config import config
-from app.core.logger import request_id_var
 from tests.conftest import REPORTED_USAGE, reply_message, retrieved_chunk
 
 pytestmark = pytest.mark.anyio
@@ -29,6 +28,7 @@ def answered_state() -> ChatState:
     return ChatState(
         question="What must ships report?",
         thread_id=THREAD_ID,
+        request_id="abc123",
         steps=(
             ChatStepResult(step=ChatNode.RETRIEVE, ms=120),
             ChatStepResult.from_reply(ChatNode.SYNTHESIZE, 1300, reply_message()),
@@ -56,11 +56,7 @@ def stats_lines(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
 async def test_an_answered_run_is_recorded_with_its_steps_its_price_and_one_stats_line(
     db_session: AsyncSession, caplog
 ):
-    token = request_id_var.set("abc123")
-    try:
-        await create_chat_request(db_session, answered_state())
-    finally:
-        request_id_var.reset(token)
+    await create_chat_request(db_session, answered_state())
 
     [row] = (await db_session.scalars(select(ChatRequest))).all()
     assert row.question == "What must ships report?"

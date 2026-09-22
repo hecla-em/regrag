@@ -46,16 +46,14 @@ ClientIdHeader = Annotated[str | None, Header(max_length=64)]
 
 
 def rate_limit(bucket: str) -> Callable[..., Awaitable[None]]:
-    """The limiter for one kind of call, counted apart from every other kind, so a vote
-    spends none of the questions its reader may still ask."""
+    """The limiter for one kind of call, counted apart from every other kind: refused once its
+    client id, or its address across ids, has used the window's allowance. A call without an
+    id counts as its address, in a namespace no id can name; Redis unreachable lets the call
+    through, the spend cap being the backstop."""
 
     async def take_slot(
         request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None
     ) -> None:
-        """Refuse the call once its client id, or its address across ids, has used the
-        window's allowance. A call without an id is counted as its address, in a namespace
-        no id can name. Redis unreachable lets the call through: the spend cap is the
-        backstop."""
         if not config.RATE_LIMIT_ENABLED:
             return
         ip = client_ip(request) or "unknown"

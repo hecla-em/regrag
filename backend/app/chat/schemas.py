@@ -12,16 +12,15 @@ from app.core.db.schema import BaseSchema
 
 
 class ChatRequest(BaseSchema):
-    """One handled question: its thread, how it ended, its answer, how long it lived, what it cost
-    and which model it called, what failed, and how the reader voted on it; its path is in
-    chat_request_steps. The created_at index serves the spend cap's window, and the unique
-    request_id is what a vote names the answer by."""
+    """One handled question: its thread, how it ended, its answer, its time, cost and model,
+    what failed, and how the reader voted; its path is in chat_request_steps. Indexed on
+    created_at for the spend cap's window, and uniquely on request_id, which a vote names."""
 
     __tablename__ = "chat_requests"
     __table_args__ = (Index("ix_chat_requests_created_at", "created_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    request_id: Mapped[str | None] = mapped_column(unique=True)
+    request_id: Mapped[str | None] = mapped_column(unique=True, index=True)
     question: Mapped[str]
     thread_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     answer: Mapped[str | None]

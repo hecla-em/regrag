@@ -68,7 +68,7 @@ export const ChatTurn = memo(function ChatTurn({
 	turn: Turn
 	onRetry: () => void
 	onNewThread: () => void
-	onVote: (turnId: string, vote: Vote | null) => void
+	onVote: (turn: Turn, vote: Vote | null) => void
 }) {
 	const [sourcesView, setSourcesView] = useState<SourcesView | null>(null)
 	const isSettled = turn.status === "settled"
@@ -83,8 +83,8 @@ export const ChatTurn = memo(function ChatTurn({
 	}, [])
 
 	const castVote = useCallback(
-		(vote: Vote | null) => onVote(turn.id, vote),
-		[onVote, turn.id],
+		(vote: Vote | null) => onVote(turn, vote),
+		[onVote, turn],
 	)
 
 	return (
@@ -132,7 +132,7 @@ export const ChatTurn = memo(function ChatTurn({
 										sources={turn.sources}
 									/>
 								)}
-								{isSettled && turn.requestId !== null && (
+								{turn.requestId !== null && (
 									<VoteButtons vote={turn.vote} onVote={castVote} />
 								)}
 								<SourcesPopover

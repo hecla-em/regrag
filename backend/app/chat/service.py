@@ -16,7 +16,6 @@ from app.core.clock import utc_now
 from app.core.config import config
 from app.core.db.crud import create_record
 from app.core.exceptions import NotFoundError
-from app.core.logger import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +36,7 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         for idx, result in enumerate(state.steps)
     ]
     request = ChatRequest(
-        request_id=request_id_var.get(),
+        request_id=state.request_id,
         question=state.question,
         thread_id=state.thread_id,
         answer=state.answer or None,

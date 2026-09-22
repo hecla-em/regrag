@@ -16,11 +16,10 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.enums import ChatOutcome
-from app.chat.events import ChatEvent, DoneEvent, SourcesEvent, TextEvent, TurnRecord
+from app.chat.events import ChatEvent, SourcesEvent, TextEvent
 from app.chat.models import CachedAnswer, ChatQuery, ChatState
 from app.core.config import ANSWER_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.db.session import get_session
-from app.core.logger import request_id_var
 from app.core.redis import redis_client
 from app.ingestion.service import get_latest_corpus_version
 
@@ -105,8 +104,8 @@ async def find_answer_key(query: ChatQuery) -> str | None:
 
 
 def cache_stream(run: ChatRun) -> ChatRun:
-    """The run with the answer cache around it: a hit fills the state and sends sources, the
-    whole answer and done, and a miss runs through, kept for the next asker if it answered."""
+    """The run with the answer cache around it: a hit fills the state and sends sources and
+    the whole answer, and a miss runs through, kept for the next asker if it answered."""
 
     @functools.wraps(run)
     async def cached_run(query: ChatQuery, state: ChatState) -> AsyncGenerator[ChatEvent, None]:
@@ -115,9 +114,6 @@ def cache_stream(run: ChatRun) -> ChatRun:
             state.answer, state.sources, state.cached = hit.answer, hit.sources, True
             yield SourcesEvent.from_results(state.sources)
             yield TextEvent(data=state.answer)
-            yield DoneEvent(
-                data=TurnRecord(thread_id=state.thread_id, request_id=request_id_var.get())
-            )
             return
         async for event in run(query, state):
             yield event
