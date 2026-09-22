@@ -29,7 +29,7 @@ Prerequisites: [pnpm](https://pnpm.io/installation), and the backend running on
 
 ```bash
 pnpm install
-cp .env.example .env    # VITE_API_URL, if the backend is not on :8000
+cp .env.example .env    # dev and build fail without VITE_API_URL and VITE_SITE_URL
 pnpm dev
 ```
 
