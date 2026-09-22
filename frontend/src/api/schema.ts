@@ -164,7 +164,7 @@ export interface components {
          * @description The names core reports its errors under; a capability declares its own beside its errors.
          * @enum {string}
          */
-        ErrorCode: "ValidationError" | "HTTPException" | "IntegrityError" | "InternalServerError" | "NotFoundError" | "RateLimitedError" | "TurnstileFailedError" | "StorageError" | "ObjectNotFoundError" | "LLMError";
+        ErrorCode: "ValidationError" | "HTTPException" | "IntegrityError" | "InternalServerError" | "NotFoundError" | "RateLimitedError" | "TurnstileFailedError" | "UnauthorizedError" | "StorageError" | "ObjectNotFoundError" | "LLMError";
         /**
          * ErrorEvent
          * @description The last event of a failed stream, in the app's one error shape.

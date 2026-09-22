@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
+from app.analytics.router import router as analytics_router
 from app.chat.router import router as chat_router
 from app.core.config import config
 from app.core.db.session import async_engine
@@ -38,6 +39,7 @@ def configure_app(app: FastAPI) -> None:
     register_middleware(app)
     app.include_router(health_router)
     app.include_router(chat_router)
+    app.include_router(analytics_router)
 
 
 app = FastAPI(title=config.PROJECT_NAME, version=__version__, lifespan=lifespan)

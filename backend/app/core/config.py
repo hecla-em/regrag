@@ -59,6 +59,8 @@ class AppConfig(BaseConfig):
     BUILD_ID: which release is running, read from the image reference Fly sets on every
         machine, so it changes with each deploy and is shared by a release's machines.
         A GitHub Actions job has no image, so there it is the commit.
+    ANALYTICS_API_KEY: the key hecla-admin sends to read the /analytics endpoints. Empty
+        refuses every request to them.
     """
 
     ENVIRONMENT: Environment = ENVIRONMENT
@@ -68,6 +70,7 @@ class AppConfig(BaseConfig):
         default="local", validation_alias=AliasChoices("FLY_IMAGE_REF", "GITHUB_SHA")
     )
     SENTRY_DSN: str | None = None
+    ANALYTICS_API_KEY: SecretStr = SecretStr("")
 
 
 class StorageBackend(StrEnum):
