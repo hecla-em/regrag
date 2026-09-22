@@ -74,7 +74,7 @@ async def _ingest_document(
             fetched = await fetch_document(
                 session, client=client, discovered=document, previous=previous, run=run, store=store
             )
-            parsed = parse_document(fetched.raw, fetched.html)
+            parsed, images = await parse_document(session, fetched.raw, fetched.html)
             chunks = await chunk_and_store_document(session, parsed, ingest_run_id=run.id)
     except DocumentFailed as failure:
         return DocumentOutcome(
@@ -85,7 +85,11 @@ async def _ingest_document(
         )
     await session.commit()
     return DocumentOutcome(
-        celex=document.celex, topic=document.topic, change=fetched.change, chunks=chunks
+        celex=document.celex,
+        topic=document.topic,
+        change=fetched.change,
+        chunks=chunks,
+        images=images,
     )
 
 

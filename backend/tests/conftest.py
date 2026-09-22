@@ -58,9 +58,10 @@ from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
 from app.ingestion.fetch.download import _download_version_html
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.storage import write_document
+from app.ingestion.parse.formula.models import FormulaReading
 from app.ingestion.parse.formula.read import read_formula
 from app.ingestion.parse.html.document import parse_eurlex_html
-from app.ingestion.parse.models import ParsedDocument
+from app.ingestion.parse.models import ParsedDocument, ParsedImage
 from app.ingestion.schemas import IngestRun
 from app.main import configure_app, lifespan
 from app.retrieval.models import RetrievedChunk, SearchResult
@@ -527,6 +528,16 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
     provider = FakeProvider()
     monkeypatch.setattr("app.ingestion.embed.batch.embed", provider)
     return provider
+
+
+@pytest.fixture(autouse=True)
+def formula_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reaches the formula model: every image reads back as the same formula."""
+
+    async def _read(image: ParsedImage) -> FormulaReading:
+        return FormulaReading(is_formula=True, latex="x")
+
+    monkeypatch.setattr("app.ingestion.parse.formula.render.read_formula", _read)
 
 
 @pytest.fixture

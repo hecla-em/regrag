@@ -11,6 +11,7 @@ from app.core.models import AppModel, FrozenModel
 from app.ingestion.chunk.models import ChunkCounts
 from app.ingestion.embed.models import EmbedOutcome
 from app.ingestion.enums import CITED_TOPIC, DocChange, IngestRunStatus, Stage
+from app.ingestion.parse.formula.models import ImageCounts
 
 
 class DocumentOutcome(FrozenModel):
@@ -20,6 +21,7 @@ class DocumentOutcome(FrozenModel):
     topic: str
     change: DocChange | None = None
     chunks: ChunkCounts = ChunkCounts()
+    images: ImageCounts = ImageCounts()
     failed: Stage | None = None
     error: str = ""
 
@@ -111,6 +113,14 @@ class IngestRunResult(AppModel):
         )
 
     @property
+    def images(self) -> ImageCounts:
+        """Every committed document's images, read from the model or reused from the cache."""
+        counts = [doc.images for doc in self.committed]
+        return ImageCounts(
+            read=sum(count.read for count in counts), reused=sum(count.reused for count in counts)
+        )
+
+    @property
     def corpus_complete(self) -> bool:
         """Every document the topics asked for reached storage, so a celex it lacks is repealed,
         not lost. A hop document discovery still returned is kept whether or not it stored."""
@@ -148,7 +158,14 @@ class IngestRunResult(AppModel):
         reports = [
             stage(Stage.DISCOVER, "documents", self.discovered, dropped=len(self.dropped)),
             stage(Stage.FETCH, "documents", accounted(Stage.FETCH), **fetched),
-            stage(Stage.PARSE, "documents", accounted(Stage.PARSE), parsed=len(committed)),
+            stage(
+                Stage.PARSE,
+                "documents",
+                accounted(Stage.PARSE),
+                parsed=len(committed),
+                images_read=self.images.read,
+                images_reused=self.images.reused,
+            ),
             stage(Stage.CHUNK, "chunks", chunks.total, **chunks.model_dump()),
             stage(Stage.EMBED, "chunks", embed.total, **embed.model_dump(exclude={"failed"})),
         ]
