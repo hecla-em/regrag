@@ -2,7 +2,7 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import CTE, Integer, Select, cast, func, select, text, true
+from sqlalchemy import CTE, Select, cast, func, select, text, true
 from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,10 +19,11 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 """The textbook constants: how fast repeats saturate, and how hard length is penalised."""
 BM25_CITATION_WEIGHT = 4.0
-"""What a term in the chunk's own citation counts for against one in its text, so the article
-a query names beats a short chunk that merely mentions it. Invisible to the golden set at any
-value, whose questions rarely carry a citation's words; set by the article 11 and 11a case.
-The title's A weight earns no boost: a question word in a title cost 0.06 recall at 10."""
+"""What each occurrence of a term in the chunk's own citation counts for against one in its
+text, so the article a query names beats a short chunk that merely mentions it. Invisible to
+the golden set at any value, whose questions rarely carry a citation's words; set by the
+article 11 and 11a case. The title earns no boost: a question word in a title cost 0.06
+recall at 10."""
 
 
 @llm_retry
@@ -123,10 +124,8 @@ def _bm25_candidates(query: str, filters: SearchFilters, limit: int) -> Select:
     )
     quoted = func.format("%L", lexemes.c.lexeme)
     positions = func.array_length(lexemes.c.positions, 1)
-    in_citation = func.to_tsvector("english", DocumentChunk.citation).bool_op("@@")(
-        cast(quoted, TSQUERY)
-    )
-    tf = positions + cast(in_citation, Integer) * (BM25_CITATION_WEIGHT - 1)
+    citation_positions = func.cardinality(func.array_positions(lexemes.c.weights, "A"))
+    tf = positions + citation_positions * (BM25_CITATION_WEIGHT - 1)
     hits = select(
         DocumentChunk.id,
         func.length(DocumentChunk.text).label("len"),
