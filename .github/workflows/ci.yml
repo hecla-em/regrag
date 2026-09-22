@@ -96,7 +96,7 @@ jobs:
       - run: pnpm build
       - run: pnpm test:run
 
-  e2e:
+  test-e2e:
     runs-on: ubuntu-latest
     defaults:
       run:
