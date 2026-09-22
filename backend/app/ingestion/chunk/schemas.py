@@ -11,8 +11,9 @@ from app.ingestion.enums import SectionKind
 from app.ingestion.schemas import IngestRun
 
 SEARCH_VECTOR_SQL = (
-    """setweight(to_tsvector('english', citation || ' ' || coalesce(title, '')), 'A')"""
-    """ || setweight(to_tsvector('english', "text"), 'B')"""
+    """setweight(to_tsvector('english', citation), 'A')"""
+    """ || setweight(to_tsvector('english', coalesce(title, '')), 'B')"""
+    """ || setweight(to_tsvector('english', "text"), 'C')"""
 )
 
 
