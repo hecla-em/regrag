@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 import httpx
 
+from app.core.http import http_retry
 from app.core.models import FrozenModel
 
 API = "https://mrv.emsa.europa.eu/api/public-emission-report"
@@ -17,6 +18,7 @@ class MrvFile(FrozenModel):
     generated: date
 
 
+@http_retry
 async def list_files(client: httpx.AsyncClient) -> list[MrvFile]:
     """The latest published file of every reporting period."""
     response = await client.get(f"{API}/downloadable-files", params={"page": 1, "limit": 50})
@@ -31,6 +33,7 @@ async def list_files(client: httpx.AsyncClient) -> list[MrvFile]:
     ]
 
 
+@http_retry
 async def fetch_file(client: httpx.AsyncClient, file: MrvFile) -> bytes:
     response = await client.get(
         f"{API}/reporting-period-document/binary/{file.period}/{file.version}"
