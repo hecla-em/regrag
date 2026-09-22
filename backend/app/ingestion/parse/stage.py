@@ -10,7 +10,13 @@ from app.ingestion.parse.models import ParsedDocument
 def parse_document(raw: RawDocument, html: bytes) -> ParsedDocument:
     """Parse one document's HTML, the one format storage keeps, or say why it would not."""
     try:
-        sections = parse_eurlex_html(html.decode("utf-8"))
+        parsed = parse_eurlex_html(html.decode("utf-8"))
     except (ParseError, UnicodeDecodeError) as exc:
         raise DocumentFailed(Stage.PARSE, raw.celex, exc) from exc
-    return ParsedDocument(celex=raw.celex, topic=raw.topic, act_title=raw.title, sections=sections)
+    return ParsedDocument(
+        celex=raw.celex,
+        topic=raw.topic,
+        act_title=raw.title,
+        sections=parsed.sections,
+        images=parsed.images,
+    )

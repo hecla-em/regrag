@@ -159,7 +159,7 @@ At the end of parsing, only the operative text (articles and annexes) remains. E
 - **Recitals**, because consolidation strips them — FuelEU has 72 and consolidated MRV none, so keeping them would cover some acts deeply and others not at all.
 - **Footnotes and amendment markers** (`▼M2`), which are citation apparatus and change tracking rather than law. The text the markers wrap is kept.
 - **Table scaffolding**. Most tables exist only to indent a list (260 in FuelEU against 13 holding real data), so their structure is discarded and the text flattened into the surrounding paragraph. Genuine data tables are kept as a grid.
-- **Formulas**, which are images with no readable alternative. Each becomes a `[formula]` placeholder for now; capturing them properly is tracked as a separate piece of work.
+- **Inline images**, which EUR-Lex uses to draw formulas and has no readable alternative for. Each becomes an `[image:{hash}]` placeholder, and parse then reads it into LaTeX or drops it.
 
 ## 4 Chunk
 Chunking splits the parsed document into the sections to be retrieved by the agent. The goal is to make a chunk short enough to embed, complete enough to read on its own and specific enough to cite.

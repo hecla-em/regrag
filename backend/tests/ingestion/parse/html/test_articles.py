@@ -16,7 +16,7 @@ ETS_ARTICLE = (
 
 def test_an_inserted_article_and_paragraph_keep_their_whole_number():
     """The ETS directive numbers an article '3ga' and a paragraph put in ahead of 3a '3-e'."""
-    (article,) = parse_eurlex_html(ETS_ARTICLE)
+    (article,) = parse_eurlex_html(ETS_ARTICLE).sections
 
     assert article.number == "3ga"
     assert [paragraph.number for paragraph in article.children] == ["3", "3-e"]

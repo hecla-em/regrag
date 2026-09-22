@@ -227,7 +227,8 @@ def store_document(
 def parse_fixture(celex: str, topic: str) -> ParsedDocument:
     """One trimmed fixture act, parsed as ingest parses it."""
     html = (PARSE_FIXTURES / f"{celex}.html").read_text()
-    return ParsedDocument(celex=celex, topic=topic, sections=parse_eurlex_html(html))
+    parsed = parse_eurlex_html(html)
+    return ParsedDocument(celex=celex, topic=topic, sections=parsed.sections, images=parsed.images)
 
 
 @pytest.fixture(scope="session")
