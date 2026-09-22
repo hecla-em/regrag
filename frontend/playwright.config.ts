@@ -21,6 +21,14 @@ export default defineConfig({
 			command:
 				"pnpm exec vite build && pnpm exec vite preview --port 5173 --strictPort",
 			url: "http://localhost:5173",
+			env: {
+				VITE_API_URL: "http://localhost:8000",
+				VITE_SITE_URL: "http://localhost:5173",
+				VITE_SENTRY_DSN: "",
+				VITE_TURNSTILE_SITE_KEY: "",
+				VITE_UMAMI_WEBSITE_ID: "",
+				SENTRY_AUTH_TOKEN: "",
+			},
 			timeout: 120_000,
 		},
 	],
