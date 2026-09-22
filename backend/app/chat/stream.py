@@ -16,12 +16,12 @@ from app.chat.events import (
     ChatErrorResponse,
     ChatEvent,
     ChatStep,
-    ChatThread,
     DoneEvent,
     ErrorEvent,
     SourcesEvent,
     StepEvent,
     TextEvent,
+    TurnRecord,
 )
 from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.graph.service import chat_graph
@@ -97,7 +97,7 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
             if text := chunk.text:
                 yield TextEvent(data=text)
 
-    yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
+    yield DoneEvent(data=TurnRecord(thread_id=state.thread_id, request_id=request_id_var.get()))
 
 
 async def check_spend_cap() -> None:

@@ -38,10 +38,12 @@ class ChatSource(FrozenModel):
         )
 
 
-class ChatThread(FrozenModel):
-    """The thread a turn was recorded under, which a follow-up sends back."""
+class TurnRecord(FrozenModel):
+    """Where the turn was recorded: the thread it joined, which a follow-up sends back, and
+    the request it was written as, which a vote names. No request outside one, as in evals."""
 
     thread_id: UUID
+    request_id: str | None
 
 
 class ChatEventBase(FrozenModel):
@@ -119,10 +121,10 @@ class TextEvent(ChatEventBase):
 
 
 class DoneEvent(ChatEventBase):
-    """The last event of a completed stream: the thread the turn belongs to."""
+    """The last event of a completed stream: where the turn was recorded."""
 
     event: Literal[ChatEventName.DONE] = ChatEventName.DONE
-    data: ChatThread
+    data: TurnRecord
 
 
 class ChatErrorResponse(ErrorResponse):

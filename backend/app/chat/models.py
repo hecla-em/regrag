@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 from langchain_core.messages import AIMessage
 from pydantic import Field, computed_field
 
-from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep
+from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep, Vote
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
@@ -22,6 +22,12 @@ class ChatQuery(AppModel):
 
     question: str = Field(min_length=1, max_length=2000)
     thread_id: UUID | None = None
+
+
+class ChatVote(AppModel):
+    """The reader's vote on an answer: which way, or None to take it back."""
+
+    vote: Vote | None
 
 
 class ChatStepResult(FrozenModel):

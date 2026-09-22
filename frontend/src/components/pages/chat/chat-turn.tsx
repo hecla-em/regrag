@@ -1,5 +1,6 @@
 import { CircleAlertIcon, PlusIcon, RotateCcwIcon } from "lucide-react"
 import { memo, useCallback, useMemo, useState } from "react"
+import type { Vote } from "@/api/types"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Message, MessageContent } from "@/components/ui/message"
@@ -14,6 +15,7 @@ import { Answer } from "./answer"
 import { CopyAnswerButton } from "./copy-answer-button"
 import { RunSteps } from "./run-steps"
 import { SourcesPopover, type SourcesView } from "./sources-popover"
+import { VoteButtons } from "./vote-buttons"
 
 const FAILURE_MESSAGES: Record<TurnFailure, string> = {
 	thread_full: "Maximum chat turns reached.",
@@ -61,10 +63,12 @@ export const ChatTurn = memo(function ChatTurn({
 	turn,
 	onRetry,
 	onNewThread,
+	onVote,
 }: {
 	turn: Turn
 	onRetry: () => void
 	onNewThread: () => void
+	onVote: (turnId: string, vote: Vote | null) => void
 }) {
 	const [sourcesView, setSourcesView] = useState<SourcesView | null>(null)
 	const isSettled = turn.status === "settled"
@@ -77,6 +81,11 @@ export const ChatTurn = memo(function ChatTurn({
 	const openSource = useCallback((marker: number, anchor: Element) => {
 		setSourcesView({ marker, anchor })
 	}, [])
+
+	const castVote = useCallback(
+		(vote: Vote | null) => onVote(turn.id, vote),
+		[onVote, turn.id],
+	)
 
 	return (
 		<div className="flex flex-col gap-3.5">
@@ -122,6 +131,9 @@ export const ChatTurn = memo(function ChatTurn({
 										answer={turn.answer}
 										sources={turn.sources}
 									/>
+								)}
+								{isSettled && turn.requestId !== null && (
+									<VoteButtons vote={turn.vote} onVote={castVote} />
 								)}
 								<SourcesPopover
 									cited={cited}

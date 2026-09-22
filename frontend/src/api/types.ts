@@ -5,6 +5,7 @@ export type ChatQuery = components["schemas"]["ChatQuery"]
 export type ChatSource = components["schemas"]["ChatSource"]
 export type ChatStep = components["schemas"]["ChatStep"]
 export type ChatErrorResponse = components["schemas"]["ChatErrorResponse"]
+export type Vote = components["schemas"]["Vote"]
 export type ChatStreamEvent =
 	| components["schemas"]["SourcesEvent"]
 	| components["schemas"]["StepEvent"]

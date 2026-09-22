@@ -33,7 +33,10 @@ const failure: ChatAction = {
 	data: { error: "LLMError", message: "boom", request_id: null },
 }
 const settle: ChatAction = { type: "settle" }
-const done: ChatAction = { event: "done", data: { thread_id: "server-1" } }
+const done: ChatAction = {
+	event: "done",
+	data: { thread_id: "server-1", request_id: "req-1" },
+}
 
 it.each([
 	[

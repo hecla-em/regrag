@@ -2,6 +2,7 @@
 
 import logging
 import math
+from collections.abc import Awaitable, Callable
 from typing import Annotated
 from uuid import uuid4
 
@@ -44,26 +45,36 @@ ClientIdHeader = Annotated[str | None, Header(max_length=64)]
 """The id a browser sends on every question, bounded because it is stored verbatim as a key."""
 
 
-async def rate_limit(request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None) -> None:
-    """Refuse the call once its client id, or its address across ids, has used the window's
-    allowance. A call without an id is counted as its address, in a namespace no id can
-    name. Redis unreachable lets the call through: the spend cap is the backstop."""
-    if not config.RATE_LIMIT_ENABLED:
-        return
-    ip = client_ip(request) or "unknown"
-    client_key = f"ratelimit:client:{x_client_id}" if x_client_id else f"ratelimit:anon:{ip}"
-    keys = [client_key, f"ratelimit:ip:{ip}"]
-    args = [
-        config.RATE_LIMIT_WINDOW_SECONDS * 1000,
-        now_ms(),
-        uuid4().hex,
-        config.RATE_LIMIT_PER_CLIENT,
-        config.RATE_LIMIT_PER_IP,
-    ]
-    try:
-        wait_ms = await redis.register_script(TAKE_SLOT)(keys, args)
-    except RedisError as exc:
-        logger.warning("rate limit check failed, letting the call through: %s", exc)
-        return
-    if wait_ms:
-        raise RateLimitedError(retry_after=math.ceil(wait_ms / 1000))
+def rate_limit(bucket: str) -> Callable[..., Awaitable[None]]:
+    """The limiter for one kind of call, counted apart from every other kind, so a vote
+    spends none of the questions its reader may still ask."""
+
+    async def take_slot(
+        request: Request, redis: RedisDep, x_client_id: ClientIdHeader = None
+    ) -> None:
+        """Refuse the call once its client id, or its address across ids, has used the
+        window's allowance. A call without an id is counted as its address, in a namespace
+        no id can name. Redis unreachable lets the call through: the spend cap is the
+        backstop."""
+        if not config.RATE_LIMIT_ENABLED:
+            return
+        ip = client_ip(request) or "unknown"
+        prefix = f"ratelimit:{bucket}"
+        client_key = f"{prefix}:client:{x_client_id}" if x_client_id else f"{prefix}:anon:{ip}"
+        keys = [client_key, f"{prefix}:ip:{ip}"]
+        args = [
+            config.RATE_LIMIT_WINDOW_SECONDS * 1000,
+            now_ms(),
+            uuid4().hex,
+            config.RATE_LIMIT_PER_CLIENT,
+            config.RATE_LIMIT_PER_IP,
+        ]
+        try:
+            wait_ms = await redis.register_script(TAKE_SLOT)(keys, args)
+        except RedisError as exc:
+            logger.warning("rate limit check failed, letting the call through: %s", exc)
+            return
+        if wait_ms:
+            raise RateLimitedError(retry_after=math.ceil(wait_ms / 1000))
+
+    return take_slot

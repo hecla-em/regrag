@@ -17,7 +17,7 @@ from tests.conftest import assert_error_shape, unreachable_redis
 router = APIRouter()
 
 
-@router.post("/limited", dependencies=[Depends(rate_limit)])
+@router.post("/limited", dependencies=[Depends(rate_limit("limited"))])
 def limited() -> dict[str, bool]:
     return {"ok": True}
 

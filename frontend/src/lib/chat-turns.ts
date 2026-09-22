@@ -4,8 +4,10 @@ import type {
 	ChatStep,
 	ChatStreamEvent,
 	ErrorBody,
+	Vote,
 } from "@/api/types"
 
+/** requestId: what the server recorded the turn as, which a vote names; null until done. */
 export type ChatTurn = {
 	id: string
 	question: string
@@ -16,6 +18,8 @@ export type ChatTurn = {
 	error: ErrorBody | null
 	askedAt: number
 	endedAt: number | null
+	requestId: string | null
+	vote: Vote | null
 }
 
 /** Whether the run behind a turn is still under way: asked and not yet answering, or answering. */
@@ -46,6 +50,7 @@ export type ChatAction =
 	| { type: "ask"; id: string; question: string }
 	| { type: "settle" }
 	| { type: "fail"; error: ErrorBody }
+	| { type: "vote"; id: string; vote: Vote | null }
 	| ChatStreamEvent
 
 /** The trail with this step in it: a starting step joins the end, and a finished one settles
@@ -80,7 +85,9 @@ function applyToTurn(turn: ChatTurn, action: ChatAction): ChatTurn {
 					status: "streaming",
 				}
 			case "done":
-				return turn.status === "failed" ? turn : { ...turn, status: "settled" }
+				return turn.status === "failed"
+					? turn
+					: { ...turn, status: "settled", requestId: action.data.request_id }
 			case "error":
 				return {
 					...turn,
@@ -120,7 +127,9 @@ function advanceTurn(turn: ChatTurn, action: ChatAction, at: number): ChatTurn {
 		: next
 }
 
-/** `at` is when the action happened, so a turn's time is the wait the reader saw. */
+/** `at` is when the action happened, so a turn's time is the wait the reader saw. A vote
+ * names its turn, since any settled turn can be voted on; every other action is the run's,
+ * and lands on the last turn. */
 export function chatReducer(
 	turns: ChatTurn[],
 	action: ChatAction,
@@ -139,8 +148,15 @@ export function chatReducer(
 				error: null,
 				askedAt: at,
 				endedAt: null,
+				requestId: null,
+				vote: null,
 			},
 		]
+	}
+	if ("type" in action && action.type === "vote") {
+		return turns.map((turn) =>
+			turn.id === action.id ? { ...turn, vote: action.vote } : turn,
+		)
 	}
 	const current = turns.at(-1)
 	if (current === undefined) return turns

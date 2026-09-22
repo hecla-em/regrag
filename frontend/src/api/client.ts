@@ -6,6 +6,7 @@ import type {
 	ChatStreamEvent,
 	ErrorBody,
 	ErrorResponse,
+	Vote,
 } from "./types"
 
 export const API_URL = import.meta.env.VITE_API_URL
@@ -107,4 +108,19 @@ export async function* streamChat(
 	} finally {
 		reader.releaseLock()
 	}
+}
+
+/** Records the reader's vote on the answer a request gave; null takes it back. */
+export async function sendVote(
+	requestId: string,
+	vote: Vote | null,
+): Promise<void> {
+	await apiFetch(`/chat/${requestId}/vote`, {
+		method: "PUT",
+		headers: {
+			"content-type": "application/json",
+			"X-Client-ID": readClientId(),
+		},
+		body: JSON.stringify({ vote }),
+	})
 }

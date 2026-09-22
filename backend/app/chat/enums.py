@@ -64,6 +64,13 @@ class RefusalReason(StrEnum):
     INSUFFICIENT_CONTEXT = "insufficient_context"
 
 
+class Vote(StrEnum):
+    """Which way a reader voted on the answer they were given."""
+
+    UP = "up"
+    DOWN = "down"
+
+
 ANSWERED_OUTCOMES = frozenset({ChatOutcome.DONE, ChatOutcome.CACHED})
 """The outcomes that left an answer on the thread: what a follow-up's history reads."""
 

@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react"
 import { useCallback, useEffect, useReducer, useRef } from "react"
-import { ApiError, describeError, streamChat } from "@/api/client"
+import { ApiError, describeError, sendVote, streamChat } from "@/api/client"
+import type { Vote } from "@/api/types"
 import {
 	activeThread,
 	NO_THREADS,
@@ -52,6 +53,28 @@ export function useChatThreads() {
 			dispatch({ type: "turn", id, action: { type: "settle" }, at: Date.now() })
 	}, [])
 
+	/** Shows the vote at once and sends it; a refused or failed send puts the earlier vote back. */
+	const vote = useCallback(async (turnId: string, next: Vote | null) => {
+		const thread = committed.current.threads.find((held) =>
+			held.turns.some((turn) => turn.id === turnId),
+		)
+		const turn = thread?.turns.find((held) => held.id === turnId)
+		if (thread === undefined || turn?.requestId == null) return
+		const cast = (vote: Vote | null) =>
+			dispatch({
+				type: "turn",
+				id: thread.id,
+				action: { type: "vote", id: turnId, vote },
+				at: Date.now(),
+			})
+		cast(next)
+		try {
+			await sendVote(turn.requestId, next)
+		} catch {
+			cast(turn.vote)
+		}
+	}, [])
+
 	const openThread = useCallback((id: string | null) => {
 		dispatch({ type: "open", id })
 	}, [])
@@ -69,6 +92,7 @@ export function useChatThreads() {
 		thread,
 		ask,
 		stop,
+		vote,
 		openThread,
 		isBusy: current !== undefined && isTurnRunning(current),
 	}
