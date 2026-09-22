@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.scripts]
-serve = "app.serve:main"
+serve = "app.main:run_server"
 ingest = "app.ingestion.cli:main"
 retrieve = "app.retrieval.cli:main"
 evals = "app.evals.cli:main"
