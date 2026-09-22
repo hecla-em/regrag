@@ -3,13 +3,13 @@ questions asked most."""
 
 from datetime import datetime
 
-from app.analytics.enums import AnalyticsDays
+from app.chat.enums import ChatOutcome
 from app.core.models import FrozenModel
 
 
 class CostSummary(FrozenModel):
-    """mean_usd: per answered request in range. range_usd: every uncached request in range.
-    total_usd: every uncached request the ledger still keeps, from the summary's kept_since."""
+    """mean_usd: per generated answer in range. range_usd: every request in range. total_usd:
+    every request the ledger still keeps, from the summary's kept_since."""
 
     mean_usd: float | None
     range_usd: float
@@ -17,7 +17,7 @@ class CostSummary(FrozenModel):
 
 
 class LatencySummary(FrozenModel):
-    """How long an answered request lived, over the range."""
+    """How long a generated answer took, over the range."""
 
     mean_ms: int | None
     p50_ms: int | None
@@ -25,16 +25,10 @@ class LatencySummary(FrozenModel):
 
 
 class ChatSummary(FrozenModel):
-    """The range's requests by how they ended, and what the uncached ones cost and took. A
-    cached answer counts toward the hit rate only. kept_since: the oldest request kept."""
+    """The range's requests by how they ended, and what the generated answers cost and took.
+    A cached answer adds nothing to either. kept_since: the oldest request kept."""
 
-    days: AnalyticsDays
-    requests: int
-    answered: int
-    refused: int
-    errors: int
-    cached: int
-    cache_hit_rate: float | None
+    outcomes: dict[ChatOutcome, int]
     cost: CostSummary
     latency: LatencySummary
     kept_since: datetime | None
@@ -61,7 +55,6 @@ class GraphEdge(FrozenModel):
 class ChatGraphMetrics(FrozenModel):
     """The compiled graph's nodes and edges, and what each step measured over the range."""
 
-    days: AnalyticsDays
     nodes: tuple[str, ...]
     edges: tuple[GraphEdge, ...]
     steps: tuple[StepMetrics, ...]

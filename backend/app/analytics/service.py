@@ -1,7 +1,7 @@
 """The chat ledger aggregated over a range of days: the headline summary, each step and the
 top questions, plus the compiled graph's shape."""
 
-from collections import defaultdict
+import heapq
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
@@ -26,8 +26,8 @@ from app.chat.graph.service import chat_graph
 from app.chat.schemas import ChatRequest, ChatRequestStep
 from app.core.clock import utc_today
 
-ANSWERED = ChatRequest.outcome == ChatOutcome.DONE
-UNCACHED = ChatRequest.outcome != ChatOutcome.CACHED
+GENERATED = ChatRequest.outcome == ChatOutcome.DONE
+"""An answer the graph produced for this request, not one replayed from the answer cache."""
 
 
 def range_start(days: AnalyticsDays) -> datetime:
@@ -44,34 +44,33 @@ def whole_ms(value: float | None) -> int | None:
     return None if value is None else round(value)
 
 
+async def count_outcomes(session: AsyncSession, days: AnalyticsDays) -> dict[ChatOutcome, int]:
+    """The range's requests by how they ended, every outcome present."""
+    stmt = (
+        select(ChatRequest.outcome, func.count())
+        .where(ChatRequest.created_at >= range_start(days))
+        .group_by(ChatRequest.outcome)
+    )
+    counts = dict((await session.execute(stmt)).tuples().all())
+    return {outcome: counts.get(outcome, 0) for outcome in ChatOutcome}
+
+
 async def summarize_requests(session: AsyncSession, days: AnalyticsDays) -> ChatSummary:
-    outcome = ChatRequest.outcome
     range_stmt = select(
-        func.count().label("requests"),
-        func.count().filter(ANSWERED).label("answered"),
-        func.count().filter(outcome == ChatOutcome.REFUSED).label("refused"),
-        func.count().filter(outcome == ChatOutcome.ERROR).label("errors"),
-        func.count().filter(outcome == ChatOutcome.CACHED).label("cached"),
-        func.avg(ChatRequest.cost_usd).filter(ANSWERED).label("mean_usd"),
-        func.sum(ChatRequest.cost_usd).filter(UNCACHED).label("range_usd"),
-        func.avg(ChatRequest.total_ms).filter(ANSWERED).label("mean_ms"),
-        percentile(0.5, ChatRequest.total_ms).filter(ANSWERED).label("p50_ms"),
-        percentile(0.95, ChatRequest.total_ms).filter(ANSWERED).label("p95_ms"),
+        func.avg(ChatRequest.cost_usd).filter(GENERATED).label("mean_usd"),
+        func.sum(ChatRequest.cost_usd).label("range_usd"),
+        func.avg(ChatRequest.total_ms).filter(GENERATED).label("mean_ms"),
+        percentile(0.5, ChatRequest.total_ms).filter(GENERATED).label("p50_ms"),
+        percentile(0.95, ChatRequest.total_ms).filter(GENERATED).label("p95_ms"),
     ).where(ChatRequest.created_at >= range_start(days))
     kept_stmt = select(
-        func.sum(ChatRequest.cost_usd).filter(UNCACHED).label("total_usd"),
+        func.sum(ChatRequest.cost_usd).label("total_usd"),
         func.min(ChatRequest.created_at).label("kept_since"),
     )
     in_range = (await session.execute(range_stmt)).one()
     kept = (await session.execute(kept_stmt)).one()
     return ChatSummary(
-        days=days,
-        requests=in_range.requests,
-        answered=in_range.answered,
-        refused=in_range.refused,
-        errors=in_range.errors,
-        cached=in_range.cached,
-        cache_hit_rate=in_range.cached / in_range.requests if in_range.requests else None,
+        outcomes=await count_outcomes(session, days),
         cost=CostSummary(
             mean_usd=in_range.mean_usd,
             range_usd=in_range.range_usd or 0.0,
@@ -86,7 +85,7 @@ async def summarize_requests(session: AsyncSession, days: AnalyticsDays) -> Chat
     )
 
 
-async def list_step_metrics(session: AsyncSession, days: AnalyticsDays) -> list[StepMetrics]:
+async def list_step_metrics(session: AsyncSession, days: AnalyticsDays) -> tuple[StepMetrics, ...]:
     stmt = (
         select(
             ChatRequestStep.step,
@@ -99,7 +98,7 @@ async def list_step_metrics(session: AsyncSession, days: AnalyticsDays) -> list[
         .group_by(ChatRequestStep.step)
         .order_by(ChatRequestStep.step)
     )
-    return [
+    return tuple(
         StepMetrics(
             step=row.step,
             runs=row.runs,
@@ -107,7 +106,7 @@ async def list_step_metrics(session: AsyncSession, days: AnalyticsDays) -> list[
             mean_cost_usd=row.mean_cost_usd,
         )
         for row in await session.execute(stmt)
-    ]
+    )
 
 
 async def get_graph_metrics(session: AsyncSession, days: AnalyticsDays) -> ChatGraphMetrics:
@@ -115,39 +114,33 @@ async def get_graph_metrics(session: AsyncSession, days: AnalyticsDays) -> ChatG
     measures over the range."""
     drawable = chat_graph.get_graph()
     return ChatGraphMetrics(
-        days=days,
-        nodes=tuple(str(node) for node in drawable.nodes),
+        nodes=tuple(drawable.nodes),
         edges=tuple(
-            GraphEdge(
-                source=str(edge.source), target=str(edge.target), conditional=edge.conditional
-            )
+            GraphEdge(source=edge.source, target=edge.target, conditional=edge.conditional)
             for edge in drawable.edges
         ),
-        steps=tuple(await list_step_metrics(session, days)),
+        steps=await list_step_metrics(session, days),
     )
 
 
 async def list_top_questions(
     session: AsyncSession, days: AnalyticsDays, limit: int
 ) -> list[TopQuestion]:
-    """The range's questions grouped as the answer cache keys them, most asked first. Grouped
-    here rather than in SQL, so the grouping is normalize_question itself."""
+    """The range's questions grouped by normalize_question, which folds their typing the way
+    the answer cache does, most asked first."""
     stmt = (
         select(ChatRequest.question, ChatRequest.outcome, ChatRequest.created_at)
         .where(ChatRequest.created_at >= range_start(days))
         .order_by(ChatRequest.created_at)
     )
-    groups: dict[str, list[Any]] = defaultdict(list)
+    questions: dict[str, TopQuestion] = {}
     for row in await session.execute(stmt):
-        groups[normalize_question(row.question)].append(row)
-    questions = [
-        TopQuestion(
-            question=rows[-1].question,
-            asked=len(rows),
-            cached=sum(row.outcome is ChatOutcome.CACHED for row in rows),
-            last_asked=rows[-1].created_at,
+        key = normalize_question(row.question)
+        seen = questions.get(key)
+        questions[key] = TopQuestion(
+            question=row.question,
+            asked=(seen.asked if seen else 0) + 1,
+            cached=(seen.cached if seen else 0) + (row.outcome is ChatOutcome.CACHED),
+            last_asked=row.created_at,
         )
-        for rows in groups.values()
-    ]
-    questions.sort(key=lambda question: (question.asked, question.last_asked), reverse=True)
-    return questions[:limit]
+    return heapq.nlargest(limit, questions.values(), key=lambda q: (q.asked, q.last_asked))
