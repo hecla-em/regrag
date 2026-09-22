@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import boto3
+from boto3.exceptions import S3UploadFailedError
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import status
@@ -13,7 +14,7 @@ from app.core.config import R2Config, StorageBackend, config
 from app.core.exceptions import DomainError, ErrorCode
 from app.core.retry import MAX_ATTEMPTS
 
-BOTO_ERRORS = (ClientError, BotoCoreError)
+BOTO_ERRORS = (ClientError, BotoCoreError, S3UploadFailedError)
 NOT_FOUND_CODES = frozenset({"404", "NoSuchKey", "NotFound"})
 
 
@@ -112,6 +113,26 @@ class S3ObjectStore:
         except BOTO_ERRORS as exc:
             raise StorageError("put", key, exc) from exc
 
+    def put_file(self, key: str, path: Path) -> None:
+        """Upload from disk in parts, for a file too large to hold in memory."""
+        validate_key(key)
+        try:
+            self.client.upload_file(str(path), self.bucket, key)
+        except BOTO_ERRORS as exc:
+            raise StorageError("put", key, exc) from exc
+
+    def get_file(self, key: str, path: Path) -> None:
+        """Download to disk in parts, for a file too large to hold in memory."""
+        validate_key(key)
+        try:
+            self.client.download_file(self.bucket, key, str(path))
+        except ClientError as exc:
+            if is_missing_object(exc):
+                raise ObjectNotFoundError("get", key, exc) from exc
+            raise StorageError("get", key, exc) from exc
+        except BotoCoreError as exc:
+            raise StorageError("get", key, exc) from exc
+
     def get(self, key: str) -> bytes:
         validate_key(key)
         try:
@@ -135,6 +156,16 @@ class S3ObjectStore:
             raise StorageError("head", key, exc) from exc
         return True
 
+    def list_keys(self, prefix: str) -> list[str]:
+        """Every key that starts with the prefix."""
+        pages = self.client.get_paginator("list_objects_v2").paginate(
+            Bucket=self.bucket, Prefix=prefix
+        )
+        try:
+            return [item["Key"] for page in pages for item in page.get("Contents", [])]
+        except BOTO_ERRORS as exc:
+            raise StorageError("list", prefix, exc) from exc
+
 
 def r2_client(r2: R2Config) -> Any:
     """An S3 client pointed at this account's R2 endpoint, retrying transient failures."""
@@ -148,9 +179,10 @@ def r2_client(r2: R2Config) -> Any:
     )
 
 
-def r2_object_store() -> S3ObjectStore:
-    """The configured R2 bucket as an object store, reading credentials as it is built."""
-    r2 = R2Config()
+def r2_object_store(r2: R2Config | None = None) -> S3ObjectStore:
+    """An R2 bucket as an object store: the raw-docs one unless handed other settings, its
+    credentials read as it is built."""
+    r2 = r2 or R2Config()
     try:
         client = r2_client(r2)
     except ValueError as exc:
