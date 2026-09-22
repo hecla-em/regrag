@@ -1399,6 +1399,21 @@
       "id": "external-statistic-paris-mou-detentions",
       "kind": "out_of_corpus",
       "question": "How many ships did the Paris MoU detain for MRV-related deficiencies last year?"
+    },
+    {
+      "id": "adjacent-regime-imo-eexi-reduction-factor",
+      "kind": "out_of_corpus",
+      "question": "What reduction factor applies when calculating the required EEXI for a 60,000 DWT bulk carrier?"
+    },
+    {
+      "id": "adjacent-regime-imo-dcs-submission",
+      "kind": "out_of_corpus",
+      "question": "Under the IMO Data Collection System, by what date must a company submit a ship's annual fuel oil consumption data to its flag State?"
+    },
+    {
+      "id": "adjacent-regime-uk-ets-maritime",
+      "kind": "out_of_corpus",
+      "question": "From what date does the UK ETS cover domestic maritime voyages, and which ships does it apply to?"
     }
   ]
 }
