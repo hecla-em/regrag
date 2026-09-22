@@ -1,0 +1,25 @@
+import { defineConfig, devices } from "@playwright/test"
+
+const isCI = Boolean(process.env.CI)
+
+export default defineConfig({
+	testDir: "e2e",
+	forbidOnly: isCI,
+	retries: isCI ? 1 : 0,
+	reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
+	use: { baseURL: "http://localhost:5173", trace: "on-first-retry" },
+	projects: [{ name: "chromium", use: devices["Desktop Chrome"] }],
+	webServer: [
+		{
+			command: "uv run python -m tests.e2e.server",
+			cwd: "../backend",
+			url: "http://localhost:8000/health",
+			timeout: 120_000,
+		},
+		{
+			command: "pnpm build && pnpm exec vite preview --port 5173 --strictPort",
+			url: "http://localhost:5173",
+			timeout: 120_000,
+		},
+	],
+})

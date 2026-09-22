@@ -19,6 +19,7 @@ each citation be opened against the article it came from.
 | API Types        | [openapi-typescript](https://github.com/openapi-ts/openapi-typescript) |
 | Linter/Formatter | [Biome](https://github.com/biomejs/biome)                         |
 | Tests            | [Vitest](https://github.com/vitest-dev/vitest)                    |
+| E2E Tests        | [Playwright](https://github.com/microsoft/playwright)             |
 | Package Manager  | [pnpm](https://github.com/pnpm/pnpm)                              |
 
 ## Development
@@ -43,12 +44,26 @@ The app is then on `http://localhost:5173`.
 | `pnpm lint`         | Check formatting and lint with Biome               |
 | `pnpm check`        | Check and auto-fix with Biome                      |
 | `pnpm test`         | Run the unit tests with Vitest                     |
+| `pnpm e2e`          | Run the end-to-end tests with Playwright           |
 | `pnpm knip`         | Report unused files, exports and dependencies      |
 | `pnpm generate-api` | Regenerate `src/api/schema.ts` from `openapi.json` |
 
 `pnpm generate-api` expects an `openapi.json` already exported from the backend;
 [`../scripts/generate-client.sh`](../scripts/generate-client.sh) does both steps,
 dumping the FastAPI schema and then regenerating the types.
+
+## End-to-end tests
+
+`e2e/` drives the built site in Chromium against the real backend, with only the
+model and embeddings faked. Playwright starts both: the backend launcher
+(`backend/tests/e2e/server.py`) on `:8000`, seeding its own `regrag_e2e` database
+and Redis index 2, and `vite preview` on `:5173`. Both ports must be free.
+
+```bash
+docker compose -f ../backend/compose.yaml up -d db redis
+pnpm exec playwright install chromium    # once
+pnpm e2e
+```
 
 ## Layout
 

@@ -120,6 +120,11 @@ def test_database() -> None:
     assert config.DB_NAME == "regrag_test", (
         "the suite deletes rows, so it never runs on a dev database"
     )
+    migrate_to_head()
+
+
+def migrate_to_head() -> None:
+    """Create the configured database if it is missing, and upgrade it to head."""
     _create_database_if_missing(config.SQLALCHEMY_DATABASE_URI)
     alembic = AlembicConfig(str(BACKEND_ROOT / "alembic.ini"))
     alembic.set_main_option("script_location", str(BACKEND_ROOT / "migrations"))
@@ -371,14 +376,15 @@ def corpus(
     anyio.run(delete_runs, db_engine, rows[0].ingest_run_id)
 
 
+async def toy_query_embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
+    """Stands in for embed at query time, landing questions in the corpus's toy space."""
+    return [toy_embed(text) for text in texts]
+
+
 @pytest.fixture
 def query_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Query vectors share the corpus's space, so a search is a real nearest-neighbour test."""
-
-    async def _embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
-        return [toy_embed(text) for text in texts]
-
-    monkeypatch.setattr("app.retrieval.search.embed", _embed)
+    monkeypatch.setattr("app.retrieval.search.embed", toy_query_embed)
 
 
 @pytest.fixture
