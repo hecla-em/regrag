@@ -6,19 +6,11 @@ Run from backend/: PYTHONPATH=. uv run python tests/ingestion/chunk/fixtures/sna
 import json
 from pathlib import Path
 
-from app.ingestion.parse.html.document import parse_eurlex_html
-from app.ingestion.parse.models import ParsedDocument
-from tests.conftest import PARSE_FIXTURES
+from tests.conftest import parse_fixture
 from tests.ingestion.chunk.conftest import snapshot_chunks
 
 FIXTURES = Path(__file__).parent
 TOPICS: dict[str, str] = {"32023R1805": "fueleu", "32015R0757": "mrv"}
-
-
-def parse_fixture(celex: str, topic: str) -> ParsedDocument:
-    """One trimmed act parsed the way the session fixtures parse it."""
-    html = (PARSE_FIXTURES / f"{celex}.html").read_text()
-    return ParsedDocument(celex=celex, topic=topic, sections=parse_eurlex_html(html))
 
 
 def main() -> None:

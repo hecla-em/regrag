@@ -7,7 +7,9 @@
 			"!src/api/schema.ts",
 			"!openapi.json",
 			"!public",
-			"!dist"
+			"!dist",
+			"!test-results",
+			"!playwright-report"
 		]
 	},
 	"formatter": { "indentStyle": "tab" },
