@@ -19,11 +19,9 @@ BM25_K1 = 1.2
 BM25_B = 0.75
 """The textbook constants: how fast repeats saturate, and how hard length is penalised."""
 BM25_CITATION_WEIGHT = 4.0
-"""What each occurrence of a term in the chunk's own citation counts for against one in its
-text, so the article a query names beats a short chunk that merely mentions it. Invisible to
-the golden set at any value, whose questions rarely carry a citation's words; set by the
-article 11 and 11a case. The title earns no boost: a question word in a title cost 0.06
-recall at 10."""
+"""A query word found in the chunk's own citation counts this many times one found in its
+text, so "Article 11a" lands on Article 11a rather than a chunk that mentions it. Set by
+that test case; the golden questions rarely carry a citation's words."""
 
 
 @llm_retry
