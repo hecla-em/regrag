@@ -7,13 +7,14 @@ from uuid import UUID, uuid4
 from langchain_core.messages import AIMessage
 from pydantic import Field, computed_field
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatNode, ChatOutcome, ChatStepStatus, RefusalReason, ToolStep, Vote
 from app.chat.toolbox.models import ToolCall
 from app.core.config import config
 from app.core.exceptions import DomainError
 from app.core.llm.models import Usage
 from app.core.models import AppModel, FrozenModel
-from app.retrieval.models import RetrievedChunk, SearchResult
+from app.retrieval.models import SearchResult
 
 
 class ChatQuery(AppModel):
@@ -84,7 +85,7 @@ class CachedAnswer(FrozenModel):
     markers number."""
 
     answer: str
-    sources: tuple[RetrievedChunk, ...]
+    sources: tuple[ContextBlock, ...]
 
 
 class ChatState(AppModel):
@@ -130,7 +131,7 @@ class ChatState(AppModel):
     # What retrieval built
     queries: tuple[str, ...] = ()
     hits: tuple[SearchResult, ...] = ()
-    sources: tuple[RetrievedChunk, ...] = ()
+    sources: tuple[ContextBlock, ...] = ()
     retrieved_sources: int = 0
     pending_calls: tuple[ToolCall, ...] = ()
 

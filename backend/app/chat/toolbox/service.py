@@ -6,6 +6,7 @@ import logging
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.chat.toolbox.models import ToolCall
@@ -18,7 +19,6 @@ from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
 from app.core.db.session import get_session
 from app.core.llm.errors import LLMError
-from app.retrieval.models import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def build_call_step(
     )
 
 
-async def run_tool_call(call: ToolCall) -> tuple[RetrievedChunk, ...]:
+async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
     """One call's chunks; an unknown tool, an invalid target or a failing call yields
     nothing, never an error — the loop is best-effort and a bad call adds nothing.
 

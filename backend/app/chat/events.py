@@ -1,10 +1,12 @@
 """SSE event values: every frame a chat stream carries, and what each one holds."""
 
+from collections.abc import Sequence
 from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatErrorCode, ChatEventName, ChatNode, ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.core.exceptions import ErrorCode
@@ -63,12 +65,14 @@ class SourcesEvent(ChatEventBase):
     data: tuple[ChatSource, ...]
 
     @classmethod
-    def from_results(cls, results: tuple[RetrievedChunk, ...]) -> "SourcesEvent":
-        """Markers run 1..n in context order, matching the prompt's numbering."""
+    def from_results(cls, results: Sequence[ContextBlock]) -> "SourcesEvent":
+        """Markers run 1..n in context order, matching the prompt's numbering; a block that
+        is not a corpus chunk reports nothing here yet."""
         return cls(
             data=tuple(
                 ChatSource.from_result(marker, result)
                 for marker, result in enumerate(results, start=1)
+                if isinstance(result, RetrievedChunk)
             )
         )
 

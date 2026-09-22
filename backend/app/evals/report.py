@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel
 
+from app.chat.blocks import corpus_chunks
 from app.core.mappings import flatten_dict
 from app.evals.judge.enums import JudgeVerdict
 from app.evals.judge.models import CaseJudgement
@@ -41,7 +42,9 @@ def _format_case_line(result: EvalCaseResult, width: int) -> str:
     scored = state.error is None
     recalled = scored and bool(references)
     raw = score_reference_recall(references, state.hits) if recalled else None
-    expanded = score_reference_recall(references, state.sources) if recalled else None
+    expanded = (
+        score_reference_recall(references, corpus_chunks(state.sources)) if recalled else None
+    )
     cited = (
         score_reference_citation_rate(state.answer, state.sources, references) if scored else None
     )

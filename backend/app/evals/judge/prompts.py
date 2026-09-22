@@ -2,9 +2,9 @@
 
 from collections.abc import Sequence
 
+from app.chat.blocks import ContextBlock
 from app.chat.citations import find_cited_sources
 from app.chat.prompts import format_context_block
-from app.retrieval.models import RetrievedChunk
 
 CORRECTNESS_PROMPT = (
     "You grade an answer to a question about EU maritime regulation against a reference "
@@ -48,7 +48,7 @@ def build_correctness_message(question: str, reference: str, answer: str) -> str
     return f"Question: {question}\n\nReference answer:\n{reference}\n\nAnswer:\n{answer}"
 
 
-def format_cited_blocks(answer: str, sources: Sequence[RetrievedChunk]) -> str:
+def format_cited_blocks(answer: str, sources: Sequence[ContextBlock]) -> str:
     """The blocks the answer cited, under the markers the answer used for them, so a [3]
     in the answer is a [3] in the context; a marker addressing no block is skipped."""
     return "\n\n".join(
@@ -57,7 +57,7 @@ def format_cited_blocks(answer: str, sources: Sequence[RetrievedChunk]) -> str:
     )
 
 
-def build_faithfulness_message(answer: str, sources: Sequence[RetrievedChunk]) -> str:
+def build_faithfulness_message(answer: str, sources: Sequence[ContextBlock]) -> str:
     return f"Cited context:\n\n{format_cited_blocks(answer, sources)}\n\nAnswer:\n{answer}"
 
 

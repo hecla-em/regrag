@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from pydantic import ValidationError
 
+from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState, ChatStepResult
 from app.chat.prompts import format_context, system_prompt, thread_messages
@@ -73,14 +74,16 @@ def reference_addresses(source: RetrievedChunk) -> list[str]:
     return list(dict.fromkeys(addresses))
 
 
-def cites_line(source: RetrievedChunk) -> str:
-    """What a block cites, as the line assess reads it off, or nothing when it cites no
-    address that can be followed."""
-    addresses = reference_addresses(source)
+def cites_line(block: ContextBlock) -> str:
+    """What a chunk cites, as the line assess reads it off; nothing for a block that is not a
+    chunk or cites no followable address."""
+    if not isinstance(block, RetrievedChunk):
+        return ""
+    addresses = reference_addresses(block)
     return f"cites: {', '.join(addresses)}" if addresses else ""
 
 
-def build_assess_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
+def build_assess_message(question: str, sources: Sequence[ContextBlock]) -> str:
     """The full assess turn: the same numbered blocks synthesize will cite, each followed
     by the addresses it cites so follow_reference can be pointed at one, then the question."""
     return f"Context:\n\n{format_context(sources, cites_line)}\n\nQuestion: {question}"
@@ -133,29 +136,29 @@ async def assess(state: ChatState) -> dict[str, Any]:
 
 
 def merge_sources(
-    sources: tuple[RetrievedChunk, ...], additions: Sequence[RetrievedChunk], *, cap: int
-) -> tuple[RetrievedChunk, ...]:
-    """The context grown by a tool round: new chunks appended in arrival order, a chunk
+    sources: tuple[ContextBlock, ...], additions: Sequence[ContextBlock], *, cap: int
+) -> tuple[ContextBlock, ...]:
+    """The context grown by a tool round: new blocks appended in arrival order, a block
     already present kept as it was, and nothing appended once the cap is reached. The cap
     counts the whole context, so it is read against what retrieve produced, not this round."""
     merged = list(sources)
-    seen = {chunk.id for chunk in merged}
-    for chunk in additions:
+    seen = {block.dedupe_key for block in merged}
+    for block in additions:
         if len(merged) >= cap:
             break
-        if chunk.id in seen:
+        if block.dedupe_key in seen:
             continue
-        seen.add(chunk.id)
-        merged.append(chunk)
+        seen.add(block.dedupe_key)
+        merged.append(block)
     return tuple(merged)
 
 
 async def assess_tools(state: ChatState) -> dict[str, Any]:
-    """The round's calls run and folded into the context: dedup by chunk id, earlier context
+    """The round's calls run and folded into the context: dedup by block, earlier context
     kept, growth capped. Each call is timed as its own step, so the path says what it cost.
     A refuse call fetches nothing and leaves its refusal on the state, which is what routes
     the round to the refusal."""
-    fetched: list[RetrievedChunk] = []
+    fetched: list[ContextBlock] = []
     steps: list[ChatStepResult] = []
     refusal = state.refusal
     for call in state.pending_calls:

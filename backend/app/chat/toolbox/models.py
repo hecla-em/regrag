@@ -3,9 +3,9 @@
 from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ToolStep
 from app.core.models import FrozenModel
-from app.retrieval.models import RetrievedChunk
 
 
 class ToolCall(FrozenModel):
@@ -22,7 +22,7 @@ class ToolSpec(NamedTuple):
     name: str
     step: ToolStep
     args_model: type[FrozenModel]
-    run: Callable[..., Awaitable[tuple[RetrievedChunk, ...]]]
+    run: Callable[..., Awaitable[tuple[ContextBlock, ...]]]
     description: str
 
     def definition(self) -> dict:

@@ -6,12 +6,12 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState
 from app.chat.prompts import format_context, system_prompt, thread_messages
 from app.core.config import config
 from app.core.llm.errors import llm_retry, wrap_provider_errors
-from app.retrieval.models import RetrievedChunk
 
 ROLE = "You are RegRag, an assistant answering questions about EU maritime regulation. "
 
@@ -63,7 +63,7 @@ BASELINE_SYSTEM_PROMPT = (
 graph refuses before synthesize when nothing was retrieved, so no chat request sees it."""
 
 
-def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
+def build_user_message(question: str, sources: Sequence[ContextBlock]) -> str:
     """The full user turn: the numbered passages first, then the question."""
     return f"Passages found:\n\n{format_context(sources)}\n\nQuestion: {question}"
 

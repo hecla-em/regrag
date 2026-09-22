@@ -5,12 +5,13 @@ from collections.abc import Sequence
 from itertools import zip_longest
 from typing import Any
 
+from app.chat.blocks import ContextBlock
 from app.chat.graph.node import traced
 from app.chat.models import ChatState
 from app.core.config import config
 from app.core.db.session import get_session
 from app.retrieval.expand import expand_sections
-from app.retrieval.models import RetrievedChunk, SearchRequest, SearchResult
+from app.retrieval.models import SearchRequest, SearchResult
 from app.retrieval.search import search
 from app.retrieval.thresholds import meets_thresholds
 
@@ -53,7 +54,7 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
     if not cleared:
         return {"hits": hits, "sources": (), "retrieved_sources": 0}
 
-    sources: tuple[RetrievedChunk, ...] = interleave_by_rank(cleared)
+    sources: tuple[ContextBlock, ...] = interleave_by_rank(cleared)
     if config.EXPAND_SECTIONS:
         async with get_session(auto_commit=False) as session:
             sources = await expand_sections(session, sources, limit=config.CHAT_CONTEXT_CHUNKS)

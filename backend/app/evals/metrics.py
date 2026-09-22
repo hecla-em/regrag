@@ -5,6 +5,7 @@ import re
 from collections.abc import Sequence
 from statistics import mean
 
+from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.citations import find_cited_markers, find_cited_sources
 from app.chat.enums import ChatNode, ChatOutcome, RefusalReason
 from app.core.llm.models import Usage
@@ -56,7 +57,7 @@ def score_reference_recall(
     return sum(_division(target) in retrieved for target in targets) / len(targets)
 
 
-def score_citation_validity(answer: str, sources: Sequence[RetrievedChunk]) -> float | None:
+def score_citation_validity(answer: str, sources: Sequence[ContextBlock]) -> float | None:
     """Share of the answer's markers addressing a block it was given; None when it cited
     nothing, which is unmeasured rather than zero."""
     markers = find_cited_markers(answer)
@@ -66,15 +67,17 @@ def score_citation_validity(answer: str, sources: Sequence[RetrievedChunk]) -> f
 
 
 def score_reference_citation_rate(
-    answer: str,
-    sources: Sequence[RetrievedChunk],
-    targets: Sequence[ReferenceTarget],
+    answer: str, sources: Sequence[ContextBlock], targets: Sequence[ReferenceTarget]
 ) -> float | None:
     """Share of a case's authored references the answer cited, scored over the references
     so an extra citation is not an error; None when the case names none."""
     if not targets:
         return None
-    cited = {_division(source) for _, source in find_cited_sources(answer, sources)}
+    cited = {
+        _division(source)
+        for _, source in find_cited_sources(answer, sources)
+        if isinstance(source, RetrievedChunk)
+    }
     return sum(_division(target) in cited for target in targets) / len(targets)
 
 
@@ -135,7 +138,7 @@ def _raw_recall(result: EvalCaseResult) -> float:
 
 
 def _expanded_recall(result: EvalCaseResult) -> float:
-    return score_reference_recall(result.case.references, result.state.sources)
+    return score_reference_recall(result.case.references, corpus_chunks(result.state.sources))
 
 
 def compute_raw_hit_rate(results: Sequence[EvalCaseResult]) -> float | None:
