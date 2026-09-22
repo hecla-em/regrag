@@ -10,8 +10,34 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Each job runs only when the pull request touches what it checks; a job skipped by its
+# `if` still satisfies the ruleset's required checks, where a workflow that never ran
+# would leave them pending. A push to main runs everything.
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ github.event_name == 'push' || steps.filter.outputs.backend == 'true' }}
+      frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        if: github.event_name == 'pull_request'
+        id: filter
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/ci.yml'
+              - '!**/*.md'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/ci.yml'
+              - '!**/*.md'
+
   lint-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,6 +51,8 @@ jobs:
       - run: uv run ty check
 
   test-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -59,6 +87,8 @@ jobs:
       - run: uv run pytest
 
   lint-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -78,6 +108,8 @@ jobs:
       - run: pnpm knip
 
   test-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -100,6 +132,8 @@ jobs:
       - run: pnpm test:run
 
   test-e2e:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
