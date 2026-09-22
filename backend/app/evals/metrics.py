@@ -3,6 +3,7 @@ and the run's measures, each a plain function over its results."""
 
 import re
 from collections.abc import Sequence
+from statistics import mean
 
 from app.chat.citations import find_cited_markers, find_cited_sources
 from app.chat.enums import ChatNode, ChatOutcome, RefusalReason
@@ -304,8 +305,17 @@ def count_answers_with_prompt_wording(results: Sequence[EvalCaseResult]) -> int:
     return sum(bool(find_prompt_wording(r.state.answer)) for r in _scored(results))
 
 
+def compute_mean_words(results: Sequence[EvalCaseResult]) -> int | None:
+    """Mean length in words of the answers written, over the cases that wrote one."""
+    lengths = [len(r.state.answer.split()) for r in _scored(results) if r.state.answer]
+    return round(mean(lengths)) if lengths else None
+
+
 def compute_answer_metrics(results: Sequence[EvalCaseResult]) -> AnswerMetrics:
-    return AnswerMetrics(prompt_wording=count_answers_with_prompt_wording(results))
+    return AnswerMetrics(
+        prompt_wording=count_answers_with_prompt_wording(results),
+        mean_words=compute_mean_words(results),
+    )
 
 
 # Judge: the judge's dimensions over the cases it returned a verdict on

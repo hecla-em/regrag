@@ -1414,6 +1414,68 @@
       "id": "adjacent-regime-uk-ets-maritime",
       "kind": "out_of_corpus",
       "question": "From what date does the UK ETS cover domestic maritime voyages, and which ships does it apply to?"
+    },
+    {
+      "id": "ets-surrender-base-full-plus-partial-reports",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "multi_part"
+      ],
+      "question": "When looking at the Thetis MRV download for 2025, in order to arrive at the gross number of CO2 tonnes to be surrendered against, I should add the total reportable CO2 columns of both the Full ERs and the Partial ER tabs of the MRV dataset (and apply the 70% phase-in for last year). True or False?",
+      "answer": "True on the law, with one caveat the regulations cannot settle. The figure to surrender against is each ship's total aggregated emissions to be reported under Directive 2003/87/EC, calculated under Annex II Part C of Regulation (EU) 2015/757: the amount within the Article 3ga scope (100 % of emissions on voyages between EU ports and within them, 50 % of voyages to or from a port outside the EU), less the Article 12(3) derogations, with the Article 3gb phase-in applied, which is 40 % of verified emissions reported for 2024, 70 % for 2025 and 100 % from 2026. A partial report is the verified report the previous company submits on a change of company for the part of the year the ship was under its responsibility (Article 11(2)), and company totals are built from the emissions reports and those partial reports together (Article 11a(1)), so a fleet total takes both. Whether the dataset's column already applies the 70 % is a question about the dataset, which the regulations do not describe.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "paragraph": "1",
+          "content_hashes": [
+            "55c0156f0c8f"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "II",
+          "content_hashes": [
+            "284acedbeb17",
+            "b3015d064055",
+            "e385c64c3654",
+            "92dc34d1652d",
+            "609f03015592",
+            "eafb849a1930",
+            "6881d4eea365",
+            "0616ead9c73c",
+            "09223ffd4ecc",
+            "ae2b24fb342e",
+            "7dcede886354",
+            "5286e50822a0",
+            "0aa0a3e34459"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "11",
+          "paragraph": "2",
+          "content_hashes": [
+            "09c160a312db"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "11a",
+          "paragraph": "1",
+          "content_hashes": [
+            "32009779302c"
+          ]
+        }
+      ]
     }
   ]
 }

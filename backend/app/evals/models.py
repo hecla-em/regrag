@@ -76,9 +76,12 @@ class CitationMetrics(FrozenModel):
 
 class AnswerMetrics(FrozenModel):
     """How the answers read. prompt_wording: answers speaking of what the model was shown in
-    the prompt's words, like 'the context does not say', not 'the passages I found'."""
+    the prompt's words, like 'the context does not say', not 'the passages I found'.
+    mean_words: the mean length of the answers written, in words; how much a prompt change
+    trimmed or padded them."""
 
     prompt_wording: int
+    mean_words: int | None
 
 
 class JudgeMetrics(FrozenModel):
