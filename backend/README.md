@@ -75,7 +75,9 @@ uv run fastapi dev
 ```
 
 The API is then on `http://localhost:8000`, with `/health` reporting database
-and Redis connectivity and `/docs` serving the OpenAPI schema.
+and Redis connectivity and `/docs` serving the OpenAPI schema. The `/analytics`
+endpoints answer only on the private port, which `uv run serve` opens on
+`127.0.0.1:8001` alongside `8000` and `fastapi dev` leaves closed.
 
 The same stack runs entirely in compose, which needs nothing on the host but
 Docker and `.env.dev`:

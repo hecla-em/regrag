@@ -19,4 +19,4 @@ COPY app ./app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-CMD ["fastapi", "run", "app/main.py"]
+CMD ["serve"]

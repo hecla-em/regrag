@@ -11,6 +11,7 @@ primary_region = 'lhr'
 
 [env]
   ENVIRONMENT = 'prod'
+  PRIVATE_HOST = 'fly-local-6pn'
 
 [http_service]
   internal_port = 8000

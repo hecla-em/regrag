@@ -1,5 +1,5 @@
-"""Read-only analytics for hecla-admin, behind the analytics key and out of the public
-OpenAPI schema."""
+"""Read-only analytics for hecla-admin, on the private-network port only, behind the
+analytics key and out of the public OpenAPI schema."""
 
 from typing import Annotated
 
@@ -17,12 +17,12 @@ from app.analytics.service import (
     summarize_requests,
 )
 from app.core.db.session import SessionDep
-from app.core.security import verify_analytics_key
+from app.core.security import require_private_network, verify_analytics_key
 
 router = APIRouter(
     prefix="/analytics",
     tags=["analytics"],
-    dependencies=[Depends(verify_analytics_key)],
+    dependencies=[Depends(require_private_network), Depends(verify_analytics_key)],
     include_in_schema=False,
 )
 
