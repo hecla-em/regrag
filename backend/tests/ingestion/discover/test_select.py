@@ -2,6 +2,7 @@
 
 import pytest
 
+from app.core.config import config
 from app.ingestion.discover.models import ActsQueryRow, CandidateAct
 from app.ingestion.discover.select import extract_candidate_acts, select_documents
 from tests.conftest import act_row
@@ -155,6 +156,12 @@ def test_ets_keeps_the_base_act_and_the_maritime_acts_adopted_under_it(
     rows = [act_row(ETS, in_force=True)]
     rows += [act_row(celex, in_force=True, basis_article=article) for article in basis_articles]
 
-    selected = select_documents("ets", rows)
+    selected = select_documents(
+        "ets",
+        rows,
+        base_celex=ETS,
+        kept_basis=config.TOPIC_BASIS_ARTICLES["ets"],
+        excluded_basis=config.TOPIC_EXCLUDED_BASIS_ARTICLES["ets"],
+    )
 
     assert [document.celex for document in selected] == [ETS, *([celex] if kept else [])]

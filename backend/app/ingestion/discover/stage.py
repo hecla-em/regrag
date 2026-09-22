@@ -18,8 +18,16 @@ async def discover_topics(
     """Every topic's corpus, deduped by celex — the first topic to claim an act keeps it."""
     by_celex: dict[str, DiscoveredDocument] = {}
     for topic in topics:
-        rows = await run_acts_by_topic_query(client, config.TOPIC_BASE_ACTS[topic])
-        for document in select_documents(topic, rows):
+        base_celex = config.TOPIC_BASE_ACTS[topic]
+        rows = await run_acts_by_topic_query(client, base_celex)
+        documents = select_documents(
+            topic,
+            rows,
+            base_celex=base_celex,
+            kept_basis=config.TOPIC_BASIS_ARTICLES.get(topic),
+            excluded_basis=config.TOPIC_EXCLUDED_BASIS_ARTICLES.get(topic),
+        )
+        for document in documents:
             by_celex.setdefault(document.celex, document)
     return list(by_celex.values())
 

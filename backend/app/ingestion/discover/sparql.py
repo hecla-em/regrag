@@ -18,7 +18,11 @@ PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX ann: <http://publications.europa.eu/ontology/annotation#>
 SELECT DISTINCT ?c ?force ?cons ?title ?basis WHERE {
   { ?act cdm:resource_legal_based_on_resource_legal ?base .
-    ?base owl:sameAs <http://publications.europa.eu/resource/celex/$celex> . }
+    ?base owl:sameAs <http://publications.europa.eu/resource/celex/$celex> .
+    OPTIONAL { ?axiom owl:annotatedSource ?act ;
+      owl:annotatedProperty cdm:resource_legal_based_on_resource_legal ;
+      owl:annotatedTarget ?base ;
+      ann:comment_on_legal_basis ?basis } }
   UNION
   { ?act owl:sameAs <http://publications.europa.eu/resource/celex/$celex> . }
   ?act cdm:resource_legal_id_celex ?c .
@@ -28,10 +32,6 @@ SELECT DISTINCT ?c ?force ?cons ?title ?basis WHERE {
   OPTIONAL { ?expr cdm:expression_belongs_to_work ?act ;
     cdm:expression_uses_language <http://publications.europa.eu/resource/authority/language/ENG> ;
     cdm:expression_title ?title }
-  OPTIONAL { ?axiom owl:annotatedSource ?act ;
-    owl:annotatedProperty cdm:resource_legal_based_on_resource_legal ;
-    owl:annotatedTarget ?base ;
-    ann:comment_on_legal_basis ?basis }
 }""")
 
 

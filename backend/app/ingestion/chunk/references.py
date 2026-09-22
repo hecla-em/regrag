@@ -11,6 +11,7 @@ from collections.abc import Iterator, Sequence
 from app.core.models import FrozenModel
 from app.ingestion import celex
 from app.ingestion.chunk.models import Reference, format_citation
+from app.ingestion.parse.html.text import ARTICLE_NUMBER
 
 ORDINALS = ("first", "second", "third", "fourth", "fifth", "last")
 SUBPARAGRAPH = rf"(?:{'|'.join(ORDINALS)})\s+subparagraph"
@@ -40,8 +41,10 @@ borrowed, from this act or another."""
 PARAGRAPH = r"(?:\((\d+(?:-?[a-z]+)?)\))?"
 """The paragraph a mention may carry: '(2)', '(3a)', or '(3-d)' for one inserted ahead of 3a."""
 
-ARTICLE_REF = re.compile(rf"Articles?\s+(\d+[a-z]{{0,2}}){PARAGRAPH}{POINT}")
-ARTICLE_TAIL = re.compile(rf"\s*(?:,|and)\s+(\d{{1,3}}[a-z]{{0,2}})\b{PARAGRAPH}{POINT}")
+ARTICLE_REF = re.compile(rf"Articles?\s+({ARTICLE_NUMBER}){PARAGRAPH}{POINT}")
+ARTICLE_TAIL = re.compile(
+    rf"\s*(?:,|and)\s+(?=\d{{1,3}}(?!\d))({ARTICLE_NUMBER}){PARAGRAPH}{POINT}"
+)
 ANNEX_REF = re.compile(rf"Annexe?s?\s+([IVXLC]+|\d+){POINT}")
 ANNEX_TAIL = re.compile(rf"\s*(?:,|and)\s+([IVXLC]{{1,4}}|\d{{1,2}})\b{POINT}")
 

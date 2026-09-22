@@ -16,7 +16,10 @@ WHITESPACE_RE = re.compile(r"\s+")
 AMENDMENT_MARKER_RE = re.compile(r"[▼►]\s*[A-Z]+\d*|◄")
 EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)")
 
-ARTICLE_NUMBER_RE = re.compile(r"Article\s+(\d+[a-z]*)", re.IGNORECASE)
+ARTICLE_NUMBER = r"\d+(?!st\b|nd\b|rd\b|th\b)[a-z]{0,2}\b"
+"""An article number as headed and as cited: '3', '3a', '3ga', never an ordinal like '20th'."""
+
+ARTICLE_NUMBER_RE = re.compile(rf"Article\s+({ARTICLE_NUMBER})", re.IGNORECASE)
 ANNEX_NUMBER_RE = re.compile(r"ANNEX\s+([IVXLC]+|\d+)", re.IGNORECASE)
 LEADING_NUMBER_RE = re.compile(r"^(\d+(?:-?[a-z]+)?)\.\s*")
 
