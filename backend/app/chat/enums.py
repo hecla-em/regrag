@@ -1,6 +1,6 @@
 """Chat enumerations."""
 
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 
 
 class ChatNode(StrEnum):
@@ -73,3 +73,11 @@ class ChatErrorCode(StrEnum):
 
     SPEND_CAP_REACHED = "SpendCapReachedError"
     THREAD_FULL = "ThreadFullError"
+
+
+class MetricsDays(IntEnum):
+    """The ranges the admin metrics offer, in days back from today."""
+
+    WEEK = 7
+    MONTH = 30
+    QUARTER = 90

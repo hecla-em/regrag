@@ -29,6 +29,7 @@ class ErrorCode(StrEnum):
     NOT_FOUND = "NotFoundError"
     RATE_LIMITED = "RateLimitedError"
     TURNSTILE_FAILED = "TurnstileFailedError"
+    UNAUTHORIZED = "UnauthorizedError"
     STORAGE = "StorageError"
     OBJECT_NOT_FOUND = "ObjectNotFoundError"
     LLM = "LLMError"
@@ -93,6 +94,16 @@ class TurnstileFailedError(DomainError):
 
     def __init__(self) -> None:
         super().__init__("Could not verify this browser. Reload the page and ask again")
+
+
+class UnauthorizedError(DomainError):
+    """The request to a service endpoint carried no key, or the wrong one."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = ErrorCode.UNAUTHORIZED
+
+    def __init__(self) -> None:
+        super().__init__("A valid API key is required")
 
 
 def describe(exc: Exception) -> tuple[StrEnum, str]:
