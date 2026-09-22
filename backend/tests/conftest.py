@@ -526,6 +526,16 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
     return provider
 
 
+@pytest.fixture(autouse=True)
+def no_card_match(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No question sits near a tool's card, so a shut gate stays shut without an embed call."""
+
+    async def _no_match(question: str) -> tuple[str, ...]:
+        return ()
+
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.match_tool_cards", _no_match)
+
+
 @pytest.fixture
 def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
     """Transport serving SPARQL payloads per topic and HTML responses per celex.

@@ -83,9 +83,16 @@ def cites_line(block: ContextBlock) -> str:
     return f"cites: {', '.join(addresses)}" if addresses else ""
 
 
-def build_assess_message(question: str, sources: Sequence[ContextBlock]) -> str:
-    """The full assess turn: the same numbered blocks synthesize will cite, each followed
-    by the addresses it cites so follow_reference can be pointed at one, then the question."""
+def build_assess_message(
+    question: str, sources: Sequence[ContextBlock], matched_tools: Sequence[str] = ()
+) -> str:
+    """The full assess turn: the numbered blocks with their cites lines, or, when only a
+    tool's card opened the gate, which tools the question matched; then the question."""
+    if not sources:
+        return (
+            "Context: no corpus passage matched. The question matches what these tools hold: "
+            f"{', '.join(matched_tools)}.\n\nQuestion: {question}"
+        )
     return f"Context:\n\n{format_context(sources, cites_line)}\n\nQuestion: {question}"
 
 
@@ -109,7 +116,7 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
             )
         ),
         *thread_messages(state.history),
-        HumanMessage(build_assess_message(state.question, state.sources)),
+        HumanMessage(build_assess_message(state.question, state.sources, state.matched_tools)),
     ]
     response = await assess_model().ainvoke(messages)
     asked = [ToolCall(name=c["name"], args=c["args"]) for c in response.tool_calls]

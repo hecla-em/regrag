@@ -2,6 +2,8 @@
 the step it records."""
 
 import logging
+import math
+from collections.abc import Sequence
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,12 +21,16 @@ from app.chat.toolbox.tools.refuse import REFUSE, is_refusal, refusal_from  # no
 from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
 from app.core.db.session import get_session
+from app.core.llm.embed import EmbedInput, embed
 from app.core.llm.errors import LLMError
 
 logger = logging.getLogger(__name__)
 
 TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_FIGURES, REFUSE)}
 """Every tool the surface has, whether or not this run offers it to the model."""
+
+CARD_VECTORS: dict[str, list[float]] = {}
+"""Each card's embedding, computed once per process: cards are fixed text."""
 
 
 def tool_definitions() -> list[dict]:
@@ -80,3 +86,36 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
     except (LLMError, SQLAlchemyError) as exc:
         logger.warning("assess call to %s failed: %s", call.name, exc)
         return ()
+
+
+def cosine(a: Sequence[float], b: Sequence[float]) -> float:
+    """The cosine similarity of two vectors."""
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
+
+
+async def card_vectors() -> dict[str, list[float]]:
+    """Every tool card's embedding, by tool name."""
+    missing = {
+        spec.name: spec.card
+        for spec in TOOLS.values()
+        if spec.card and spec.name not in CARD_VECTORS
+    }
+    if missing:
+        vectors = await embed(list(missing.values()), input_type=EmbedInput.DOCUMENT)
+        CARD_VECTORS.update(zip(missing, vectors, strict=True))
+    return CARD_VECTORS
+
+
+async def match_tool_cards(question: str) -> tuple[str, ...]:
+    """The tools whose card the question sits near enough to open a gate the corpus shut;
+    none when embedding fails, which leaves the gate shut."""
+    try:
+        (vector,) = await embed([question], input_type=EmbedInput.QUERY)
+        cards = await card_vectors()
+    except LLMError as exc:
+        logger.warning("card match failed, gate stays shut: %s", exc)
+        return ()
+    return tuple(
+        name for name, card in cards.items() if cosine(vector, card) >= config.MIN_CARD_SIMILARITY
+    )

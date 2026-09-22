@@ -8,6 +8,7 @@ from typing import Any
 from app.chat.blocks import ContextBlock
 from app.chat.graph.node import traced
 from app.chat.models import ChatState
+from app.chat.toolbox.service import match_tool_cards
 from app.core.config import config
 from app.core.db.session import get_session
 from app.retrieval.expand import expand_sections
@@ -46,13 +47,15 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
     as it will be searched, restated for a follow-up — gated query by query, so an
     out-of-corpus part admits nothing, and widened to their sections. hits keeps every
     query's hits, gated or not, so a refusal and a split can be read against what search
-    found."""
+    found. When no query clears the gate, a dataset tool's card the question sits near may
+    open it instead, with the loop on to call the tool."""
     queries = state.queries or (state.retrieval_question,)
     per_query = await asyncio.gather(*(search_query(query) for query in queries))
     hits = interleave_by_rank(per_query)
     cleared = [found for found in per_query if meets_thresholds(found)]
     if not cleared:
-        return {"hits": hits, "sources": (), "retrieved_sources": 0}
+        matched = await match_tool_cards(state.retrieval_question) if config.ASSESS_ENABLED else ()
+        return {"hits": hits, "sources": (), "retrieved_sources": 0, "matched_tools": matched}
 
     sources: tuple[ContextBlock, ...] = interleave_by_rank(cleared)
     if config.EXPAND_SECTIONS:

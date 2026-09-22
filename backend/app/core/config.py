@@ -415,6 +415,8 @@ class RetrievalConfig(BaseConfig):
     MIN_COSINE_SIMILARITY / MIN_RERANKER_RELEVANCE: the refusal gate's bars, cleared by the
         best hit per signal rather than by one hit on both. Set permissively, since the gate
         is for junk and a false refusal costs more than a wasted call.
+    MIN_CARD_SIMILARITY: how near a question must sit to a dataset tool's card to pass a gate
+        the corpus shut.
     """
 
     TEXT_RANKER: TextRanker = TextRanker.BM25
@@ -432,6 +434,7 @@ class RetrievalConfig(BaseConfig):
 
     MIN_COSINE_SIMILARITY: float = Field(default=0.30, ge=0.0)
     MIN_RERANKER_RELEVANCE: float = Field(default=0.45, ge=0.0)
+    MIN_CARD_SIMILARITY: float = Field(default=0.51, ge=0.0)
 
 
 class EvalConfig(BaseConfig):

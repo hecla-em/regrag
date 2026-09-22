@@ -110,6 +110,8 @@ class ChatState(AppModel):
     sources: the context blocks that reached the prompt, which the [n] markers number.
     retrieved_sources: how many blocks retrieve left, the base the loop's growth is budgeted
         against; sources grows each round, so the budget cannot be read off it.
+    matched_tools: the dataset tools whose card opened a gate the corpus shut; empty when the
+        corpus cleared it or nothing did.
     pending_calls: the tool calls assess asked for, not yet executed. Only a tool round
         starts holding any, since each round clears the calls it ran; the stream reads a
         round off that.
@@ -133,6 +135,7 @@ class ChatState(AppModel):
     hits: tuple[SearchResult, ...] = ()
     sources: tuple[ContextBlock, ...] = ()
     retrieved_sources: int = 0
+    matched_tools: tuple[str, ...] = ()
     pending_calls: tuple[ToolCall, ...] = ()
 
     # The path
@@ -208,11 +211,12 @@ class ChatState(AppModel):
 
     @property
     def context_settled(self) -> bool:
-        """Whether the context is final: retrieval ended with the loop off or the gate
-        shut, assess asked for nothing, or the last round consumed the budget or refused."""
+        """Whether the context is final: retrieval ended with the loop off or the gate shut
+        with no card opening it, assess asked for nothing, or the last round consumed the
+        budget or refused."""
         match self.last_step:
             case ChatNode.RETRIEVE:
-                return not self.sources or not config.ASSESS_ENABLED
+                return (not self.sources and not self.matched_tools) or not config.ASSESS_ENABLED
             case ChatNode.ASSESS:
                 return not self.pending_calls
             case ToolStep():
