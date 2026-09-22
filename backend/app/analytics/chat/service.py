@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import QueryableAttribute, aliased
 from sqlalchemy.sql.functions import WithinGroup
 
-from app.analytics.enums import AnalyticsDays
-from app.analytics.models import (
+from app.analytics.chat.enums import AnalyticsDays
+from app.analytics.chat.models import (
     ChatGraphMetrics,
     ChatSummary,
     CostSummary,
