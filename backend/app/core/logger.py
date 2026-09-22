@@ -55,5 +55,7 @@ def setup_logging() -> None:
     app_logger.setLevel(logging.INFO)
     app_logger.propagate = False
 
-    logging.getLogger("uvicorn").handlers = [handler]
+    uvicorn_logger = logging.getLogger("uvicorn")
+    uvicorn_logger.handlers = [handler]
+    uvicorn_logger.setLevel(logging.INFO)
     logging.getLogger("uvicorn.access").disabled = True

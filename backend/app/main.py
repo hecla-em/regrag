@@ -60,7 +60,7 @@ def bind_socket(host: str, port: int) -> socket.socket:
 
 def run_server() -> None:
     """Serve the app on the public port and on the private-network port, in one process."""
-    server = uvicorn.Server(uvicorn.Config(app))
+    server = uvicorn.Server(uvicorn.Config(app, log_config=None))
     sockets = [
         bind_socket("0.0.0.0", config.PUBLIC_PORT),
         bind_socket(config.PRIVATE_HOST, config.PRIVATE_PORT),
