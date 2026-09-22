@@ -5,14 +5,14 @@ from typing import Any
 
 from app.core.models import FrozenModel
 from app.evals.dataset.models import CaseSelection
-from app.evals.models import EvalMetrics
 
 
 class EvalRunSummary(FrozenModel):
     """One stored eval run, as the page compares them: when it ran, the code, models and
-    settings it scored, and its metrics. metrics.usage.cost_usd sums the chat graph's calls
-    over every case, judge apart, while the live FAQs cost leaves out cached answers: the two
-    are not one measure."""
+    settings it scored, and its metrics. metrics is the stored EvalMetrics as JSON rather than
+    the model, so a run stored before a metrics block changed still lists, as it still
+    compares. metrics.usage.cost_usd sums the chat graph's calls over every case, judge
+    apart, while the live FAQs cost leaves out cached answers: the two are not one measure."""
 
     id: int
     created_at: datetime
@@ -28,7 +28,7 @@ class EvalRunSummary(FrozenModel):
     selection: CaseSelection
     stale_cases: tuple[str, ...]
     settings: dict[str, Any]
-    metrics: EvalMetrics
+    metrics: dict[str, Any]
 
 
 class EvalSettings(FrozenModel):
