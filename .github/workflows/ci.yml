@@ -98,12 +98,6 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    container:
-      image: mcr.microsoft.com/playwright:v1.63.0-noble
-      options: --user 1001
-    env:
-      DB_HOST: postgres
-      REDIS_HOST: redis
     defaults:
       run:
         working-directory: frontend
@@ -122,6 +116,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps --only-shell chromium
       - run: pnpm e2e
       - uses: actions/upload-artifact@v7
         if: failure()
