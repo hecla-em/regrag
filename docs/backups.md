@@ -7,9 +7,9 @@ backups with it.
 ## What runs
 
 `.github/workflows/backup.yml` runs `uv run db backup` daily at 02:00 UTC. It writes a
-`pg_dump` of the whole `regrag` database to `daily/regrag-prod-<timestamp>.dump` in the
-`regrag-db-backups` bucket, which deletes objects after 30 days by a lifecycle rule set in
-Cloudflare. Each run checks in with Sentry as `nightly-backup`, so a night that fails or never
+`pg_dump` of the `regrag` database, minus PlanetScale's own schema and extension, to
+`daily/regrag-prod-<timestamp>.dump` in the `regrag-db-backups` bucket, which deletes objects
+after 30 days by a lifecycle rule set in Cloudflare. Each run checks in with Sentry as `nightly-backup`, so a night that fails or never
 starts raises an issue.
 
 The upload uses the same R2 credentials as the raw documents, pointed at `BACKUP_BUCKET`, so

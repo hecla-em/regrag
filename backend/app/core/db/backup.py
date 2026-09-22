@@ -9,6 +9,8 @@ from app.core.config import Environment, R2Config, config
 from app.core.storage import ObjectNotFoundError, S3ObjectStore, r2_object_store
 
 DUMP_PREFIX = "daily"
+# PlanetScale's own schema and extension, which a plain Postgres cannot recreate.
+HOST_EXCLUDES = ["--exclude-schema=pscale_extensions", "--exclude-extension=hypopg"]
 
 
 def name_dump(environment: Environment, taken_at: datetime) -> str:
@@ -20,8 +22,8 @@ def dump_database(path: Path) -> None:
     """Write a custom-format dump, then read its table of contents back. That check catches
     an unreadable archive, not a truncated one: only a restore proves the rows are there."""
     libpq = {**os.environ, **config.LIBPQ_ENVIRONMENT}
-    dump = ["pg_dump", "--format=custom", "--no-owner", "--no-privileges", f"--file={path}"]
-    subprocess.run(dump, env=libpq, check=True)
+    dump = ["pg_dump", "--format=custom", "--no-owner", "--no-privileges", *HOST_EXCLUDES]
+    subprocess.run([*dump, f"--file={path}"], env=libpq, check=True)
     check = ["pg_restore", "--list", str(path)]
     subprocess.run(check, env=libpq, stdout=subprocess.DEVNULL, check=True)
 
