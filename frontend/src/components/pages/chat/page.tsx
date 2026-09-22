@@ -18,7 +18,8 @@ import { PromptForm } from "./prompt-form"
 import { ChatSidebar } from "./sidebar"
 
 export function ChatPage() {
-	const { threads, thread, ask, stop, openThread, isBusy } = useChatThreads()
+	const { threads, thread, ask, stop, vote, openThread, isBusy } =
+		useChatThreads()
 	const retriesByTurnId = useRef(new Map<string, () => void>())
 	const turns = thread?.turns ?? []
 
@@ -77,6 +78,7 @@ export function ChatPage() {
 												turn={turn}
 												onRetry={getRetry(turn.id, turn.question)}
 												onNewThread={startNewThread}
+												onVote={vote}
 											/>
 										</MessageScrollerItem>
 									))}

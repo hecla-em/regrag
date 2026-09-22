@@ -16,12 +16,12 @@ from app.chat.events import (
     ChatErrorResponse,
     ChatEvent,
     ChatStep,
-    ChatThread,
     DoneEvent,
     ErrorEvent,
     SourcesEvent,
     StepEvent,
     TextEvent,
+    TurnRecord,
 )
 from app.chat.exceptions import SpendCapReachedError, ThreadFullError
 from app.chat.graph.service import chat_graph
@@ -97,8 +97,6 @@ async def _stream_graph_events(state: ChatState) -> AsyncGenerator[ChatEvent, No
             if text := chunk.text:
                 yield TextEvent(data=text)
 
-    yield DoneEvent(data=ChatThread(thread_id=state.thread_id))
-
 
 async def check_spend_cap() -> None:
     """Refuse the question once the last day's recorded spend has reached the cap, logging
@@ -140,12 +138,16 @@ async def record_run(
     state: ChatState, events: AsyncIterator[ChatEvent]
 ) -> AsyncGenerator[ChatEvent, None]:
     """The run, timed, ended by an error event if it raises, and recorded as one chat request
-    however it ends, the client leaving included. A failed write is logged, not raised."""
+    however it ends, the client leaving included. A completed run ends with done once its row
+    is written, so a vote never names a row that is not there yet; a failed write is logged,
+    not raised, and done then names no request."""
     start = time.perf_counter()
+    failed = recorded = False
     try:
         async for event in events:
             yield event
     except Exception as exc:
+        failed = True
         state.record_error(exc)
         yield _error_event(exc)
     finally:
@@ -154,12 +156,21 @@ async def record_run(
             try:
                 async with get_session(auto_commit=False) as session:
                     await create_chat_request(session, state)
+                recorded = True
             except SQLAlchemyError:
                 logger.exception("chat request not recorded")
+    if not failed:
+        request_id = state.request_id if recorded else None
+        yield DoneEvent(data=TurnRecord(thread_id=state.thread_id, request_id=request_id))
 
 
 def stream_chat_events(query: ChatQuery) -> AsyncGenerator[ChatEvent, None]:
-    """One question's events: the run, recorded on a state made here, its thread minted when
-    the caller sent none. Handed back, not re-yielded, so closing it closes the recorder."""
-    state = ChatState(question=query.question, thread_id=query.thread_id or uuid4())
+    """One question's events: the run, recorded on a state made here, stamped with the request
+    and its thread minted when the caller sent none. Handed back, not re-yielded, so closing
+    it closes the recorder."""
+    state = ChatState(
+        question=query.question,
+        thread_id=query.thread_id or uuid4(),
+        request_id=request_id_var.get(),
+    )
     return record_run(state, run_graph(query, state))

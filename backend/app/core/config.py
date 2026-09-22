@@ -208,11 +208,12 @@ class RedisConfig(BaseConfig):
 
 class RateLimitConfig(BaseConfig):
     """The chat rate limiter: an allowance per client id, and a ceiling per address behind it.
+    Questions and votes are counted apart, each against the same allowance.
 
     RATE_LIMIT_ENABLED: the limiter's off switch. Tests switch it off.
-    RATE_LIMIT_PER_CLIENT: questions one client id may ask inside the window, a burst
+    RATE_LIMIT_PER_CLIENT: calls one client id may make inside the window, a burst
         of a few and then roughly one every 12s at the default.
-    RATE_LIMIT_PER_IP: questions one address may ask inside the window, whatever ids it
+    RATE_LIMIT_PER_IP: calls one address may make inside the window, whatever ids it
         sends, so rotating ids buys nothing.
     RATE_LIMIT_WINDOW_SECONDS: the sliding window both limits count over.
     """

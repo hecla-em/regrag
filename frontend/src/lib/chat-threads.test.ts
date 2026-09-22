@@ -18,7 +18,10 @@ it("keeps the server's thread id from the done event", () => {
 	const state = run(ask("a", "q1"), {
 		type: "turn",
 		id: "a",
-		action: { event: "done", data: { thread_id: "server-1" } },
+		action: {
+			event: "done",
+			data: { thread_id: "server-1", request_id: "req-1" },
+		},
 		at: 0,
 	})
 

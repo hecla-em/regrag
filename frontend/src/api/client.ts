@@ -6,6 +6,7 @@ import type {
 	ChatStreamEvent,
 	ErrorBody,
 	ErrorResponse,
+	Vote,
 } from "./types"
 
 export const API_URL = import.meta.env.VITE_API_URL
@@ -46,8 +47,18 @@ export function describeError(error: unknown): ErrorBody {
 	return { error: "Error", message: "Request failed" }
 }
 
-async function apiFetch(path: string, init: RequestInit): Promise<Response> {
-	const response = await fetch(`${API_URL}${path}`, init)
+type ApiInit = Omit<RequestInit, "headers"> & {
+	headers?: Record<string, string>
+}
+
+/** Fetches with the headers every call carries; throws ApiError on a non-2xx response. */
+async function apiFetch(path: string, init: ApiInit): Promise<Response> {
+	const headers = {
+		"content-type": "application/json",
+		"X-Client-ID": readClientId(),
+		...init.headers,
+	}
+	const response = await fetch(`${API_URL}${path}`, { ...init, headers })
 	if (!response.ok) throw await readErrorBody(response)
 	return response
 }
@@ -65,7 +76,7 @@ function toStreamEvent(message: EventSourceMessage): ChatStreamEvent | null {
 	}
 }
 
-/** Yields the backend's typed SSE events as they arrive; throws ApiError on a non-2xx response. */
+/** Yields the backend's typed SSE events as they arrive. */
 export async function* streamChat(
 	body: ChatQuery,
 	signal: AbortSignal,
@@ -73,11 +84,7 @@ export async function* streamChat(
 	const token = await mintToken()
 	const response = await apiFetch("/chat", {
 		method: "POST",
-		headers: {
-			"content-type": "application/json",
-			"X-Client-ID": readClientId(),
-			...(token === null ? {} : { "CF-Turnstile-Response": token }),
-		},
+		headers: token === null ? {} : { "CF-Turnstile-Response": token },
 		body: JSON.stringify(body),
 		signal,
 	})
@@ -107,4 +114,15 @@ export async function* streamChat(
 	} finally {
 		reader.releaseLock()
 	}
+}
+
+/** Records the reader's vote on the answer a request gave; null takes it back. */
+export async function sendVote(
+	requestId: string,
+	vote: Vote | null,
+): Promise<void> {
+	await apiFetch(`/chat/${requestId}/vote`, {
+		method: "PUT",
+		body: JSON.stringify({ vote }),
+	})
 }

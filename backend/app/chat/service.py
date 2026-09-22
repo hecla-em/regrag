@@ -1,20 +1,21 @@
-"""Chat request recording — one row per handled question, with a row per step — and the
-thread history read back from those rows."""
+"""Chat request recording — one row per handled question, with a row per step — the vote a
+reader casts on one, and the thread history read back from those rows."""
 
 import logging
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.citations import strip_markers
-from app.chat.enums import ANSWERED_OUTCOMES
+from app.chat.enums import ANSWERED_OUTCOMES, Vote
 from app.chat.models import ChatState, ChatTurn
 from app.chat.schemas import ChatRequest, ChatRequestStep
+from app.core.clock import utc_now
 from app.core.config import config
 from app.core.db.crud import create_record
-from app.core.logger import request_id_var
+from app.core.exceptions import NotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         for idx, result in enumerate(state.steps)
     ]
     request = ChatRequest(
-        request_id=request_id_var.get(),
+        request_id=state.request_id,
         question=state.question,
         thread_id=state.thread_id,
         answer=state.answer or None,
@@ -48,6 +49,20 @@ async def create_chat_request(session: AsyncSession, state: ChatState) -> None:
         steps=steps,
     )
     await create_record(session, request)
+
+
+async def record_vote(session: AsyncSession, request_id: str, vote: Vote | None) -> None:
+    """The reader's vote on the answer a request gave, in place of any earlier one; None
+    takes it back. A request the ledger never recorded is not found."""
+    stmt = (
+        update(ChatRequest)
+        .where(ChatRequest.request_id == request_id)
+        .values(vote=vote, voted_at=utc_now() if vote else None)
+        .returning(ChatRequest.id)
+    )
+    if (await session.execute(stmt)).scalar_one_or_none() is None:
+        raise NotFoundError("chat request", request_id)
+    await session.commit()
 
 
 async def spent_since(session: AsyncSession, since: datetime) -> float:

@@ -33,9 +33,31 @@ export interface paths {
         /**
          * Chat
          * @description Stream a cited answer to the question over SSE: steps, sources, tokens, done with the
-         *     thread id; or error. A repeated first question replays sources, the answer and done.
+         *     thread and request ids; or error. A repeated first question replays sources, the answer
+         *     and done.
          */
         post: operations["chat_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/chat/{request_id}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Vote On Answer
+         * @description Record the reader's vote on the answer the request gave, the one its done frame named,
+         *     in place of any earlier vote; a null vote takes it back.
+         */
+        put: operations["vote_on_answer_chat__request_id__vote_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -127,17 +149,6 @@ export interface components {
          */
         ChatStepStatus: "running" | "completed";
         /**
-         * ChatThread
-         * @description The thread a turn was recorded under, which a follow-up sends back.
-         */
-        ChatThread: {
-            /**
-             * Thread Id
-             * Format: uuid
-             */
-            thread_id: string;
-        };
-        /**
          * ChatUsage
          * @description A step's usage as the wire carries it: the tokens, not what they cost.
          */
@@ -148,8 +159,15 @@ export interface components {
             output_tokens: number;
         };
         /**
+         * ChatVote
+         * @description The reader's vote on an answer: which way, or None to take it back.
+         */
+        ChatVote: {
+            vote: components["schemas"]["Vote"] | null;
+        };
+        /**
          * DoneEvent
-         * @description The last event of a completed stream: the thread the turn belongs to.
+         * @description The last event of a completed stream, sent once the turn is recorded: where it was.
          */
         DoneEvent: {
             /**
@@ -157,7 +175,7 @@ export interface components {
              * @enum {string}
              */
             event: "done";
-            data: components["schemas"]["ChatThread"];
+            data: components["schemas"]["TurnRecord"];
         };
         /**
          * ErrorCode
@@ -264,6 +282,20 @@ export interface components {
          * @enum {string}
          */
         ToolStep: "tool_search" | "tool_follow_reference" | "tool_refuse" | "tool_unknown";
+        /**
+         * TurnRecord
+         * @description Where the turn was recorded: the thread it joined, which a follow-up sends back, and
+         *     the request it was written as, which a vote names; None when the write failed.
+         */
+        TurnRecord: {
+            /**
+             * Thread Id
+             * Format: uuid
+             */
+            thread_id: string;
+            /** Request Id */
+            request_id: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -277,6 +309,12 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * Vote
+         * @description Which way a reader voted on the answer they were given.
+         * @enum {string}
+         */
+        Vote: "up" | "down";
     };
     responses: never;
     parameters: never;
@@ -356,6 +394,59 @@ export interface operations {
                 };
                 content: {
                     "text/event-stream": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    vote_on_answer_chat__request_id__vote_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-client-id"?: string | null;
+            };
+            path: {
+                request_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatVote"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

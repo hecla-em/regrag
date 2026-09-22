@@ -2,24 +2,25 @@
 and one row per step it ran through."""
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import ForeignKey, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.chat.enums import ChatOutcome
+from app.chat.enums import ChatOutcome, Vote
 from app.core.db.schema import BaseSchema
 
 
 class ChatRequest(BaseSchema):
-    """One handled question: its thread, how it ended, its answer, how long it lived, what it cost
-    and which model it called, and what failed; its path is in chat_request_steps. The index
-    serves the spend cap's window."""
+    """One handled question: its thread, how it ended, its answer, its time, cost and model,
+    what failed, and how the reader voted; its path is in chat_request_steps. Indexed on
+    created_at for the spend cap's window, and uniquely on request_id, which a vote names."""
 
     __tablename__ = "chat_requests"
     __table_args__ = (Index("ix_chat_requests_created_at", "created_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    request_id: Mapped[str | None]
+    request_id: Mapped[str | None] = mapped_column(unique=True, index=True)
     question: Mapped[str]
     thread_id: Mapped[uuid.UUID | None] = mapped_column(index=True)
     answer: Mapped[str | None]
@@ -31,6 +32,8 @@ class ChatRequest(BaseSchema):
     output_tokens: Mapped[int | None]
     cost_usd: Mapped[float | None]
     error: Mapped[str | None]
+    vote: Mapped[Vote | None]
+    voted_at: Mapped[datetime | None]
 
     steps: Mapped[list["ChatRequestStep"]] = relationship(
         cascade="all, delete-orphan", order_by="ChatRequestStep.position"
