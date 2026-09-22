@@ -74,7 +74,6 @@ class AppConfig(BaseConfig):
     )
     SENTRY_DSN: str | None = None
     ANALYTICS_API_KEY: SecretStr = SecretStr("")
-    PUBLIC_PORT: int = 8000
     PRIVATE_HOST: str = "127.0.0.1"
     PRIVATE_PORT: int = 8001
 
