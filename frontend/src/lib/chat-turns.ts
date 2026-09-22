@@ -15,6 +15,7 @@ export type ChatTurn = {
 	status: "pending" | "streaming" | "settled" | "failed"
 	error: ErrorBody | null
 	askedAt: number
+	endedAt: number | null
 }
 
 /** Whether the run behind a turn is still under way: asked and not yet answering, or answering. */
@@ -42,7 +43,7 @@ export function turnFailure(turn: ChatTurn): TurnFailure {
 }
 
 export type ChatAction =
-	| { type: "ask"; id: string; question: string; askedAt: number }
+	| { type: "ask"; id: string; question: string }
 	| { type: "settle" }
 	| { type: "fail"; error: ErrorBody }
 	| ChatStreamEvent
@@ -111,7 +112,20 @@ function withoutFailedTurn(turns: ChatTurn[]): ChatTurn[] {
 	return turns.at(-1)?.status === "failed" ? turns.slice(0, -1) : turns
 }
 
-export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
+/** The turn after this action, stamped with the time its run ended when this action ends it. */
+function advanceTurn(turn: ChatTurn, action: ChatAction, at: number): ChatTurn {
+	const next = applyToTurn(turn, action)
+	return isTurnRunning(turn) && !isTurnRunning(next)
+		? { ...next, endedAt: at }
+		: next
+}
+
+/** `at` is when the action happened, so a turn's time is the wait the reader saw. */
+export function chatReducer(
+	turns: ChatTurn[],
+	action: ChatAction,
+	at: number,
+): ChatTurn[] {
 	if ("type" in action && action.type === "ask") {
 		return [
 			...withoutFailedTurn(turns),
@@ -123,11 +137,12 @@ export function chatReducer(turns: ChatTurn[], action: ChatAction): ChatTurn[] {
 				steps: [],
 				status: "pending",
 				error: null,
-				askedAt: action.askedAt,
+				askedAt: at,
+				endedAt: null,
 			},
 		]
 	}
 	const current = turns.at(-1)
 	if (current === undefined) return turns
-	return [...turns.slice(0, -1), applyToTurn(current, action)]
+	return [...turns.slice(0, -1), advanceTurn(current, action, at)]
 }

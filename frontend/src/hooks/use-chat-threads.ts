@@ -28,8 +28,9 @@ export function useChatThreads() {
 		const open = activeThread(committed.current)
 		const id = open?.id ?? randomId()
 		runningId.current = id
-		const send = (action: ChatAction) => dispatch({ type: "turn", id, action })
-		send({ type: "ask", id: randomId(), question, askedAt: Date.now() })
+		const send = (action: ChatAction) =>
+			dispatch({ type: "turn", id, action, at: Date.now() })
+		send({ type: "ask", id: randomId(), question })
 		try {
 			const query = { question, thread_id: open?.threadId ?? null }
 			for await (const event of streamChat(query, controller.signal)) {
@@ -47,7 +48,8 @@ export function useChatThreads() {
 	const stop = useCallback(() => {
 		abort.current?.abort()
 		const id = runningId.current
-		if (id !== null) dispatch({ type: "turn", id, action: { type: "settle" } })
+		if (id !== null)
+			dispatch({ type: "turn", id, action: { type: "settle" }, at: Date.now() })
 	}, [])
 
 	const openThread = useCallback((id: string | null) => {

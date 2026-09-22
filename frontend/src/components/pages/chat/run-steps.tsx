@@ -8,7 +8,7 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover"
-import { formatDuration, formatMs, stepLabel } from "@/lib/chat-steps"
+import { formatMs, stepLabel } from "@/lib/chat-steps"
 import { cn } from "@/lib/utils"
 
 const ELAPSED_TICK_MS = 100
@@ -63,10 +63,12 @@ function ChipLabel({
 	steps,
 	isRunning,
 	askedAt,
+	endedAt,
 }: {
 	steps: ChatStep[]
 	isRunning: boolean
 	askedAt: number
+	endedAt: number | null
 }) {
 	const elapsedMs = useElapsedMs(askedAt, isRunning)
 	if (!isRunning) {
@@ -75,7 +77,7 @@ function ChipLabel({
 				<span aria-hidden className="mx-1.5 size-1.5 rounded-full bg-success" />
 				<span role="status">
 					{steps.length} {steps.length === 1 ? "step" : "steps"} ·{" "}
-					{formatDuration(steps)}
+					{formatMs((endedAt ?? askedAt) - askedAt)}
 				</span>
 				<ChevronDownIcon
 					size={12}
@@ -105,10 +107,12 @@ export const RunSteps = memo(function RunSteps({
 	steps,
 	isRunning,
 	askedAt,
+	endedAt,
 }: {
 	steps: ChatStep[]
 	isRunning: boolean
 	askedAt: number
+	endedAt: number | null
 }) {
 	if (steps.length === 0 && !isRunning) return null
 
@@ -118,7 +122,12 @@ export const RunSteps = memo(function RunSteps({
 				render={<Button variant="outline" size="sm" />}
 				className="group h-7 w-fit max-w-full gap-1.5 self-start rounded-lg bg-card pr-2.5 pl-1 font-mono font-normal text-muted-foreground text-xs tabular-nums dark:bg-card"
 			>
-				<ChipLabel steps={steps} isRunning={isRunning} askedAt={askedAt} />
+				<ChipLabel
+					steps={steps}
+					isRunning={isRunning}
+					askedAt={askedAt}
+					endedAt={endedAt}
+				/>
 			</PopoverTrigger>
 			<PopoverContent
 				align="start"
