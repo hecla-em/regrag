@@ -98,6 +98,12 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    env:
+      DB_HOST: postgres
+      REDIS_HOST: redis
     defaults:
       run:
         working-directory: frontend
@@ -116,17 +122,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - id: playwright
-        run: echo "version=$(pnpm exec playwright --version)" >> "$GITHUB_OUTPUT"
-      - id: browsers
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - if: steps.browsers.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium
-      - if: steps.browsers.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium
       - run: pnpm e2e
       - uses: actions/upload-artifact@v7
         if: failure()

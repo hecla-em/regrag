@@ -3,5 +3,6 @@
 import os
 
 os.environ["DB_NAME"] = "regrag_e2e"
-os.environ["REDIS_URL"] = "redis://localhost:6379/2"
-"""Apart from the suite's, so a pytest run and a Playwright run never clear each other's rows."""
+os.environ["REDIS_URL"] = f"redis://{os.environ.get('REDIS_HOST', 'localhost')}:6379/2"
+"""Apart from the suite's, so a pytest run and a Playwright run never clear each other's rows.
+REDIS_HOST names the service in CI's Playwright container, where DB_HOST does the same."""
