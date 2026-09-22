@@ -10,6 +10,7 @@ from app.core.config import TextRanker, config
 from app.core.llm.embed import EmbedInput, embed
 from app.core.llm.errors import llm_retry
 from app.ingestion.chunk.schemas import DocumentChunk
+from app.ingestion.schemas import IngestRun
 from app.retrieval.models import CHUNK_COLUMNS, SearchFilters, SearchRequest, SearchResult
 from app.retrieval.rerank import rerank_results
 
@@ -103,16 +104,16 @@ def _bm25_candidates(query: str, filters: SearchFilters, limit: int) -> Select:
     Any term, since a question is not a conjunction and one word the corpus lacks must not
     empty the leg. A term's weight is its rarity across the corpus, its frequency in the
     chunk saturating, and the chunk's length in characters penalised, which holds recall as
-    well as a token count does and needs no second unnest.
+    well as a token count does and needs no second unnest. Corpus size and mean length come
+    from the latest run stamped with them, so until one is the leg finds nothing.
     """
     terms = _query_terms(query)
     any_term = select(cast(func.string_agg(terms.c.quoted, " | "), TSQUERY)).scalar_subquery()
     stats = (
-        select(
-            func.count().label("n"),
-            func.avg(func.length(DocumentChunk.text)).label("avg_len"),
-        )
-        .select_from(DocumentChunk)
+        select(IngestRun.chunk_count.label("n"), IngestRun.avg_chunk_chars.label("avg_len"))
+        .where(IngestRun.chunk_count.is_not(None))
+        .order_by(IngestRun.id.desc())
+        .limit(1)
         .cte("stats")
     )
     lexemes = (

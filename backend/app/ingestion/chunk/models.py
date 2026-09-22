@@ -102,6 +102,13 @@ class Chunk(Locator):
         return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
+class CorpusStats(FrozenModel):
+    """The two corpus-wide facts BM25 needs, stamped on the run that left the corpus so."""
+
+    chunk_count: int
+    avg_chunk_chars: float | None
+
+
 class ChunkQuery(FrozenModel):
     """Which chunks to select: by vector presence, keyset-paged for the embed sweep."""
 
