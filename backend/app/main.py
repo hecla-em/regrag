@@ -1,8 +1,10 @@
 """FastAPI application entrypoint."""
 
+import socket
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+import uvicorn
 from fastapi import FastAPI
 
 from app import __version__
@@ -44,3 +46,20 @@ def configure_app(app: FastAPI) -> None:
 
 app = FastAPI(title=config.PROJECT_NAME, version=__version__, lifespan=lifespan)
 configure_app(app)
+
+
+def bind_socket(host: str, port: int) -> socket.socket:
+    """Bind host:port, resolving the host first as fly-local-6pn names an IPv6 address."""
+    family, *_, address = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)[0]
+    return socket.create_server(address, family=family)
+
+
+def run_server() -> None:
+    """Serve the app on the public port and on the private-network port, in one process."""
+    server = uvicorn.Server(uvicorn.Config(app, log_config=None))
+    server.run(
+        sockets=[
+            bind_socket("0.0.0.0", 8000),
+            bind_socket(config.PRIVATE_HOST, config.PRIVATE_PORT),
+        ]
+    )

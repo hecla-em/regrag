@@ -22,6 +22,7 @@ HEADERS = {"X-API-Key": KEY}
 @pytest.fixture
 def keyed_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(config, "ANALYTICS_API_KEY", SecretStr(KEY))
+    client.base_url = f"http://testserver:{config.PRIVATE_PORT}"
     return client
 
 

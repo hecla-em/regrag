@@ -61,6 +61,9 @@ class AppConfig(BaseConfig):
         A GitHub Actions job has no image, so there it is the commit.
     ANALYTICS_API_KEY: the key hecla-admin sends to read the /analytics endpoints. Empty
         refuses every request to them.
+    PRIVATE_HOST, PRIVATE_PORT: where `serve` listens for the /analytics endpoints, which
+        answer on no other port. fly-local-6pn in prod, so only the org's private network
+        reaches it.
     """
 
     ENVIRONMENT: Environment = ENVIRONMENT
@@ -71,6 +74,8 @@ class AppConfig(BaseConfig):
     )
     SENTRY_DSN: str | None = None
     ANALYTICS_API_KEY: SecretStr = SecretStr("")
+    PRIVATE_HOST: str = "127.0.0.1"
+    PRIVATE_PORT: int = 8001
 
 
 class StorageBackend(StrEnum):
