@@ -26,8 +26,9 @@ def keyed_client(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> TestCli
 
 
 @pytest.fixture
-def stored_run(keyed_client: TestClient) -> Generator[EvalRun, None, None]:
-    """A judged run committed to eval_runs, as the CLI stores one, and deleted after."""
+def stored_run(keyed_client: TestClient, test_database: None) -> Generator[EvalRun, None, None]:
+    """A judged run committed to eval_runs, as the CLI stores one, and deleted after. Reached
+    through test_database so the schema is at head before the first row is written."""
     assert keyed_client.portal is not None
 
     async def store() -> EvalRun:
