@@ -17,13 +17,15 @@ class ToolCall(FrozenModel):
 
 class ToolSpec(NamedTuple):
     """One tool the model may call: how it is named and described to the model, the
-    arguments it takes, what runs it, and the step a call to it records."""
+    arguments it takes, what runs it, the step a call to it records, and, for a dataset
+    tool, the card the gate matches a question against."""
 
     name: str
     step: ToolStep
     args_model: type[FrozenModel]
     run: Callable[..., Awaitable[tuple[ContextBlock, ...]]]
     description: str
+    card: str | None = None
 
     def definition(self) -> dict:
         """The tool as bind_tools wants it: an openai function-tool dictionary."""

@@ -21,6 +21,7 @@ class ToolStep(StrEnum):
 
     SEARCH = "tool_search"
     FOLLOW_REFERENCE = "tool_follow_reference"
+    MRV_FIGURES = "tool_mrv_figures"
     REFUSE = "tool_refuse"
     UNKNOWN = "tool_unknown"
     """A call to a tool the surface does not have, kept in the path because a model asking

@@ -14,6 +14,7 @@ from app.chat.toolbox.tools.follow_reference import (  # noqa: F401
     FOLLOW_REFERENCE,
     already_in_context,
 )
+from app.chat.toolbox.tools.mrv_figures import MRV_FIGURES
 from app.chat.toolbox.tools.refuse import REFUSE, is_refusal, refusal_from  # noqa: F401
 from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
@@ -22,7 +23,7 @@ from app.core.llm.errors import LLMError
 
 logger = logging.getLogger(__name__)
 
-TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, REFUSE)}
+TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_FIGURES, REFUSE)}
 """Every tool the surface has, whether or not this run offers it to the model."""
 
 

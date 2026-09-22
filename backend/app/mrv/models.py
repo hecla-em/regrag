@@ -3,6 +3,8 @@
 from datetime import date
 from typing import ClassVar, Literal
 
+from pydantic import Field
+
 from app.core.models import FrozenModel
 
 MRV_URL = "https://mrv.emsa.europa.eu/#public/emission-report"
@@ -33,3 +35,9 @@ class DatasetBlock(FrozenModel):
     @property
     def prompt_text(self) -> str:
         return self.text
+
+
+class MrvFiguresArgs(FrozenModel):
+    """A THETIS-MRV query: one reporting period's fleet totals."""
+
+    period: int = Field(description="Reporting period (calendar year), 2024 or later.")
