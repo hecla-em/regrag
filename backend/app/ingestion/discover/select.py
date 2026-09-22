@@ -3,7 +3,6 @@
 import re
 from itertools import groupby
 
-from app.core.config import config
 from app.ingestion import celex
 from app.ingestion.discover.models import ActsQueryRow, CandidateAct, DiscoveredDocument
 
@@ -77,15 +76,23 @@ def _consolidations_newest_first(act: CandidateAct) -> tuple[str, ...]:
     return tuple(sorted(_extract_consolidations_of_this_act(act), reverse=True))
 
 
-def select_documents(topic: str, rows: list[ActsQueryRow]) -> list[DiscoveredDocument]:
-    """The query's rows, reduced to the documents this topic wants fetched."""
+def select_documents(
+    topic: str,
+    rows: list[ActsQueryRow],
+    *,
+    base_celex: str | None = None,
+    kept_basis: str | None = None,
+    excluded_basis: str | None = None,
+) -> list[DiscoveredDocument]:
+    """The query's rows, reduced to the documents this topic wants fetched: with a kept
+    basis pattern, only the base act and the acts adopted under a matching article."""
     legislation = filter_legislative_acts(rows)
     acts = extract_candidate_acts(legislation)
     fetchable = filter_fetchable_acts(acts)
-    if kept := config.TOPIC_BASIS_ARTICLES.get(topic):
-        fetchable = filter_acts_by_basis_article(fetchable, config.TOPIC_BASE_ACTS[topic], kept)
-    if excluded := config.TOPIC_EXCLUDED_BASIS_ARTICLES.get(topic):
-        fetchable = exclude_acts_by_basis_article(fetchable, excluded)
+    if kept_basis and base_celex:
+        fetchable = filter_acts_by_basis_article(fetchable, base_celex, kept_basis)
+    if excluded_basis:
+        fetchable = exclude_acts_by_basis_article(fetchable, excluded_basis)
     return [
         DiscoveredDocument(
             topic=topic,

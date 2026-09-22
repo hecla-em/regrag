@@ -41,3 +41,28 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked
       - run: uv run --no-sync ingest
+
+  # A stale case is one whose cited text changed: someone must re-read it, never restamp blind.
+  check-evals:
+    needs: ingest
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+      deployment: false
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      ENVIRONMENT: prod
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: "5432"
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASS: ${{ secrets.DB_PASS }}
+      DB_NAME: regrag
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --locked
+      - run: uv run --no-sync evals check --fail-on-stale

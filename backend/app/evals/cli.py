@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "stamp":
             return run_stamp(select_cases_from_args(args))
 
-        return run_check()
+        return run_check(args.fail_on_stale)
     except DatasetError as exc:
         print(exc)
         return 1
