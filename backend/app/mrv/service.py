@@ -51,7 +51,7 @@ async def load_periods(
 
 
 SCOPE_TOLERANCE = 0.01
-"""How far a ship's ETS figure may sit from its scope split and still count as matching it."""
+"""How close the ETS figure must sit to the scope split to count within the reported share."""
 FIGURE_COLUMNS = (
     ("total", ShipEmissions.co2_total),
     ("ETS", ShipEmissions.co2_ets),
@@ -77,8 +77,13 @@ def scoped() -> ColumnElement[float]:
     )
 
 
+def ets_scope_ratio() -> ColumnElement[float]:
+    """The ETS figure as a share of the scope split."""
+    return ShipEmissions.co2_ets / scoped()
+
+
 async def fleet_figures(session: AsyncSession, period: int) -> DatasetBlock | None:
-    """A period's totals per sheet and combined, with how often the ETS column equals the
+    """A period's totals per sheet and combined, with the ETS figure's spread against the
     scope split; None when the period is not loaded."""
     sums = [func.sum(column) for _, column in FIGURE_COLUMNS]
     stmt = (
@@ -92,24 +97,27 @@ async def fleet_figures(session: AsyncSession, period: int) -> DatasetBlock | No
     rows = (await session.execute(stmt)).all()
     if not rows:
         return None
-    matching_stmt = select(
+    ratio_stmt = select(
+        func.count(),
+        func.percentile_cont(0.5).within_group(ets_scope_ratio()),
         func.count().filter(
             func.abs(ShipEmissions.co2_ets - scoped()) <= SCOPE_TOLERANCE * ShipEmissions.co2_ets
         ),
-        func.count(),
-    ).where(ShipEmissions.period == period, ShipEmissions.co2_ets > 0)
-    matching, with_ets = (await session.execute(matching_stmt)).one()
+    ).where(ShipEmissions.period == period, ShipEmissions.co2_ets > 0, scoped() != 0)
+    with_ets, median, matching = (await session.execute(ratio_stmt)).one()
     _, version, generated, *_ = rows[0]
     return DatasetBlock(
         period=period,
         version=version,
         generated=generated,
-        text=format_fleet_figures(rows, matching, with_ets),
+        text=format_fleet_figures(rows, median or 0.0, matching, with_ets),
     )
 
 
-def format_fleet_figures(rows: Sequence[FigureRow], matching: int, with_ets: int) -> str:
-    """The totals as a table in tonnes, and the scope check as one line."""
+def format_fleet_figures(
+    rows: Sequence[FigureRow], median: float, matching: int, with_ets: int
+) -> str:
+    """The totals as a table in tonnes, and the ETS-to-scope ratio as one line."""
     headings = ["", "reports", *(name for name, _ in FIGURE_COLUMNS)]
     lines = [" | ".join(headings)]
     totals = [0.0] * (len(FIGURE_COLUMNS) + 1)
@@ -120,9 +128,8 @@ def format_fleet_figures(rows: Sequence[FigureRow], matching: int, with_ets: int
     lines.append(" | ".join(["both", *(f"{value:,.0f}" for value in totals)]))
     share = matching / with_ets if with_ets else 0.0
     check = (
-        f"Of the {with_ets:,} reports with an ETS figure, {share:.0%} equal 100% between MS "
-        "ports + 50% departed + 50% arrived + 100% at berth: the ETS column carries no phase-in."
-        if share >= 0.9
-        else f"Of the {with_ets:,} reports with an ETS figure, {share:.0%} equal the scope split."
+        f"Across the {with_ets:,} reports with an ETS figure, the ETS figure ÷ (100% between MS "
+        "ports + 50% departed + 50% arrived + 100% at berth) has a median of "
+        f"{median:.2f}, and {share:.0%} of reports sit within 1% of it."
     )
     return "\n".join(["Tonnes CO2, summed over the period's emissions reports:", *lines, check])
