@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import utc_now, utc_today
 from app.core.db.crud import create_record, update_record
+from app.ingestion.chunk.service import get_corpus_stats
 from app.ingestion.discover.models import DiscoveredDocument
 from app.ingestion.enums import IngestRunStatus
 from app.ingestion.fetch.models import RawDocsQuery
@@ -76,10 +77,15 @@ async def complete_ingest_run(
     status: IngestRunStatus,
     result: dict[str, Any] | None = None,
 ) -> IngestRun:
-    """Close out a run with the corpus version it left: a failed or aborted run committed
-    what it got through, so it is stamped too."""
+    """Close out a run with the corpus version and stats it left: a failed or aborted run
+    committed what it got through, so it is stamped too."""
     version = await next_corpus_version(session)
+    stats = await get_corpus_stats(session)
     update_in = IngestRunUpdate(
-        status=status, completed_at=utc_now(), corpus_version=version, result=result
+        status=status,
+        completed_at=utc_now(),
+        corpus_version=version,
+        result=result,
+        **stats.model_dump(),
     )
     return await update_record(session, run, update_in)

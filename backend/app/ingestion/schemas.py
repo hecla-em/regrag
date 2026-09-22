@@ -19,3 +19,7 @@ class IngestRun(BaseSchema):
     completed_at: Mapped[datetime | None]
     result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     """Per-stage counts and failures; NULL means the run died before a result existed."""
+    chunk_count: Mapped[int | None]
+    avg_chunk_chars: Mapped[float | None]
+    """The corpus as the run left it, so BM25 reads its size and mean length instead of
+    scanning for them; NULL on runs from before they were stamped."""

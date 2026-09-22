@@ -49,7 +49,7 @@ from app.evals.judge.service import call_judge_model
 from app.ingestion.chunk.models import Chunk
 from app.ingestion.chunk.references import list_points
 from app.ingestion.chunk.schemas import DocumentChunk
-from app.ingestion.chunk.service import sync_document_chunks
+from app.ingestion.chunk.service import get_corpus_stats, sync_document_chunks
 from app.ingestion.chunk.tree import chunk_document
 from app.ingestion.discover.models import ActsQueryRow
 from app.ingestion.discover.sparql import run_acts_by_topic_query
@@ -365,6 +365,8 @@ async def store_corpus(
         rows = list(await session.scalars(stmt))
         for row in rows:
             row.embedding = toy_embed(row.text)
+        stats = await get_corpus_stats(session)
+        run.chunk_count, run.avg_chunk_chars = stats.chunk_count, stats.avg_chunk_chars
         await session.commit()
         session.expunge_all()
         return rows

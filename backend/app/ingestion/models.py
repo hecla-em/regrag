@@ -194,3 +194,5 @@ class IngestRunUpdate(AppModel):
     corpus_version: str | None = None
     completed_at: datetime | None = None
     result: dict[str, Any] | None = None
+    chunk_count: int | None = None
+    avg_chunk_chars: float | None = None

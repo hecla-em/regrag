@@ -21,7 +21,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import defer
 
-from app.ingestion.chunk.models import Chunk, ChunkCounts, ChunkQuery
+from app.ingestion.chunk.models import Chunk, ChunkCounts, ChunkQuery, CorpusStats
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.enums import CITED_TOPIC
 from app.ingestion.exceptions import EmptyChunkSetError
@@ -171,6 +171,13 @@ async def count_chunks(session: AsyncSession, *, has_embedding: bool) -> int:
     """How many chunks carry a vector, or lack one."""
     stmt = select(func.count()).select_from(DocumentChunk).where(_has_embedding(has_embedding))
     return await session.scalar(stmt) or 0
+
+
+async def get_corpus_stats(session: AsyncSession) -> CorpusStats:
+    """How many chunks the corpus holds and their mean length in characters."""
+    stmt = select(func.count(), func.avg(func.length(DocumentChunk.text)))
+    chunk_count, avg_chunk_chars = (await session.execute(stmt)).one()
+    return CorpusStats(chunk_count=chunk_count, avg_chunk_chars=avg_chunk_chars)
 
 
 async def cited_celexes(session: AsyncSession) -> set[str]:
