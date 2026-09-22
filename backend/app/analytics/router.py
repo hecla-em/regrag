@@ -9,6 +9,8 @@ from app.analytics.enums import AnalyticsDays
 from app.analytics.models import (
     ChatGraphMetrics,
     ChatSummary,
+    EvalRunSummary,
+    EvalSettings,
     TopQuestion,
 )
 from app.analytics.service import (
@@ -16,8 +18,10 @@ from app.analytics.service import (
     list_top_questions,
     summarize_requests,
 )
+from app.core.config import EVAL_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.db.session import SessionDep
 from app.core.security import verify_analytics_key
+from app.evals.service import list_eval_runs
 
 router = APIRouter(
     prefix="/analytics",
@@ -48,3 +52,15 @@ async def get_top_questions(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> list[TopQuestion]:
     return await list_top_questions(session, days, limit)
+
+
+@router.get("/evals/runs")
+async def get_eval_runs(session: SessionDep) -> list[EvalRunSummary]:
+    return [EvalRunSummary.model_validate(run) for run in await list_eval_runs(session)]
+
+
+@router.get("/evals/settings")
+async def get_eval_settings() -> EvalSettings:
+    return EvalSettings(
+        build_id=config.BUILD_ID, settings=get_config_snapshot(EVAL_CONFIG_SECTIONS)
+    )

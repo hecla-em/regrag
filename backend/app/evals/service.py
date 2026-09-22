@@ -108,6 +108,12 @@ async def create_eval_run(session: AsyncSession, result: EvalRunResult) -> EvalR
     return await create_record(session, run)
 
 
+async def list_eval_runs(session: AsyncSession) -> list[EvalRun]:
+    """Every stored run, newest first."""
+    stmt = select(EvalRun).order_by(EvalRun.created_at.desc(), EvalRun.id.desc())
+    return list(await session.scalars(stmt))
+
+
 async def get_eval_run(session: AsyncSession, run_id: int) -> EvalRun:
     stmt = select(EvalRun).where(EvalRun.id == run_id)
     run = await session.scalar(stmt)
