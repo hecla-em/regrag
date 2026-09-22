@@ -39,6 +39,8 @@ ASSESS_SYSTEM_PROMPT = (
     "that line's document number and division; search runs a fresh corpus search — "
     "use it when a needed concept is named without a citation, or a part of the "
     "question has no context at all, narrowing with celex when the act is known. "
+    "mrv_figures reads the THETIS-MRV public dataset's fleet CO2 totals for a reporting "
+    "period — use it when the question asks for or quotes such a figure. "
     "Never re-fetch what the context already shows. You never answer the question "
     "yourself: your output is tool calls, or nothing when the context suffices."
 )
@@ -46,8 +48,8 @@ ASSESS_SYSTEM_PROMPT = (
 ASSESS_REFUSAL_INSTRUCTION = (
     " If no block bears on the question and no search or fetch of this corpus of EU "
     "maritime regulation could — it asks about another regime, about a named company, "
-    "ship or event, for a statistic or a figure no provision states, or about a topic "
-    "outside the corpus — call refuse, alone, saying why. Blocks on the "
+    "ship or event, for a figure neither a provision nor mrv_figures holds, or about a "
+    "topic outside the corpus — call refuse, alone, saying why. Blocks on the "
     "subject the question touches that do not answer it are not a part answer. Never call "
     "it on a question the context answers in part, or one a search or fetch might yet "
     "answer."

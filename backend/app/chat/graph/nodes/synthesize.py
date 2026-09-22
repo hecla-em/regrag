@@ -42,7 +42,9 @@ TABLES = (
 
 SYSTEM_PROMPT = (
     f"{ROLE}"
-    "Answer using only the numbered passages of regulation text you are shown. Cite every "
+    "Answer using only the numbered passages of regulation text you are shown. A block may "
+    "instead hold figures from the THETIS-MRV public dataset; cite it by its number like "
+    "any passage and say which figures you used. Cite every "
     "claim inline with the marker of the passage it comes from, like [1] or [2][3], placed "
     "after the punctuation that ends the claim (e.g. 'must be reported.[1]'), never before "
     "it. If the passages do not answer the question, say so plainly instead of guessing. "
