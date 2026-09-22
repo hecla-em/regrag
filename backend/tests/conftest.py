@@ -58,6 +58,7 @@ from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
 from app.ingestion.fetch.download import _download_version_html
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.storage import write_document
+from app.ingestion.parse.formula.read import read_formula
 from app.ingestion.parse.html.document import parse_eurlex_html
 from app.ingestion.parse.models import ParsedDocument
 from app.ingestion.schemas import IngestRun
@@ -73,6 +74,7 @@ RETRIED = (
     call_assess_model,
     synthesize,
     call_judge_model,
+    read_formula,
 )
 
 PARSE_FIXTURES = Path(__file__).parent / "ingestion" / "parse" / "fixtures"
