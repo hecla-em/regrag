@@ -5,9 +5,10 @@ const READY_CALLBACK = "onRegRagTurnstileReady"
 const ACTION = "chat"
 const MINT_TIMEOUT_MS = 15_000
 
-/** Centred rather than hidden, so an interactive challenge can be seen and passed. */
+/** Centred, and shown only while a challenge waits on a click: Turnstile leaves a passed one on screen. */
 const CONTAINER_CLASS =
 	"fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2"
+const HIDDEN_CLASS = "invisible"
 
 type TurnstileOptions = {
 	sitekey: string
@@ -36,6 +37,7 @@ declare global {
 type Widget = {
 	execute: () => void
 	reset: () => void
+	hide: () => void
 }
 
 type DeliverToken = (token: string | null) => void
@@ -57,8 +59,9 @@ function deliverToken(token: string | null): void {
 }
 
 /** A challenge the reader must click runs to Cloudflare's own timeout, not the mint's. */
-function awaitReader(): void {
+function showChallenge(container: HTMLElement): void {
 	clearTimeout(mintTimer)
+	container.classList.remove(HIDDEN_CLASS)
 }
 
 function loadScript(): Promise<TurnstileApi> {
@@ -85,7 +88,7 @@ function loadScript(): Promise<TurnstileApi> {
 async function openWidget(sitekey: string): Promise<Widget> {
 	const turnstile = await loadScript()
 	const container = document.createElement("div")
-	container.className = CONTAINER_CLASS
+	container.className = `${CONTAINER_CLASS} ${HIDDEN_CLASS}`
 	document.body.append(container)
 	const id = turnstile.render(container, {
 		sitekey,
@@ -96,11 +99,12 @@ async function openWidget(sitekey: string): Promise<Widget> {
 		"error-callback": () => deliverToken(null),
 		"expired-callback": () => deliverToken(null),
 		"timeout-callback": () => deliverToken(null),
-		"before-interactive-callback": awaitReader,
+		"before-interactive-callback": () => showChallenge(container),
 	})
 	return {
 		execute: () => turnstile.execute(id),
 		reset: () => turnstile.reset(id),
+		hide: () => container.classList.add(HIDDEN_CLASS),
 	}
 }
 
@@ -112,6 +116,7 @@ function awaitToken(rendered: Widget): Promise<string | null> {
 			if (pending !== finish) return
 			clearTimeout(mintTimer)
 			pending = null
+			rendered.hide()
 			resolve(token)
 		}
 		pending = finish
