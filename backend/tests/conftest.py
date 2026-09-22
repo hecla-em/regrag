@@ -77,7 +77,6 @@ RETRIED = (
 
 PARSE_FIXTURES = Path(__file__).parent / "ingestion" / "parse" / "fixtures"
 FUELEU_HTML = (PARSE_FIXTURES / "32023R1805.html").read_text()
-MRV_HTML = (PARSE_FIXTURES / "32015R0757.html").read_text()
 
 
 @pytest.fixture
@@ -225,17 +224,22 @@ def store_document(
     return _store
 
 
+def parse_fixture(celex: str, topic: str) -> ParsedDocument:
+    """One trimmed fixture act, parsed as ingest parses it."""
+    html = (PARSE_FIXTURES / f"{celex}.html").read_text()
+    return ParsedDocument(celex=celex, topic=topic, sections=parse_eurlex_html(html))
+
+
 @pytest.fixture(scope="session")
 def fueleu() -> ParsedDocument:
     """The OJ dialect fixture, parsed once: a ParsedDocument is frozen, so tests share one."""
-    sections = parse_eurlex_html(FUELEU_HTML)
-    return ParsedDocument(celex="32023R1805", topic="fueleu", sections=sections)
+    return parse_fixture("32023R1805", "fueleu")
 
 
 @pytest.fixture(scope="session")
 def mrv() -> ParsedDocument:
     """The consolidated dialect fixture, parsed once and shared like fueleu."""
-    return ParsedDocument(celex="32015R0757", topic="mrv", sections=parse_eurlex_html(MRV_HTML))
+    return parse_fixture("32015R0757", "mrv")
 
 
 @pytest.fixture

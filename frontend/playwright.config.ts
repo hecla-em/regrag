@@ -4,6 +4,7 @@ const isCI = Boolean(process.env.CI)
 
 export default defineConfig({
 	testDir: "e2e",
+	fullyParallel: true,
 	forbidOnly: isCI,
 	retries: isCI ? 1 : 0,
 	reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
@@ -17,7 +18,8 @@ export default defineConfig({
 			timeout: 120_000,
 		},
 		{
-			command: "pnpm build && pnpm exec vite preview --port 5173 --strictPort",
+			command:
+				"pnpm exec vite build && pnpm exec vite preview --port 5173 --strictPort",
 			url: "http://localhost:5173",
 			timeout: 120_000,
 		},
