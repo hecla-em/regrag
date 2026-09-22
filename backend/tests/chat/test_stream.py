@@ -51,7 +51,7 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
             case StepEvent():
                 read.append((event.data.step, event.data.status, event.data.subject))
             case SourcesEvent():
-                read.append(("sources", [source.chunk_id for source in event.data]))
+                read.append(("sources", [source.marker for source in event.data]))
             case TextEvent() if read and read[-1][0] == "text":
                 read[-1] = ("text", read[-1][1] + event.data)
             case TextEvent():

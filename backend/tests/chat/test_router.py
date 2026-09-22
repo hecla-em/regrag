@@ -107,10 +107,10 @@ def test_a_first_question_is_answered_from_the_corpus_and_recorded(
     assert answer_of(events) == ANSWER
 
     sources = first_payload(events, "sources")
-    stored = {chunk.id: chunk for chunk in corpus}
+    stored = {chunk.text for chunk in corpus}
     assert [source["marker"] for source in sources] == list(range(1, len(sources) + 1))
-    assert all(stored[source["chunk_id"]].text == source["text"] for source in sources)
-    assert sources[0]["act"].startswith("Regulation (EU) 2023/1805")
+    assert all(source["text"] in stored for source in sources)
+    assert sources[0]["name"].startswith("Regulation (EU) 2023/1805")
     [prompt] = model.received
     assert sources[0]["text"] in str(prompt[-1].content)
 
@@ -204,10 +204,10 @@ def test_a_tool_round_fetches_from_the_corpus_and_grows_the_context(
     [sources] = [payload for name, payload in events if name == "sources"]
     followed = [source for source in sources if source["citation"].startswith("Article 11a")]
     assert len(followed) == 4
-    assert {source["celex"] for source in followed} == {"32015R0757"}
+    assert {source["name"] for source in followed} == {"Regulation (EU) 2015/757"}
     searched = sources[sources.index(followed[-1]) + 1 :]
     assert 0 < len(searched) <= config.ASSESS_SEARCH_LIMIT
-    assert {source["celex"] for source in searched} == {"32015R0757"}
+    assert {source["name"] for source in searched} == {"Regulation (EU) 2015/757"}
     [request] = ledger(seeded_client)
     assert request.sources == len(sources)
     assert step_names(request) == [
