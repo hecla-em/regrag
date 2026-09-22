@@ -93,6 +93,7 @@ Scoring lives in `metrics.py`, each measure a plain function over the run's resu
 | `citations.cited_references` | answered in-corpus | Share of authored references the answer cited |
 | `citations.markers_in_context` | answers citing anything | Share of `[n]` markers addressing a block the model was given |
 | `answers.prompt_wording` | all | Answers naming the prompt's blocks to the reader ("the context", "the provided text"), a string check |
+| `answers.mean_words` | answers written | Mean answer length in words, how much a prompt change trimmed or padded |
 | `gate.refusal_rate` | out-of-corpus | Share the pre-model gate refused |
 | `gate.false_refusals` | in-corpus | Cases the gate refused |
 | `gate.refused_a_found_reference` | in-corpus | Of those, the ones where search had already found a reference |
