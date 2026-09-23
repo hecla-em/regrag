@@ -53,12 +53,12 @@ async def load_periods(
 SCOPE_TOLERANCE = 0.01
 """How close the ETS figure must sit to the scope split to count within the reported share."""
 FIGURE_COLUMNS = (
-    ("total", ShipEmissions.co2_total),
-    ("ETS", ShipEmissions.co2_ets),
-    ("between MS", ShipEmissions.co2_between_ms),
-    ("departed MS", ShipEmissions.co2_departed_ms),
-    ("arrived MS", ShipEmissions.co2_arrived_ms),
-    ("at berth", ShipEmissions.co2_at_berth),
+    ("total CO2", ShipEmissions.co2_total),
+    ("to be reported under Directive 2003/87/EC", ShipEmissions.co2_ets),
+    ("voyages between MS ports", ShipEmissions.co2_between_ms),
+    ("voyages departed from MS ports", ShipEmissions.co2_departed_ms),
+    ("voyages arrived at MS ports", ShipEmissions.co2_arrived_ms),
+    ("within MS ports at berth", ShipEmissions.co2_at_berth),
 )
 
 Amount = float | None
@@ -110,26 +110,49 @@ async def fleet_figures(session: AsyncSession, period: int) -> DatasetBlock | No
         period=period,
         version=version,
         generated=generated,
-        text=format_fleet_figures(rows, median or 0.0, matching, with_ets),
+        text=format_fleet_figures(
+            period, version, generated, rows, median or 0.0, matching, with_ets
+        ),
     )
 
 
+def figure_group(heading: str, count: int, values: Sequence[float]) -> str:
+    """One sheet's (or the fleet's) figures, each on its own labelled line."""
+    lines = [f"{heading} — {count:,} reports"]
+    lines += [
+        f"  {name}: {value:,.0f} t" for (name, _), value in zip(FIGURE_COLUMNS, values, strict=True)
+    ]
+    return "\n".join(lines)
+
+
 def format_fleet_figures(
-    rows: Sequence[FigureRow], median: float, matching: int, with_ets: int
+    period: int,
+    version: int,
+    generated: date,
+    rows: Sequence[FigureRow],
+    median: float,
+    matching: int,
+    with_ets: int,
 ) -> str:
-    """The totals as a table in tonnes, and the ETS-to-scope ratio as one line."""
-    headings = ["", "reports", *(name for name, _ in FIGURE_COLUMNS)]
-    lines = [" | ".join(headings)]
-    totals = [0.0] * (len(FIGURE_COLUMNS) + 1)
+    """The period stated plainly, the totals as labelled figure lines per sheet and
+    combined, and the ETS-to-scope ratio as one line."""
+    heading = (
+        f"Emissions reported for reporting period {period}, from the THETIS-MRV public "
+        f"dataset (file version {version}, generated {generated.isoformat()})."
+    )
+    totals = [0.0] * len(FIGURE_COLUMNS)
+    report_total = 0
+    groups = []
     for sheet, _, _, count, *sums in rows:
-        values = [count, *(value or 0.0 for value in sums)]
+        values = [value or 0.0 for value in sums]
         totals = [a + b for a, b in zip(totals, values, strict=True)]
-        lines.append(" | ".join([f"{sheet.value} ERs", *(f"{value:,.0f}" for value in values)]))
-    lines.append(" | ".join(["both", *(f"{value:,.0f}" for value in totals)]))
+        report_total += count
+        groups.append(figure_group(f"{sheet.value} ERs", count, values))
+    groups.append(figure_group("both", report_total, totals))
     share = matching / with_ets if with_ets else 0.0
     check = (
         f"Across the {with_ets:,} reports with an ETS figure, the ETS figure ÷ (100% between MS "
         "ports + 50% departed + 50% arrived + 100% at berth) has a median of "
         f"{median:.2f}, and {share:.0%} of reports sit within 1% of it."
     )
-    return "\n".join(["Tonnes CO2, summed over the period's emissions reports:", *lines, check])
+    return "\n\n".join([heading, *groups, check])
