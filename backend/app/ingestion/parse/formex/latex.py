@@ -21,6 +21,8 @@ TOKEN_RE = re.compile(r"[A-Za-z]+(?: [A-Za-z]+)*|.", re.DOTALL)
 
 def greek_command(char: str) -> str | None:
     """The LaTeX command for a Greek letter, or None for any other character."""
+    if len(char) != 1:
+        return None
     name = unicodedata.name(char, "")
     for prefix, capital in (("GREEK SMALL LETTER ", False), ("GREEK CAPITAL LETTER ", True)):
         if name.startswith(prefix):
