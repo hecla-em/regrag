@@ -33,8 +33,8 @@ async def request_id_middleware(request: Request, call_next):
 
 
 def client_ip(request: Request) -> str | None:
-    """The address the request came from. In prod the connection is Fly's proxy and the
-    header carries the client's. Anywhere else the header is whatever the caller wrote."""
+    """The address the request came from. In prod that is Fly's header, which its proxy
+    overwrites even when the client sends one (checked on HEC-444), and elsewhere the socket's."""
     if config.ENVIRONMENT is Environment.PROD and (fly := request.headers.get("Fly-Client-IP")):
         return fly
     return request.client.host if request.client else None
