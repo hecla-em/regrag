@@ -43,7 +43,7 @@ TABLES = (
 
 FORMULAS = (
     "Quote a formula from a passage exactly as the passage writes it, between $$ and $$, "
-    "on a line of its own. "
+    "on a line of its own, and cite it in the sentence that introduces it. "
 )
 
 SYSTEM_PROMPT = (

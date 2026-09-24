@@ -1,7 +1,12 @@
 import type { Element, ElementContent, Root } from "hast"
 import { visit } from "unist-util-visit"
 
-const FORMULA = /\$\$([\s\S]+?)\$\$/g
+const FORMULA = /\$\$((?:\\[\s\S]|[^\\])+?)\$\$/g
+const FORMULA_DELIMITER = "$$"
+const BLOCK_PARENTS = new Set(["p", "li"])
+
+/** The ingest passes raw Unicode into its LaTeX, which KaTeX sets fine but warns about. */
+export const KATEX_OPTIONS = { strict: "ignore" } as const
 
 export type FormulaSegment =
 	| { kind: "text"; value: string }
@@ -40,19 +45,31 @@ export function splitFormulas(text: string): FormulaSegment[] {
 	})
 }
 
+/** A streaming answer without the formula still being written on its last line, which
+ * remark-math would otherwise read as an empty block until the formula closes. */
+export function holdOpenFormula(answer: string): string {
+	const lastLine = answer.slice(answer.lastIndexOf("\n") + 1)
+	const delimiters = lastLine.split(FORMULA_DELIMITER).length - 1
+	return delimiters % 2 === 1
+		? answer.slice(0, answer.lastIndexOf(FORMULA_DELIMITER))
+		: answer
+}
+
 function neighbourText(node: ElementContent | undefined): string | null {
 	if (node === undefined) return null
+	if (node.type === "element" && node.tagName === "br") return "\n"
 	return node.type === "text" ? node.value : ""
 }
 
-/** Marks remark-math's inline formulas that stand alone on a paragraph's line as display
- * maths, so rehype-katex sets them as blocks. */
+/** Marks remark-math's inline formulas that stand alone on a paragraph's or list item's line
+ * as display maths, so rehype-katex sets them as blocks. */
 export function rehypeDisplayFormulas() {
 	return (tree: Root) => {
 		visit(tree, "element", (node: Element, index, parent) => {
 			const classes = node.properties.className
 			if (!Array.isArray(classes) || !classes.includes("math-inline")) return
-			if (parent?.type !== "element" || parent.tagName !== "p") return
+			if (parent?.type !== "element" || !BLOCK_PARENTS.has(parent.tagName))
+				return
 			if (index === undefined) return
 			const siblings = parent.children as ElementContent[]
 			if (

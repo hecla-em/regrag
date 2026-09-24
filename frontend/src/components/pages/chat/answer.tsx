@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import type { ChatSource } from "@/api/types"
 import { numberCitations, rehypeCitationMarkers } from "@/lib/citations"
-import { rehypeDisplayFormulas } from "@/lib/formulas"
+import { KATEX_OPTIONS, rehypeDisplayFormulas } from "@/lib/formulas"
 import { CitationChip } from "./citation-chip"
 
 const PROSE =
@@ -60,7 +60,7 @@ export function Answer({
 				rehypePlugins={[
 					rehypeCitationMarkers(known),
 					rehypeDisplayFormulas,
-					rehypeKatex,
+					[rehypeKatex, KATEX_OPTIONS],
 				]}
 				components={components}
 			>
