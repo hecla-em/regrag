@@ -41,6 +41,11 @@ TABLES = (
     "markdown table and cite it in the sentence that introduces it. "
 )
 
+FORMULAS = (
+    "Quote a formula from a passage exactly as the passage writes it, between $$ and $$, "
+    "on a line of its own, and cite it in the sentence that introduces it. "
+)
+
 SYSTEM_PROMPT = (
     f"{ROLE}"
     "Answer using only the numbered blocks you are shown: passages of regulation text, or "
@@ -58,6 +63,7 @@ SYSTEM_PROMPT = (
     "guessing. "
     f"{UNCOVERED}"
     f"{TABLES}"
+    f"{FORMULAS}"
     f"{STYLE}"
     "Refer to an act by the name and number the passages give it; never invent a title for one."
 )

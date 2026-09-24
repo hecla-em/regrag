@@ -11,6 +11,7 @@ import {
 	turnFailure,
 } from "@/lib/chat-turns"
 import { citedSources } from "@/lib/citations"
+import { holdOpenFormula } from "@/lib/formulas"
 import { Answer } from "./answer"
 import { CopyAnswerButton } from "./copy-answer-button"
 import { RunSteps } from "./run-steps"
@@ -115,7 +116,7 @@ export const ChatTurn = memo(function ChatTurn({
 					) : (
 						<>
 							<Answer
-								answer={turn.answer}
+								answer={isSettled ? turn.answer : holdOpenFormula(turn.answer)}
 								sources={turn.sources}
 								onOpenMarker={openSource}
 							/>

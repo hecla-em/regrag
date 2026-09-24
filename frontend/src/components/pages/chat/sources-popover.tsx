@@ -15,6 +15,7 @@ import {
 import type { CitedSource } from "@/lib/citations"
 import { cn } from "@/lib/utils"
 import { CITATION_BADGE } from "./citation-chip"
+import { FormulaText } from "./formula-text"
 
 const STACKED_BADGES = 3
 
@@ -110,8 +111,8 @@ function SourceText({
 					</p>
 				</div>
 			</div>
-			<div className="max-h-[min(22rem,50dvh)] overflow-y-auto whitespace-pre-wrap px-2 py-2.5 text-muted-foreground text-xs leading-relaxed">
-				{source.text}
+			<div className="max-h-[min(22rem,50dvh)] overflow-auto whitespace-pre-wrap px-2 py-2.5 text-muted-foreground text-xs leading-relaxed">
+				<FormulaText text={source.text} />
 			</div>
 			<div className="flex items-center justify-between border-t px-1 pt-1.5">
 				<a

@@ -6,7 +6,7 @@ const MARKER_PATTERN = /\[(\d+)\]/g
 const MARKER_RUN_BEFORE_PUNCTUATION = / ?((?:\[\d+\])+)([.,;:])/g
 const MARKER_RUN = / ?(?:\[\d+\]){2,}/g
 const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})/
-const INLINE_CODE = /(`+)(?:[\s\S]*?\1|[\s\S]*$)/g
+const INLINE_CODE_OR_FORMULA = /(`+)(?:[\s\S]*?\1|[\s\S]*$)|\$\$[\s\S]+?\$\$/g
 
 /** Superscripts follow punctuation: `claim [1][2].` becomes `claim.[1][2]`. */
 export function moveMarkersAfterPunctuation(
@@ -71,7 +71,7 @@ type MarkdownSegment = { code: boolean; value: string }
 function splitInlineCode(value: string): MarkdownSegment[] {
 	const segments: MarkdownSegment[] = []
 	let cursor = 0
-	for (const match of value.matchAll(INLINE_CODE)) {
+	for (const match of value.matchAll(INLINE_CODE_OR_FORMULA)) {
 		if (match.index > cursor) {
 			segments.push({ code: false, value: value.slice(cursor, match.index) })
 		}
@@ -85,9 +85,10 @@ function splitInlineCode(value: string): MarkdownSegment[] {
 }
 
 /**
- * The answer split into its code — fenced blocks and inline spans — and the prose around it,
- * so markers inside code are neither read as citations nor rewritten. Mirrors the `code`
- * parent that `rehypeCitationMarkers` skips, and rejoins to exactly what it was given.
+ * The answer split into its code — fenced blocks, inline spans and `$$` formulas — and the
+ * prose around it, so markers inside code are neither read as citations nor rewritten.
+ * Mirrors the `code` parent that `rehypeCitationMarkers` skips, and rejoins to exactly what
+ * it was given.
  */
 function splitMarkdownCode(markdown: string): MarkdownSegment[] {
 	const segments: MarkdownSegment[] = []
