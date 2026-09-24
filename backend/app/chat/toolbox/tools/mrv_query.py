@@ -27,7 +27,8 @@ MRV_QUERY = ToolSpec(
     "under the EU ETS, and split by EU scope (between, departed from, arrived at Member State "
     "ports, at berth), plus how the ETS figure compares with that scope split. Covers the whole "
     "fleet, or one company's or ship's reports when named; sums per report type (Full, Partial), "
-    "or per company or ship, largest ETS figure first, to rank them or list a company's ships. "
+    "or per company or ship, largest ETS figure first, to rank the largest or list a company's "
+    "ships, never the smallest. "
     "Use whenever the answer needs one of these figures or one worked out from them, or turns "
     "on what they include.",
     card="THETIS-MRV public dataset of ships' reported CO2 emissions: fleet, company and ship "

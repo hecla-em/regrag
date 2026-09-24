@@ -117,9 +117,12 @@ class MrvBlock(FrozenModel):
         if not self.overall.reports:
             return f"{heading}\n\nNo report in this period matches."
         ranked_by = "total CO2" if self.phase_in is None else "ETS figure"
+        unlisted = self.group_count - len(self.groups)
         shown = (
-            f"The {len(self.groups)} largest by {ranked_by} of {self.group_count:,} are shown."
-            if len(self.groups) < self.group_count
+            f"Only the {len(self.groups)} largest by {ranked_by} of {self.group_count:,} are "
+            f"listed above. Each of the other {unlisted:,} has a smaller {ranked_by} than the "
+            "last one listed, and this block does not say which is smallest."
+            if unlisted
             else ""
         )
         check = (
@@ -130,8 +133,9 @@ class MrvBlock(FrozenModel):
             if self.median_ets_ratio is not None
             else ""
         )
-        totals = [group.describe(self.phase_in) for group in (*self.groups, self.overall)]
-        return "\n\n".join(part for part in [heading, shown, *totals, check] if part)
+        groups = [group.describe(self.phase_in) for group in self.groups]
+        overall = self.overall.describe(self.phase_in)
+        return "\n\n".join(part for part in [heading, *groups, shown, overall, check] if part)
 
     prompt_text = text
 
@@ -150,7 +154,8 @@ class MrvQueryArgs(FrozenModel):
     by: MrvGrouping = Field(
         default=MrvGrouping.REPORT_TYPE,
         description="Sum per report type (Full, Partial), or per company or ship, largest ETS "
-        "figure first, to rank them or list a company's ships.",
+        "figure first, to rank the largest or list a company's ships. It cannot list the "
+        "smallest.",
     )
 
     @property
