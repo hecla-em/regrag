@@ -1,10 +1,11 @@
-"""Annexes as Section subtrees: heading and data tables detached, then the remaining
-prose folded under the sub-headings that introduce it."""
+"""Annexes as Section subtrees: heading detached, then the prose and data tables folded, in
+document order, under the sub-headings that introduce them."""
 
-from collections.abc import Iterable
+import re
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 
-from selectolax.parser import Node
+from selectolax.parser import HTMLParser, Node
 
 from app.ingestion.enums import SectionKind
 from app.ingestion.parse.html.dialect import Dialect
@@ -13,6 +14,10 @@ from app.ingestion.parse.html.text import ANNEX_NUMBER_RE, clean_text, heading_n
 from app.ingestion.parse.models import Section
 
 ANNEX_CONTAINER = "div[id^=anx_]"
+TABLE_MARK = "\ue000"
+TABLE_MARK_RE = re.compile(rf"\s*{TABLE_MARK}(\d+){TABLE_MARK}\s*")
+"""Where a detached table stood, as private-use text a line keeps through cleaning; a table
+inside a list row splits that row's line around it."""
 
 
 def _table_rows(node: Node) -> tuple[tuple[str, ...], ...]:
@@ -25,14 +30,32 @@ def _table_rows(node: Node) -> tuple[tuple[str, ...], ...]:
     return tuple(rows)
 
 
-def _detach_data_tables(node: Node, selector: str) -> tuple[Section, ...]:
-    """Data tables as TABLE sections, removed from the tree so their cells are not re-read."""
-    sections = []
+def _mark_data_tables(node: Node, selector: str) -> list[Section]:
+    """Data tables as TABLE sections, each swapped in the tree for a mark naming it, so its
+    cells are not re-read and the line stream can put it back where it stood."""
+    sections: list[Section] = []
     for table in node.css(selector):
-        if rows := _table_rows(table):
-            sections.append(Section(kind=SectionKind.TABLE, rows=rows))
-        table.replace_with("")
-    return tuple(sections)
+        rows = _table_rows(table)
+        if not rows:
+            table.replace_with("")
+            continue
+        mark = f"<p>{TABLE_MARK}{len(sections)}{TABLE_MARK}</p>"
+        table.replace_with(HTMLParser(mark).css_first("p"))  # ty: ignore[invalid-argument-type]
+        sections.append(Section(kind=SectionKind.TABLE, rows=rows))
+    return sections
+
+
+def _place_tables(lines: Iterable[Line], tables: list[Section]) -> Iterator[Line | Section]:
+    """The line stream with each table mark replaced by the table it stands for."""
+    for line in lines:
+        if not isinstance(line, str):
+            yield line
+            continue
+        for index, piece in enumerate(TABLE_MARK_RE.split(line)):
+            if index % 2:
+                yield tables[int(piece)]
+            elif piece:
+                yield piece
 
 
 @dataclass
@@ -56,8 +79,9 @@ class _OpenSubheading:
         return Section(kind=SectionKind.HEADING, title=self.title, children=tuple(self.children))
 
 
-def _nest_under_subheadings(lines: Iterable[Line]) -> tuple[Section, ...]:
-    """Fold a line stream into sections, each sub-heading owning the prose beneath it."""
+def _nest_under_subheadings(lines: Iterable[Line | Section]) -> tuple[Section, ...]:
+    """Fold a line stream into sections, each sub-heading owning the prose and tables beneath
+    it."""
     stack = [_OpenSubheading(level=0, title=None)]
 
     def unwind(level: int) -> None:
@@ -68,6 +92,9 @@ def _nest_under_subheadings(lines: Iterable[Line]) -> tuple[Section, ...]:
     for line in lines:
         if isinstance(line, str):
             stack[-1].lines.append(line)
+        elif isinstance(line, Section):
+            stack[-1].flush_prose()
+            stack[-1].children.append(line)
         else:
             unwind(line.level)
             stack[-1].flush_prose()
@@ -78,16 +105,16 @@ def _nest_under_subheadings(lines: Iterable[Line]) -> tuple[Section, ...]:
 
 
 def build_annex(node: Node, dialect: Dialect) -> Section:
-    """An annex as a Section: detach the heading, detach the data tables, and what
-    remains is body prose; OJ annexes are flat, consolidated ones nest by level.
-    """
+    """An annex as a Section: detach the heading, and what remains is body prose with its data
+    tables in place; OJ annexes are flat, consolidated ones nest by level."""
     labels = detach_texts(node, dialect.annex_label)
     titles = detach_texts(node, dialect.annex_title) if dialect.annex_title else labels[1:]
-    tables = _detach_data_tables(node, dialect.data_table)
-    body = _nest_under_subheadings(collect_lines(node, dialect.subheading_re))
+    tables = _mark_data_tables(node, dialect.data_table)
+    lines = _place_tables(collect_lines(node, dialect.subheading_re), tables)
+    body = _nest_under_subheadings(lines)
     return Section(
         kind=SectionKind.ANNEX,
         number=heading_number(labels, ANNEX_NUMBER_RE),
         title=titles[0] if titles else None,
-        children=tables + body,
+        children=body,
     )

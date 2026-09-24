@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from app.core.config import config
 from app.ingestion.chunk.models import Chunk, Locator
 from app.ingestion.chunk.references import extract_references, list_points
-from app.ingestion.chunk.split import split_section_text
+from app.ingestion.chunk.split import pack_leaves, split_section_text
 from app.ingestion.enums import SectionKind
 from app.ingestion.parse.models import ParsedDocument, Section
 
@@ -50,7 +50,7 @@ def chunk_section_tree(
             points=list_points(piece),
             references=extract_references(piece),
         )
-    for child in section.children:
+    for child in pack_leaves(section.children, max_chars):
         yield from chunk_section_tree(child, document, path, max_chars)
 
 
