@@ -1,5 +1,6 @@
-"""The answer cache: a first question's answer in Redis, keyed so a deploy, a changed setting
-or a moved corpus retires every answer, and the decorator that puts it around a run."""
+"""The answer cache: a first question's answer in Redis, keyed so a deploy, a changed setting,
+a moved corpus or a reloaded MRV file retires every answer, and the decorator that puts it
+around a run."""
 
 import asyncio
 import functools
@@ -22,6 +23,7 @@ from app.core.config import ANSWER_CONFIG_SECTIONS, config, get_config_snapshot
 from app.core.db.session import get_session
 from app.core.redis import redis_client
 from app.ingestion.service import get_latest_corpus_version
+from app.mrv.service import loaded_versions
 
 logger = logging.getLogger(__name__)
 
@@ -44,13 +46,15 @@ def hash_answer_settings() -> str:
 
 
 async def answer_key(session: AsyncSession, question: str) -> str | None:
-    """The key a question's answer lives under for this release, settings and corpus, or
-    None before any corpus version exists."""
+    """The key a question's answer lives under for this release, settings, corpus and loaded
+    MRV files, or None before any corpus version exists."""
     version = await get_latest_corpus_version(session)
     if version is None:
         return None
+    mrv = await loaded_versions(session)
     digest = hashlib.sha256(normalize_question(question).encode()).hexdigest()
-    return f"chat:answer:{config.BUILD_ID}:{hash_answer_settings()[:12]}:{version}:{digest}"
+    settings = hash_answer_settings()[:12]
+    return f"chat:answer:{config.BUILD_ID}:{settings}:{version}:{mrv}:{digest}"
 
 
 async def lookup_answer(redis: Redis, key: str) -> CachedAnswer | None:

@@ -47,6 +47,13 @@ async def load_periods(
     return {file.period: await load_period(session, client, store, file) for file in chosen}
 
 
+async def loaded_versions(session: AsyncSession) -> str:
+    """Each loaded period with its file version, like '2024v243,2025v58'; empty when none is."""
+    stmt = select(MrvReport.period, MrvReport.version).distinct().order_by(MrvReport.period)
+    rows = (await session.execute(stmt)).all()
+    return ",".join(f"{period}v{version}" for period, version in rows)
+
+
 SCOPE_TOLERANCE = 0.01
 """How close the ETS figure must sit to the scope split to count within the reported share."""
 
