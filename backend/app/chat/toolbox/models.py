@@ -3,6 +3,8 @@
 from collections.abc import Awaitable, Callable
 from typing import Any, NamedTuple
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.chat.blocks import ContextBlock
 from app.chat.enums import ToolStep
 from app.core.models import FrozenModel
@@ -18,7 +20,8 @@ class ToolCall(FrozenModel):
 class ToolSpec(NamedTuple):
     """One tool the model may call: how it is named and described to the model, the
     arguments it takes, what runs it, the step a call to it records, and, for a dataset
-    tool, the card the gate matches a question against."""
+    tool, the card the gate matches a question against and how it finds what a question names
+    in its data."""
 
     name: str
     step: ToolStep
@@ -26,6 +29,7 @@ class ToolSpec(NamedTuple):
     run: Callable[..., Awaitable[tuple[ContextBlock, ...]]]
     description: str
     card: str | None = None
+    find_mentions: Callable[[AsyncSession, str], Awaitable[tuple[str, ...]]] | None = None
 
     def definition(self) -> dict:
         """The tool as bind_tools wants it: an openai function-tool dictionary."""

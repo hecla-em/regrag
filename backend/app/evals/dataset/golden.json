@@ -1504,6 +1504,267 @@
       ],
       "question": "What was the total CO2 reported by ships in THETIS-MRV for 2025?",
       "answer": "150.99 Mt on full emissions reports and 5.91 Mt on partial reports, 156.90 Mt together, per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-report-count-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "How many emissions reports were filed in THETIS-MRV for 2024?",
+      "answer": "15,195: 14,168 full emissions reports and 1,027 partial emissions reports, per the 2024 file (version 243 of 2026-09-19)."
+    },
+    {
+      "id": "mrv-ets-reportable-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "How much CO2 is to be reported under the EU ETS for 2025, according to THETIS-MRV?",
+      "answer": "91.80 Mt to be reported under Directive 2003/87/EC: 88.26 Mt on full emissions reports and 3.55 Mt on partial reports, per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-at-berth-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "How much CO2 did ships emit at berth in EU ports in 2024, per the MRV data?",
+      "answer": "7.59 Mt within Member State ports at berth: 7.31 Mt on full emissions reports and 0.28 Mt on partial reports, per the 2024 file (version 243 of 2026-09-19)."
+    },
+    {
+      "id": "mrv-between-eu-ports-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What were CO2 emissions from voyages between EU ports in 2025 in the MRV dataset?",
+      "answer": "39.77 Mt on voyages between Member State ports: 38.52 Mt on full emissions reports and 1.25 Mt on partial reports, per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-ets-share-of-total-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What share of ships' total reported CO2 in 2025 falls under the EU ETS?",
+      "answer": "About 58.5 %: 91.80 Mt to be reported under Directive 2003/87/EC out of 156.90 Mt total CO2, full and partial emissions reports together, per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-total-change-2024-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part",
+        "dataset"
+      ],
+      "question": "Did total CO2 reported by ships in THETIS-MRV go up or down between 2024 and 2025, and by how much?",
+      "answer": "Up, by about 4.26 Mt (2.8 %): from 152.64 Mt in the 2024 file (version 243 of 2026-09-19) to 156.90 Mt in the 2025 file (version 58 of 2026-09-15), full and partial emissions reports together."
+    },
+    {
+      "id": "mrv-partial-report-share-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What proportion of the 2025 MRV emissions reports were partial reports?",
+      "answer": "About 8.1 %: 1,520 partial emissions reports out of 18,697 in all (17,177 full), per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-arrived-vs-departed-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "In 2024, were MRV emissions on voyages arriving at EU ports higher than on voyages departing from them?",
+      "answer": "Yes: 56.09 Mt on voyages arriving at Member State ports against 51.66 Mt on voyages departing from them, full and partial emissions reports together, per the 2024 file (version 243 of 2026-09-19)."
+    },
+    {
+      "id": "ets-surrender-2025-mrv-fleet",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "Based on THETIS-MRV, how many tonnes of CO2 will shipping companies have to surrender allowances for, for 2025?",
+      "answer": "About 64.26 Mt. The 2025 file (version 58 of 2026-09-15) totals 88.26 Mt on full reports and 3.55 Mt on partial reports to be reported under Directive 2003/87/EC, 91.80 Mt together, and under Article 3gb 70 % of 2025 emissions are surrendered for.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-surrender-2026-flat-mrv",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "If shipping's ETS-reportable emissions in 2026 were the same as in 2025 per THETIS-MRV, how many tonnes would be surrendered for 2026?",
+      "answer": "The whole 91.80 Mt: from 2026 Article 3gb makes shipping companies liable to surrender allowances for 100 % of verified emissions, and the 2025 file (version 58 of 2026-09-15) has 91.80 Mt to be reported under Directive 2003/87/EC.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-mrv-column-before-phase-in-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "dataset"
+      ],
+      "question": "Is the 70% phase-in already applied to the 'to be reported under Directive 2003/87/EC' figure in the 2025 MRV data?",
+      "answer": "No. The figure is the full amount within the ETS scope: across the 2025 reports it sits at a median of 1.00 times 100 % of emissions between Member State ports and at berth plus 50 % of voyages departing from or arriving at them. The Article 3gb phase-in, 70 % for 2025, applies at surrender, and the Union Registry likewise takes company-level emissions for 2024 and 2025 before the application of Article 3gb, calculating those percentages automatically.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        },
+        {
+          "celex": "32019R1122",
+          "annex": "IX",
+          "content_hashes": [
+            "b950aa79519b",
+            "abfca32dd498",
+            "3898ee4efc7c",
+            "be0a89d97d53"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-ets-column-half-rate",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "Does the EU ETS column in the THETIS-MRV data already count only half of emissions on voyages to or from non-EU ports?",
+      "answer": "Yes. Article 3ga applies the ETS to 50 % of emissions on voyages departing from or arriving at a Member State port from outside the EU, and 100 % between Member State ports and at berth; the dataset's ETS figure sits at a median of 1.00 times that split in both the 2024 and 2025 files, with 76 % and 80 % of reports within 1 % of it, the rest mostly derogations.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "paragraph": "1",
+          "content_hashes": [
+            "55c0156f0c8f"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-exposure-carras-hellas-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What was the Carras Hellas' exposure to EU ETS in 2024?",
+      "answer": "About 7,813 t. Carras (Hellas) S.A. (IMO company number 0606585) reported 19,533 t of CO2 to be reported under Directive 2003/87/EC on 7 full emissions reports for 2024, per the 2024 file (version 243 of 2026-09-19), and under Article 3gb shipping companies surrender for 40 % of 2024 emissions.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-company-ships-carras-hellas-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "Which Carras Hellas ships reported under MRV in 2024?",
+      "answer": "Seven bulk carriers under Carras (Hellas) S.A., per the 2024 file (version 243 of 2026-09-19): DONNA ALEXANDRA (IMO 9950595), AQUALIBRA (9765603), JOHN M CARRAS (9592707), ADRIANA ROSE (9727467), ARIETTA LILY (9727479), ATHINA CARRAS (9592719) and AQUAGEMINI (9757010)."
+    },
+    {
+      "id": "ets-surrender-maersk-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What will Maersk A/S have to surrender for 2025?",
+      "answer": "Allowances for about 2.40 Mt of CO2. Maersk A/S (IMO company number 5808451) reported 3,435,479 t to be reported under Directive 2003/87/EC for 2025 on 166 reports, per the 2025 file (version 58 of 2026-09-15), and under Article 3gb 70 % of 2025 emissions are surrendered for.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-exposure-hapag-lloyd-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What is Hapag-Lloyd's EU ETS exposure for 2025?",
+      "answer": "About 689,971 t of CO2. Hapag-Lloyd AG (IMO company number 0217944) reported 985,672 t to be reported under Directive 2003/87/EC for 2025 on 64 reports, per the 2025 file (version 58 of 2026-09-15), and under Article 3gb 70 % of 2025 emissions are surrendered for.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gb",
+          "content_hashes": [
+            "d40e231da05e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-top-ships-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "List the top 5 ships by EU ETS emissions in 2024",
+      "answer": "By CO2 to be reported under Directive 2003/87/EC, per the 2024 file (version 243 of 2026-09-19): CRUISE BARCELONA (IMO 9351488, Grimaldi Euromed) 124,615 t, CRUISE ROMA (9351476, Grimaldi Euromed) 109,712 t, MSC WORLD EUROPA (9837420, MSC Cruise Management UK) 106,376 t, SUPERFAST XI (9227417, Superfast Ferries) 105,445 t and MSC FANTASIA (9359791, MSC Cruise Management UK) 105,432 t."
+    },
+    {
+      "id": "mrv-ship-by-name-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "How much did Emma Maersk emit in 2025?",
+      "answer": "EMMA MAERSK (IMO 9321483, Maersk A/S) reported 95,176 t of total CO2 for 2025, 49,908 t of it to be reported under Directive 2003/87/EC, per the 2025 file (version 58 of 2026-09-15)."
+    },
+    {
+      "id": "mrv-ship-by-imo-2024",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "What CO2 emissions did the ship with IMO number 9321483 report in THETIS-MRV for 2024?",
+      "answer": "EMMA MAERSK (IMO 9321483, Maersk A/S) reported 90,420 t of total CO2 for 2024, 51,024 t of it to be reported under Directive 2003/87/EC, on one full emissions report, per the 2024 file (version 243 of 2026-09-19)."
+    },
+    {
+      "id": "external-statistic-mrv-2023",
+      "kind": "out_of_corpus",
+      "question": "What were total CO2 emissions reported by ships in THETIS-MRV for 2023?"
+    },
+    {
+      "id": "mrv-top-company-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "dataset"
+      ],
+      "question": "Which shipping company reported the most CO2 in THETIS-MRV for 2025?",
+      "answer": "MSC Shipmanagement Ltd (IMO company number 1535947): 9.03 Mt of total CO2 on 440 reports, 5.38 Mt of it to be reported under Directive 2003/87/EC, the most on either measure; Maersk A/S is next with 6.40 Mt and 3.44 Mt, per the 2025 file (version 58 of 2026-09-15)."
     }
   ]
 }

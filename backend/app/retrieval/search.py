@@ -2,8 +2,8 @@
 
 from collections.abc import Sequence
 
-from sqlalchemy import CTE, Select, cast, func, select, text, true
-from sqlalchemy.dialects.postgresql import TSQUERY
+from sqlalchemy import CTE, Select, String, cast, func, or_, select, text, true
+from sqlalchemy.dialects.postgresql import ARRAY, TSQUERY, TSVECTOR
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import TextRanker, config
@@ -187,6 +187,19 @@ async def hybrid_search(
     )
     rows = await session.execute(stmt)
     return tuple(SearchResult.model_validate(row) for row in rows)
+
+
+async def words_in_corpus(session: AsyncSession, words: Sequence[str]) -> set[str]:
+    """The words any chunk's text search matches, or too common for text search to index:
+    ordinary vocabulary, not a proper name."""
+    word = func.unnest(cast(list(words), ARRAY(String))).column_valued("word")
+    found = (
+        select(DocumentChunk.id)
+        .where(DocumentChunk.search_vector.bool_op("@@")(func.plainto_tsquery("english", word)))
+        .exists()
+    )
+    stopword = func.to_tsvector("english", word) == cast("", TSVECTOR)
+    return set(await session.scalars(select(word).where(or_(found, stopword))))
 
 
 async def search(session: AsyncSession, request: SearchRequest) -> tuple[SearchResult, ...]:

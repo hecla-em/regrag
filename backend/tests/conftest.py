@@ -527,13 +527,18 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
 
 
 @pytest.fixture(autouse=True)
-def no_card_match(monkeypatch: pytest.MonkeyPatch) -> None:
-    """No question sits near a tool's card, so a shut gate stays shut without an embed call."""
+def no_tool_match(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No question names anything in a tool's data or sits near its card, so a shut gate stays
+    shut without a lookup or an embed call."""
 
-    async def _no_match(question: str) -> tuple[str, ...]:
+    async def _no_card(question: str) -> tuple[str, ...]:
         return ()
 
-    monkeypatch.setattr("app.chat.graph.nodes.retrieve.match_tool_cards", _no_match)
+    async def _no_mention(question: str) -> dict[str, tuple[str, ...]]:
+        return {}
+
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.match_tool_cards", _no_card)
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.find_tool_mentions", _no_mention)
 
 
 @pytest.fixture

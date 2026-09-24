@@ -86,6 +86,22 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
         return ()
 
 
+async def find_tool_mentions(question: str) -> dict[str, tuple[str, ...]]:
+    """What the question names in each dataset tool's data, by tool; empty when it names
+    nothing or the lookup fails."""
+    try:
+        async with get_session(auto_commit=False) as session:
+            found = {
+                spec.name: await spec.find_mentions(session, question)
+                for spec in TOOLS.values()
+                if spec.find_mentions
+            }
+    except SQLAlchemyError as exc:
+        logger.warning("tool mention lookup failed: %s", exc)
+        return {}
+    return {name: mentions for name, mentions in found.items() if mentions}
+
+
 async def embed_tool_cards() -> dict[str, list[float]]:
     """Every tool card's embedding by tool name, embedded on first use."""
     if not TOOL_CARD_EMBEDDINGS:

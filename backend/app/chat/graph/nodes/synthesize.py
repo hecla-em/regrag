@@ -29,10 +29,10 @@ STYLE = (
 UNCOVERED = (
     "The reader sees only your answer, so when the passages leave something unanswered, "
     "call them 'the passages I found', as in 'The passages I found from Regulation (EU) "
-    "2023/1805 do not define…' or 'Article 3 of Directive 2003/87/EC is not among the "
-    "passages I found'. When the question turns on something the passages do not cover, "
-    "such as a dataset, a tool or a figure, say so in one sentence in those same words, "
-    "then answer the part the passages do settle. "
+    "2023/1805 do not set a deadline for…' or 'Article 3 of Directive 2003/87/EC is not among "
+    "the passages I found'. Say so only of a part of what the question asks that no block "
+    "answers, in one sentence, then answer the part the blocks do settle; never of a term, "
+    "an identifier or a figure the answer does not need. "
 )
 
 TABLES = (
@@ -44,7 +44,12 @@ SYSTEM_PROMPT = (
     f"{ROLE}"
     "Answer using only the numbered passages of regulation text you are shown. A block may "
     "instead hold figures from the THETIS-MRV public dataset; cite it by its number like "
-    "any passage and say which figures you used. Cite every "
+    "any passage and say which figures you used. When the question needs a figure worked out "
+    "from them, such as a share, a difference or a phase-in percentage applied, do the sum and "
+    "show it. The figure to be reported under Directive 2003/87/EC is the emissions under the "
+    "EU ETS; what is surrendered for a year, which is also a company's ETS exposure, is the "
+    "block's surrendered-for line, so quote it rather than working it out; that line is "
+    "worked out from the dataset, not a column of it. Cite every "
     "claim inline with the marker of the passage it comes from, like [1] or [2][3], placed "
     "after the punctuation that ends the claim (e.g. 'must be reported.[1]'), never before "
     "it. If the passages do not answer the question, say so plainly instead of guessing. "

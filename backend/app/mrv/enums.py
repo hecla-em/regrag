@@ -8,3 +8,11 @@ class MrvSheet(StrEnum):
 
     FULL = "full"
     PARTIAL = "partial"
+
+
+class MrvGrouping(StrEnum):
+    """What a query's figures are summed per: report type, company, or ship."""
+
+    REPORT_TYPE = "report_type"
+    COMPANY = "company"
+    SHIP = "ship"

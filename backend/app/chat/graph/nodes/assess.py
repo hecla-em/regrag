@@ -39,17 +39,27 @@ ASSESS_SYSTEM_PROMPT = (
     "that line's document number and division; search runs a fresh corpus search — "
     "use it when a needed concept is named without a citation, or a part of the "
     "question has no context at all, narrowing with celex when the act is known. "
-    "mrv_query reads the THETIS-MRV public dataset's fleet CO2 totals for a reporting "
-    "period — use it when the question asks for or quotes such a figure. "
+    "mrv_query reads one reporting period of the THETIS-MRV public dataset: how many emissions "
+    "reports were filed and their CO2 totals, for the whole fleet or narrowed to a company or "
+    "ship named in the question, summed per report type (Full, Partial) or per company or ship "
+    "to rank them or list a company's ships, and how the ETS figure compares with the ETS scope "
+    "split — use it whenever the answer needs one of those figures or one worked out from "
+    "them, such as a share, a change between periods, a company's exposure or an amount to "
+    "surrender, or turns on what the dataset's figures include; the regulations say what is "
+    "to be reported, never what the dataset holds, so a "
+    "question about the dataset needs mrv_query even when the blocks state the rule. An "
+    "amount to surrender or a company's exposure needs both mrv_query and, unless the context "
+    "shows it, follow_reference to Article 3gb of Directive 2003/87/EC (32003L0087), the "
+    "phase-in. You get one round, so call every tool the question needs together. "
     "Never re-fetch what the context already shows. You never answer the question "
     "yourself: your output is tool calls, or nothing when the context suffices."
 )
 
 ASSESS_REFUSAL_INSTRUCTION = (
     " If no block bears on the question and no search or fetch of this corpus of EU "
-    "maritime regulation could — it asks about another regime, about a named company, "
-    "ship or event, for a figure neither a provision nor mrv_query holds, or about a "
-    "topic outside the corpus — call refuse, alone, saying why. Blocks on the "
+    "maritime regulation could — it asks about another regime, about an event, for a "
+    "figure neither a provision nor mrv_query holds, or about a topic outside the corpus — "
+    "call refuse, alone, saying why. Blocks on the "
     "subject the question touches that do not answer it are not a part answer. Never call "
     "it on a question the context answers in part, or one a search or fetch might yet "
     "answer."
@@ -86,16 +96,22 @@ def cites_line(block: ContextBlock) -> str:
 
 
 def build_assess_message(
-    question: str, sources: Sequence[ContextBlock], matched_tools: Sequence[str] = ()
+    question: str,
+    sources: Sequence[ContextBlock],
+    matched_tools: Sequence[str] = (),
+    mentions: Sequence[str] = (),
 ) -> str:
     """The full assess turn: the numbered blocks with their cites lines, or, when only a
-    tool's card opened the gate, which tools the question matched; then the question."""
-    if not sources:
-        return (
-            "Context: no corpus passage matched. The question matches what these tools hold: "
-            f"{', '.join(matched_tools)}.\n\nQuestion: {question}"
-        )
-    return f"Context:\n\n{format_context(sources, cites_line)}\n\nQuestion: {question}"
+    tool opened the gate, which tools the question matched; what the question names in a
+    dataset's data; then the question."""
+    context = (
+        f"Context:\n\n{format_context(sources, cites_line)}"
+        if sources
+        else "Context: no corpus passage matched. The question matches what these tools hold: "
+        f"{', '.join(matched_tools)}."
+    )
+    named = f"\n\nThe question names {'; '.join(mentions)}." if mentions else ""
+    return f"{context}{named}\n\nQuestion: {question}"
 
 
 def assess_model() -> Runnable:
@@ -118,7 +134,9 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
             )
         ),
         *thread_messages(state.history),
-        HumanMessage(build_assess_message(state.question, state.sources, state.matched_tools)),
+        HumanMessage(
+            build_assess_message(state.question, state.sources, state.matched_tools, state.mentions)
+        ),
     ]
     response = await assess_model().ainvoke(messages)
     asked = [ToolCall(name=c["name"], args=c["args"]) for c in response.tool_calls]

@@ -110,8 +110,10 @@ class ChatState(AppModel):
     sources: the context blocks that reached the prompt, which the [n] markers number.
     retrieved_sources: how many blocks retrieve left, the base the loop's growth is budgeted
         against; sources grows each round, so the budget cannot be read off it.
-    matched_tools: the dataset tools whose card opened a gate the corpus shut; empty when the
-        corpus cleared it or nothing did.
+    matched_tools: the dataset tools whose card, or a name the question gives, opened a gate
+        the corpus shut; empty when the corpus cleared it or nothing did.
+    mentions: what the question names in a dataset tool's data, like 'Carras (Hellas) S.A.,
+        a company in THETIS-MRV', for assess to read beside the context.
     pending_calls: the tool calls assess asked for, not yet executed. Only a tool round
         starts holding any, since each round clears the calls it ran; the stream reads a
         round off that.
@@ -136,6 +138,7 @@ class ChatState(AppModel):
     sources: tuple[ContextBlock, ...] = ()
     retrieved_sources: int = 0
     matched_tools: tuple[str, ...] = ()
+    mentions: tuple[str, ...] = ()
     pending_calls: tuple[ToolCall, ...] = ()
 
     # The path
