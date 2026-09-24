@@ -147,15 +147,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "6340c4ca0057",
-            "48d5c06d7685",
-            "fa6b3bf7a5f8",
-            "e7790e3795e3",
-            "6899518dae11",
-            "ff976e399207",
-            "19de6bcc1afc",
-            "5ab19d4aacb0",
-            "278bdf90a66f"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -745,15 +738,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "6340c4ca0057",
-            "48d5c06d7685",
-            "fa6b3bf7a5f8",
-            "e7790e3795e3",
-            "6899518dae11",
-            "ff976e399207",
-            "19de6bcc1afc",
-            "5ab19d4aacb0",
-            "278bdf90a66f"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -966,8 +952,7 @@
           "celex": "32025R1127",
           "annex": "",
           "content_hashes": [
-            "684176b968b6",
-            "27efa84fb6eb"
+            "638cb40ecde3"
           ]
         }
       ]
@@ -997,15 +982,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "6340c4ca0057",
-            "48d5c06d7685",
-            "fa6b3bf7a5f8",
-            "e7790e3795e3",
-            "6899518dae11",
-            "ff976e399207",
-            "19de6bcc1afc",
-            "5ab19d4aacb0",
-            "278bdf90a66f"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -1052,8 +1030,7 @@
           "celex": "32023R1805",
           "annex": "III",
           "content_hashes": [
-            "adc551a8bc2b",
-            "aede7abf919b"
+            "91124cd9ad26"
           ]
         }
       ]
@@ -1489,14 +1466,13 @@
           "celex": "32023R1805",
           "annex": "I",
           "content_hashes": [
-            "5ec0aee3c672",
+            "2538b5115905",
             "dc6419824250",
             "b3051aed8274",
-            "247bcfc95a79",
-            "b8192e9ae878",
-            "ad05534c3b2d",
-            "99f686f65b4e",
-            "a4c680c4a84d"
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
           ]
         }
       ]
@@ -1511,15 +1487,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "6340c4ca0057",
-            "48d5c06d7685",
-            "fa6b3bf7a5f8",
-            "e7790e3795e3",
-            "6899518dae11",
-            "ff976e399207",
-            "19de6bcc1afc",
-            "5ab19d4aacb0",
-            "278bdf90a66f"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -1632,15 +1601,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "6340c4ca0057",
-            "48d5c06d7685",
-            "fa6b3bf7a5f8",
-            "e7790e3795e3",
-            "6899518dae11",
-            "ff976e399207",
-            "19de6bcc1afc",
-            "5ab19d4aacb0",
-            "278bdf90a66f"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         },
         {
@@ -1657,7 +1619,7 @@
       "id": "formula-mrv-ghg-co2-equivalent",
       "kind": "in_corpus",
       "question": "Under the EU MRV Regulation, how do I combine my ship's CO2, methane and nitrous oxide into one greenhouse gas figure in CO2 equivalent?",
-      "answer": "GHG_MRV = CO2_MRV + CH4_MRV × GWP_CH4 + N2O_MRV × GWP_N2O, in tonnes of CO2 equivalent. CO2_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CO2,i. CH4_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CH4,i plus CH4_S, the methane released uncombusted, which is set equal to M_i,NC. N2O_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_N2O,i. M_i is the total mass of fuel i used, and M_i,NC the mass not combusted, the sum over fuels i and emission sources j of M_i,j × C_j / 100 with C_j the slippage coefficient in percent. The emission factors are the tank-to-wake factors in the table under point 2 of that Part of Annex I. GWP_CH4 and GWP_N2O are the 100-year global warming potentials in the Annex to Delegated Regulation (EU) 2020/1044, not values taken from another act.",
+      "answer": "GHG_MRV = CO2_MRV + CH4_MRV × GWP_CH4 + N2O_MRV × GWP_N2O, in tonnes of CO2 equivalent. CO2_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CO2,i. CH4_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CH4,i plus CH4_S, the methane released uncombusted, which is set equal to M_i,NC. N2O_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_N2O,i. M_i is the total mass of fuel i used, and M_i,NC the mass not combusted, the sum over fuels i and emission sources j of M_i,j × C_j / 100 with C_j the slippage coefficient in percent. The emission factors are the tank-to-wake factors in the table under point 2 of that Part of Annex I. GWP_CH4 and GWP_N2O are the 100-year global warming potentials in the Annex to Delegated Regulation (EU) 2020/1044: 28 for CH4 and 265 for N2O, not values taken from another act.",
       "references": [
         {
           "celex": "32015R0757",
@@ -1680,6 +1642,13 @@
             "38f336324b99",
             "9c4a6e610e8e",
             "9ef495a9a035"
+          ]
+        },
+        {
+          "celex": "32020R1044",
+          "annex": "",
+          "content_hashes": [
+            "281c103bcb84"
           ]
         }
       ]
