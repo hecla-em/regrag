@@ -74,7 +74,7 @@ async def _ingest_document(
             fetched = await fetch_document(
                 session, client=client, discovered=document, previous=previous, run=run, store=store
             )
-            parsed = parse_document(fetched.raw, fetched.html)
+            parsed = parse_document(fetched.raw, fetched.html, fetched.formex)
             chunks = await chunk_and_store_document(session, parsed, ingest_run_id=run.id)
     except DocumentFailed as failure:
         return DocumentOutcome(

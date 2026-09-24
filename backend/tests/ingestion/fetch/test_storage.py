@@ -8,7 +8,7 @@ from app.core.storage import LocalObjectStore, StorageError
 from app.ingestion.enums import IngestRunStatus
 from app.ingestion.exceptions import EmptyDownloadError
 from app.ingestion.fetch.schemas import RawDocument
-from app.ingestion.fetch.storage import document_key, read_document, write_document
+from app.ingestion.fetch.storage import HTML_EXTENSION, object_key, read_document, write_document
 from app.ingestion.schemas import IngestRun
 
 HTML = b"<html>act</html>"
@@ -53,7 +53,7 @@ def test_read_refuses_bytes_that_are_not_the_ones_the_row_recorded(
     """A restore can leave the row and the object disagreeing; parsing the wrong version is
     worse than failing."""
     document = store_document(run(), HTML)
-    key = document_key(document.celex, document.resolved_celex, document.sha256)
+    key = object_key(document.celex, document.resolved_celex, document.sha256, HTML_EXTENSION)
     local_store.put(key, b"<html>something else</html>")
 
     with pytest.raises(StorageError, match="verify failed"):

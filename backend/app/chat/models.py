@@ -52,15 +52,13 @@ class ChatStepResult(FrozenModel):
 
     @classmethod
     def from_reply(cls, step: ChatNode | ToolStep, ms: int, reply: AIMessage) -> "ChatStepResult":
-        """The result of a step that called a model: what the reply says it spent, priced at
-        the model litellm's wrapper stamps on it, unmeasured if the provider reported none."""
-        model = reply.response_metadata.get("model_name")
-        usage = reply.usage_metadata
+        """The result of a step that called a model: what the reply says it spent, and the
+        model litellm's wrapper stamps on it."""
         return cls(
             step=step,
             ms=ms,
-            usage=Usage.from_metadata(usage, model) if usage else None,
-            model=model,
+            usage=Usage.from_reply(reply),
+            model=reply.response_metadata.get("model_name"),
         )
 
 

@@ -22,7 +22,7 @@ from tests.chat.conftest import (
     fake_chat_model,
     run_graph,
 )
-from tests.conftest import REPORTED_USAGE, install_chat_model
+from tests.conftest import BILLED_COST_USD, REPORTED_USAGE, install_chat_model
 
 pytestmark = pytest.mark.anyio
 
@@ -39,7 +39,7 @@ def finished_steps(data: Any) -> list[ChatStepResult]:
 
 
 def litellm_stream(
-    monkeypatch, *deltas: dict[str, Any], usage: dict[str, int] | None = None
+    monkeypatch, *deltas: dict[str, Any], usage: dict[str, float] | None = None
 ) -> list[dict[str, Any]]:
     """Stand litellm's completion call in with these deltas — and, as litellm reports it
     when asked, a trailing usage-only chunk; the calls made are returned."""
@@ -77,13 +77,18 @@ async def test_the_chat_client_streams_each_litellm_delta_and_the_usage_sent_aft
 ):
     """The seam below the fakes: chat_model()'s ChatLiteLLM asks litellm to stream and to
     report usage, which litellm strips from streamed chunks unless asked. Each delta reaches
-    the graph's message stream as it lands, and the usage-only chunk sent last becomes
-    synthesize's tokens."""
+    the graph's message stream as it lands, and the usage-only chunk sent last, carrying
+    what OpenRouter billed, becomes synthesize's tokens and cost."""
     calls = litellm_stream(
         monkeypatch,
         {"role": "assistant", "content": "Ships must "},
         {"content": "comply [1]."},
-        usage={"prompt_tokens": 1500, "completion_tokens": 40, "total_tokens": 1540},
+        usage={
+            "prompt_tokens": 1500,
+            "completion_tokens": 40,
+            "total_tokens": 1540,
+            "cost": BILLED_COST_USD,
+        },
     )
     texts: list[str] = []
     steps: list[ChatStepResult] = []

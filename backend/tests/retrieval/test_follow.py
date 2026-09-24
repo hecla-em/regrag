@@ -95,7 +95,7 @@ async def test_an_annex_comes_back_in_document_order(
         DocumentChunk.celex == "32015R0757", DocumentChunk.annex == "I"
     )
     order = {id_: position for id_, position in await db_session.execute(positions)}
-    assert len(found) == 5
+    assert len(found) == 3
     assert [order[chunk.id] for chunk in found] == sorted(order.values())
 
 

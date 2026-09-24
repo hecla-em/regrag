@@ -402,30 +402,12 @@
     "celex": "32023R1805",
     "topic": "fueleu",
     "act_title": null,
-    "kind": "table",
-    "text": "1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9\n | WtT | TtW\nFuel Class | Pathway name | LCV [formula] | CO2eq WtT [formula] | Fuel Consumer Unit Class | [formula] [formula] | [formula] [formula] | [formula] [formula] | Cslip As % of the mass of the fuel used by the engine\nFossil | HFO ISO 8217 Grades RME to RMK | 0,0405 | 13,5 | ALL ICEs | 3,114 | 0,00005 | 0,00018 | -\nLFO ISO 8217 Grades RMA to RMD | 0,041 | 13,2 | ALL ICEs | 3,151 | 0,00005 | 0,00018 | -",
+    "kind": "paragraph",
+    "text": "The default emission factors contained in the table below shall be used for the determination of the GHG intensity index referred to in Annex I of this Regulation, except where companies diverge from those default emission factors in application of Article 10(4) and (5) of this Regulation.\nIn the table below:\n— TBM stands for To Be Measured,\n— N/A stands for Not Available,\n— The dash means not applicable,\n— E is established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V and Part B of Annex VI.\nWhere a cell indicates either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the highest default value of the fuel class in the same column shall be used.\nWhere, for a particular fuel class, all cells in the same column indicate either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the default value of the least favourable fossil fuel pathway shall be used. This rule does not apply to column 9, where TBM or N/A refers to non-available values for the fuel consumer. In case of no default value, a certified value in accordance with Article 10(5) should be used.\n1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9\n | WtT | TtW\nFuel Class | Pathway name | LCV [formula] | CO2eq WtT [formula] | Fuel Consumer Unit Class | [formula] [formula] | [formula] [formula] | [formula] [formula] | Cslip As % of the mass of the fuel used by the engine\nFossil | HFO ISO 8217 Grades RME to RMK | 0,0405 | 13,5 | ALL ICEs | 3,114 | 0,00005 | 0,00018 | -\nLFO ISO 8217 Grades RMA to RMD | 0,041 | 13,2 | ALL ICEs | 3,151 | 0,00005 | 0,00018 | -",
     "paragraph": null,
     "part": 1,
     "parts": 1,
     "position": 14,
-    "points": [],
-    "references": [],
-    "citation": "Annex II"
-  },
-  {
-    "article": null,
-    "annex": "II",
-    "title": "Default emission factors",
-    "heading_path": [],
-    "celex": "32023R1805",
-    "topic": "fueleu",
-    "act_title": null,
-    "kind": "paragraph",
-    "text": "The default emission factors contained in the table below shall be used for the determination of the GHG intensity index referred to in Annex I of this Regulation, except where companies diverge from those default emission factors in application of Article 10(4) and (5) of this Regulation.\nIn the table below:\n— TBM stands for To Be Measured,\n— N/A stands for Not Available,\n— The dash means not applicable,\n— E is established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V and Part B of Annex VI.\nWhere a cell indicates either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the highest default value of the fuel class in the same column shall be used.\nWhere, for a particular fuel class, all cells in the same column indicate either TBM or N/A, unless a value is demonstrated in accordance with Article 10, the default value of the least favourable fossil fuel pathway shall be used. This rule does not apply to column 9, where TBM or N/A refers to non-available values for the fuel consumer. In case of no default value, a certified value in accordance with Article 10(5) should be used.\nColumn 1 identifies the class of the fuels, namely fossils fuels, liquid biofuels, gaseous biofuels and e-fuels.\nColumn 2 identifies the name or the pathways of the relevant fuels within the class.\nColumn 3 contains the lower calorific value of the fuels in [MJ/g]. For liquid biofuels, values of energy content by weight (lower calorific value, MJ/kg) as set out in Annex III to Directive (EU) 2018/2001 shall be converted in [MJ/g] and used.\nColumn 4 contains the WtT GHG emission factors in [gCO2eq/MJ]:",
-    "paragraph": null,
-    "part": 1,
-    "parts": 3,
-    "position": 15,
     "points": [],
     "references": [
       {
@@ -477,14 +459,6 @@
         "annex": null
       },
       {
-        "raw": "Annex III to Directive (EU) 2018/2001",
-        "instrument": "32018L2001",
-        "article": null,
-        "paragraph": null,
-        "point": null,
-        "annex": "III"
-      },
-      {
         "raw": "Directive (EU) 2018/2001",
         "instrument": "32018L2001",
         "article": null,
@@ -504,16 +478,24 @@
     "topic": "fueleu",
     "act_title": null,
     "kind": "paragraph",
-    "text": "(a) For liquid biofuels, the default values shall be calculated by using the values of E established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V to that Directive for all liquid biofuels except bio-LNG and Part B of Annex VI to that Directive for bio-LNG, and on the basis of default values related to the particular biofuel used as a transport fuel and its production pathway, laid down in that Directive, Parts D and E of Annex V to that Directive for all liquid biofuels except bio-LNG and in Part D of Annex VI to that Directive for bio-LNG. However, the values of E need to be adjusted by subtracting the ratio of the values contained in column 6 (Cf_CO2) and column 3 (LCV). This is required under this Regulation, which separates the WtT and the TtW calculations, to avoid double counting of emissions;\n(b) For RFNBO and other fuels not referred to in point (a) to be taken into account for the purpose referred to in Article 4(1) of this Regulation, default values are to be either calculated by using the methodology of the delegated act referred to in Article 28(5) of Directive (EU) 2018/2001, or, if applicable, a similar methodology if defined under a Union legal act concerning the internal markets in renewable and natural gases and in hydrogen, pursuant to Article 10(1) and (2) of this Regulation.\nColumn 5 identifies the main types/classes of fuel consumer units such as 2 and 4 strokes Internal Combustion Engines (ICE) Diesel or Otto cycle, Lean-Burn Spark-Ignited (LBSI) engines, fuel cells, etc.\nColumn 6 contains the emission factor Cf for CO2 in [gCO2/gfuel]. Emission factors values as specified in Regulation (EU) 2015/757 shall be used. For all those fuels not contained in Regulation (EU) 2015/757, the default values are specified in the table.\nColumn 7 contains the emission factor Cf for methane in [gCH4/gfuel]. For LNG fuels, Cf for methane are set to zero.",
+    "text": "Column 1 identifies the class of the fuels, namely fossils fuels, liquid biofuels, gaseous biofuels and e-fuels.\nColumn 2 identifies the name or the pathways of the relevant fuels within the class.\nColumn 3 contains the lower calorific value of the fuels in [MJ/g]. For liquid biofuels, values of energy content by weight (lower calorific value, MJ/kg) as set out in Annex III to Directive (EU) 2018/2001 shall be converted in [MJ/g] and used.\nColumn 4 contains the WtT GHG emission factors in [gCO2eq/MJ]:\n(a) For liquid biofuels, the default values shall be calculated by using the values of E established in accordance with the methodologies laid down in Directive (EU) 2018/2001, Part C of Annex V to that Directive for all liquid biofuels except bio-LNG and Part B of Annex VI to that Directive for bio-LNG, and on the basis of default values related to the particular biofuel used as a transport fuel and its production pathway, laid down in that Directive, Parts D and E of Annex V to that Directive for all liquid biofuels except bio-LNG and in Part D of Annex VI to that Directive for bio-LNG. However, the values of E need to be adjusted by subtracting the ratio of the values contained in column 6 (Cf_CO2) and column 3 (LCV). This is required under this Regulation, which separates the WtT and the TtW calculations, to avoid double counting of emissions;\n(b) For RFNBO and other fuels not referred to in point (a) to be taken into account for the purpose referred to in Article 4(1) of this Regulation, default values are to be either calculated by using the methodology of the delegated act referred to in Article 28(5) of Directive (EU) 2018/2001, or, if applicable, a similar methodology if defined under a Union legal act concerning the internal markets in renewable and natural gases and in hydrogen, pursuant to Article 10(1) and (2) of this Regulation.",
     "paragraph": null,
-    "part": 2,
-    "parts": 3,
-    "position": 16,
+    "part": 1,
+    "parts": 2,
+    "position": 15,
     "points": [
       "a",
       "b"
     ],
     "references": [
+      {
+        "raw": "Annex III to Directive (EU) 2018/2001",
+        "instrument": "32018L2001",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": "III"
+      },
       {
         "raw": "Annex V",
         "instrument": null,
@@ -561,14 +543,6 @@
         "paragraph": null,
         "point": null,
         "annex": null
-      },
-      {
-        "raw": "Regulation (EU) 2015/757",
-        "instrument": "32015R0757",
-        "article": null,
-        "paragraph": null,
-        "point": null,
-        "annex": null
       }
     ],
     "citation": "Annex II"
@@ -582,13 +556,22 @@
     "topic": "fueleu",
     "act_title": null,
     "kind": "paragraph",
-    "text": "Column 8 contains the emission factor Cf for nitrous oxide in [gN2O/gfuel].\nColumn 9 identifies the part of fuel lost as fugitive and slipped emissions (Cslip) measured as % of the mass of fuel used by the specific fuel consumer unit. For fuels such as LNG for which the fugitive and slipped emissions exist, the amount of fugitive and slipped emissions as presented in the table is expressed in % of the mass of fuel used (Column 9). The values of Cslip in the table are calculated at 50 % of the full engine load.",
+    "text": "Column 5 identifies the main types/classes of fuel consumer units such as 2 and 4 strokes Internal Combustion Engines (ICE) Diesel or Otto cycle, Lean-Burn Spark-Ignited (LBSI) engines, fuel cells, etc.\nColumn 6 contains the emission factor Cf for CO2 in [gCO2/gfuel]. Emission factors values as specified in Regulation (EU) 2015/757 shall be used. For all those fuels not contained in Regulation (EU) 2015/757, the default values are specified in the table.\nColumn 7 contains the emission factor Cf for methane in [gCH4/gfuel]. For LNG fuels, Cf for methane are set to zero.\nColumn 8 contains the emission factor Cf for nitrous oxide in [gN2O/gfuel].\nColumn 9 identifies the part of fuel lost as fugitive and slipped emissions (Cslip) measured as % of the mass of fuel used by the specific fuel consumer unit. For fuels such as LNG for which the fugitive and slipped emissions exist, the amount of fugitive and slipped emissions as presented in the table is expressed in % of the mass of fuel used (Column 9). The values of Cslip in the table are calculated at 50 % of the full engine load.",
     "paragraph": null,
-    "part": 3,
-    "parts": 3,
-    "position": 17,
+    "part": 2,
+    "parts": 2,
+    "position": 16,
     "points": [],
-    "references": [],
+    "references": [
+      {
+        "raw": "Regulation (EU) 2015/757",
+        "instrument": "32015R0757",
+        "article": null,
+        "paragraph": null,
+        "point": null,
+        "annex": null
+      }
+    ],
     "citation": "Annex II"
   }
 ]
