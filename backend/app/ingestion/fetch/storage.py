@@ -57,3 +57,34 @@ def read_document(store: ObjectStore, document: RawDocument) -> bytes:
     if hashlib.sha256(html).hexdigest() != document.sha256:
         raise StoredBytesMismatchError("verify", key, "stored bytes do not match the recorded hash")
     return html
+
+
+INLINE_IMAGE = b'src="data:image'
+"""How the XHTML inlines a drawn formula; only a version with one needs its Formex."""
+
+
+def needs_formex(html: bytes) -> bool:
+    """Whether the XHTML draws an inline image, whose formula only Formex carries as markup."""
+    return INLINE_IMAGE in html
+
+
+def formex_key(celex: str, resolved_celex: str, sha256: str) -> str:
+    """Where a version's Formex zip lives, beside its XHTML and keyed by content the same way."""
+    return f"{celex}/{resolved_celex}/{sha256}.fmx4.zip"
+
+
+def write_formex(store: ObjectStore, celex: str, resolved_celex: str, formex: bytes) -> str:
+    """Store a version's Formex zip and return its sha256."""
+    sha256 = hashlib.sha256(formex).hexdigest()
+    store.put(formex_key(celex, resolved_celex, sha256), formex)
+    return sha256
+
+
+def read_formex(store: ObjectStore, document: RawDocument) -> bytes:
+    """The Formex zip stored for a document, refusing any that is not the one the row recorded."""
+    assert document.formex_sha256 is not None
+    key = formex_key(document.celex, document.resolved_celex, document.formex_sha256)
+    formex = store.get(key)
+    if hashlib.sha256(formex).hexdigest() != document.formex_sha256:
+        raise StoredBytesMismatchError("verify", key, "stored bytes do not match the recorded hash")
+    return formex

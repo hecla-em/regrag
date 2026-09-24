@@ -10,6 +10,9 @@ DOCUMENT_URL_TEMPLATE = "https://publications.europa.eu/resource/celex/{celex}"
 DOCUMENT_HEADERS = {"Accept": "application/xhtml+xml", "Accept-Language": "eng"}
 """Content negotiation picks the English XHTML manifestation; CELLAR wants the three-letter code."""
 
+FORMEX_HEADERS = {"Accept": "application/zip;mtype=fmx4", "Accept-Language": "eng"}
+"""The same negotiation for the Formex zip, EUR-Lex's XML, which carries formulas as markup."""
+
 
 def _is_version_missing(response: httpx.Response) -> bool:
     """CELLAR answers 404 for a version it holds no English text for."""
@@ -21,6 +24,19 @@ async def _download_version_html(client: httpx.AsyncClient, version_celex: str) 
     """The XHTML CELLAR serves for one version, or None if it denies having that version."""
     response = await client.get(
         DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=DOCUMENT_HEADERS
+    )
+    if _is_version_missing(response):
+        return None
+
+    response.raise_for_status()
+    return response.content
+
+
+@http_retry
+async def download_version_formex(client: httpx.AsyncClient, version_celex: str) -> bytes | None:
+    """The Formex zip CELLAR serves for one version, or None if it has none."""
+    response = await client.get(
+        DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=FORMEX_HEADERS
     )
     if _is_version_missing(response):
         return None

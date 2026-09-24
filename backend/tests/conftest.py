@@ -55,7 +55,7 @@ from app.ingestion.discover.models import ActsQueryRow
 from app.ingestion.discover.sparql import run_acts_by_topic_query
 from app.ingestion.embed.batch import embed_batch
 from app.ingestion.enums import CITED_TOPIC, IngestRunStatus, SectionKind
-from app.ingestion.fetch.download import _download_version_html
+from app.ingestion.fetch.download import _download_version_html, download_version_formex
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.storage import write_document
 from app.ingestion.parse.html.document import parse_eurlex_html
@@ -67,6 +67,7 @@ from app.retrieval.models import RetrievedChunk, SearchResult
 RETRIED = (
     run_acts_by_topic_query,
     _download_version_html,
+    download_version_formex,
     embed_batch,
     call_rewrite_model,
     call_decompose_model,
@@ -548,6 +549,8 @@ def corpus_client() -> Callable[..., tuple[httpx.AsyncClient, list[str]]]:
                         return sparql[topic]
                 raise AssertionError(f"no base act in query: {query[:80]}")
             celex = request.url.path.rsplit("/", 1)[-1]
+            if "mtype=fmx4" in request.headers.get("accept", ""):
+                return docs.get(f"{celex}.fmx4", httpx.Response(404))
             calls.append(celex)
             return docs[celex]
 

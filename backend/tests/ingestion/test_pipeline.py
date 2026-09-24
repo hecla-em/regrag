@@ -503,10 +503,10 @@ async def test_a_row_that_will_not_flush_fails_only_its_own_document(
     real = fetch_stage._download_new_version
 
     async def unstorable(client, store, discovered, run):
-        document, content = await real(client, store, discovered, run)
+        document, content, formex = await real(client, store, discovered, run)
         if discovered.celex == "32015R0757":
             document.size_bytes = 2**40
-        return document, content
+        return document, content, formex
 
     monkeypatch.setattr(fetch_stage, "_download_new_version", unstorable)
     report = await ingest_mrv(db_session, local_store, corpus_client)
