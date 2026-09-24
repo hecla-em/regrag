@@ -35,8 +35,10 @@ def upgrade() -> None:
         sa.Column("imo", sa.String(), nullable=False),
         sa.Column("ship_name", sa.String(), nullable=False),
         sa.Column("ship_type", sa.String(), nullable=False),
+        sa.Column("ship_key", sa.String(), nullable=False),
         sa.Column("company_imo", sa.String(), nullable=True),
         sa.Column("company_name", sa.String(), nullable=True),
+        sa.Column("company_key", sa.String(), nullable=True),
         sa.Column("co2_total", sa.Float(), nullable=True),
         sa.Column("co2_ets", sa.Float(), nullable=True),
         sa.Column("co2_between_ms", sa.Float(), nullable=True),
@@ -58,8 +60,18 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_mrv_reports_period_sheet", "mrv_reports", ["period", "sheet"], unique=False)
+    op.create_index(
+        "ix_mrv_reports_company_key",
+        "mrv_reports",
+        ["company_key"],
+        unique=False,
+        postgresql_ops={"company_key": "text_pattern_ops"},
+    )
+    op.create_index("ix_mrv_reports_ship_key", "mrv_reports", ["ship_key"], unique=False)
 
 
 def downgrade() -> None:
+    op.drop_index("ix_mrv_reports_ship_key", table_name="mrv_reports")
+    op.drop_index("ix_mrv_reports_company_key", table_name="mrv_reports")
     op.drop_index("ix_mrv_reports_period_sheet", table_name="mrv_reports")
     op.drop_table("mrv_reports")

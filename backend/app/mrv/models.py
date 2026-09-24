@@ -25,6 +25,14 @@ ETS_PHASE_IN = {2024: 0.40, 2025: 0.70}
 every later year is surrendered for in full."""
 
 
+class MrvFile(FrozenModel):
+    """One published file: its reporting period, EMSA's version of it, and when it was generated."""
+
+    period: int
+    version: int
+    generated: date
+
+
 class FigureTotals(FrozenModel):
     """CO2 in tonnes summed over a group of reports: a report type's, a company's, a ship's,
     or every report the query matched."""
@@ -110,9 +118,7 @@ class MrvBlock(FrozenModel):
         totals = [group.describe(self.phase_in) for group in (*self.groups, self.overall)]
         return "\n\n".join(part for part in [heading, shown, *totals, check] if part)
 
-    @property
-    def prompt_text(self) -> str:
-        return self.text
+    prompt_text = text
 
 
 class MrvQueryArgs(FrozenModel):
@@ -131,3 +137,13 @@ class MrvQueryArgs(FrozenModel):
         description="Sum per report type (Full, Partial), or per company or ship, largest ETS "
         "figure first, to rank them or list a company's ships.",
     )
+
+    @property
+    def subject(self) -> str:
+        """The query as the block's heading states it: 'company matching "Carras", per ship'."""
+        parts = [
+            f'{kind} matching "{value}"'
+            for kind, value in (("company", self.company), ("ship", self.ship))
+            if value
+        ]
+        return ", ".join([*parts, f"per {self.by.value.replace('_', ' ')}"])

@@ -10,11 +10,19 @@ from app.mrv.enums import MrvSheet
 
 
 class MrvReport(BaseSchema):
-    """One published report: the ship, its company, and its CO2 in tonnes, split by EU scope.
-    A period's rows are replaced whole by each load, stamped with EMSA's file version."""
+    """One published report: the ship, its company, their names as keys match them, and its CO2
+    in tonnes, split by EU scope. A load replaces a period whole, stamped with EMSA's version."""
 
     __tablename__ = "mrv_reports"
-    __table_args__ = (Index("ix_mrv_reports_period_sheet", "period", "sheet"),)
+    __table_args__ = (
+        Index("ix_mrv_reports_period_sheet", "period", "sheet"),
+        Index(
+            "ix_mrv_reports_company_key",
+            "company_key",
+            postgresql_ops={"company_key": "text_pattern_ops"},
+        ),
+        Index("ix_mrv_reports_ship_key", "ship_key"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     period: Mapped[int]
@@ -25,8 +33,10 @@ class MrvReport(BaseSchema):
     imo: Mapped[str]
     ship_name: Mapped[str]
     ship_type: Mapped[str]
+    ship_key: Mapped[str]
     company_imo: Mapped[str | None]
     company_name: Mapped[str | None]
+    company_key: Mapped[str | None]
     co2_total: Mapped[float | None]
     co2_ets: Mapped[float | None]
     co2_between_ms: Mapped[float | None]

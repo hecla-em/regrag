@@ -5,8 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.chat.blocks import ContextBlock
 from app.chat.enums import ToolStep
 from app.chat.toolbox.models import ToolSpec
+from app.mrv.entities import find_entities
 from app.mrv.models import MrvQueryArgs
-from app.mrv.service import find_named, query_reports
+from app.mrv.query import query_reports
 
 
 async def run_mrv_query(session: AsyncSession, args: MrvQueryArgs) -> tuple[ContextBlock, ...]:
@@ -32,5 +33,5 @@ MRV_QUERY = ToolSpec(
     "totals per reporting period, a company's or ship's ETS exposure, the largest emitters, the "
     "figure to be reported under the EU ETS, full and partial emissions reports, emissions "
     "between, to and from EU ports and at berth, the MRV download.",
-    find_mentions=find_named,
+    find_entities=find_entities,
 )

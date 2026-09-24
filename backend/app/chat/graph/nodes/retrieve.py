@@ -8,7 +8,7 @@ from typing import Any
 from app.chat.blocks import ContextBlock
 from app.chat.graph.node import traced
 from app.chat.models import ChatState
-from app.chat.toolbox.service import find_tool_mentions, match_tool_cards
+from app.chat.toolbox.service import find_tool_entities, match_tool_cards
 from app.core.config import config
 from app.core.db.session import get_session
 from app.retrieval.expand import expand_sections
@@ -54,11 +54,11 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
     searches = asyncio.gather(*(search_query(query) for query in queries))
     if config.ASSESS_ENABLED:
         per_query, named = await asyncio.gather(
-            searches, find_tool_mentions(state.retrieval_question)
+            searches, find_tool_entities(state.retrieval_question)
         )
     else:
         per_query, named = await searches, {}
-    mentions = tuple(mention for found in named.values() for mention in found)
+    entities = tuple(entity for found in named.values() for entity in found)
     hits = interleave_by_rank(per_query)
     cleared = [found for found in per_query if meets_thresholds(found)]
     if not cleared:
@@ -70,7 +70,7 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
             "sources": (),
             "retrieved_sources": 0,
             "matched_tools": matched,
-            "mentions": mentions,
+            "entities": entities,
         }
 
     sources: tuple[ContextBlock, ...] = interleave_by_rank(cleared)
@@ -82,5 +82,5 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
         "hits": hits,
         "sources": sources,
         "retrieved_sources": len(sources),
-        "mentions": mentions,
+        "entities": entities,
     }

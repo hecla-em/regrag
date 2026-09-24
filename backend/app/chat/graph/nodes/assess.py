@@ -99,7 +99,7 @@ def build_assess_message(
     question: str,
     sources: Sequence[ContextBlock],
     matched_tools: Sequence[str] = (),
-    mentions: Sequence[str] = (),
+    entities: Sequence[str] = (),
 ) -> str:
     """The full assess turn: the numbered blocks with their cites lines, or, when only a
     tool opened the gate, which tools the question matched; what the question names in a
@@ -110,7 +110,7 @@ def build_assess_message(
         else "Context: no corpus passage matched. The question matches what these tools hold: "
         f"{', '.join(matched_tools)}."
     )
-    named = f"\n\nThe question names {'; '.join(mentions)}." if mentions else ""
+    named = f"\n\nThe question names {'; '.join(entities)}." if entities else ""
     return f"{context}{named}\n\nQuestion: {question}"
 
 
@@ -135,7 +135,7 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
         ),
         *thread_messages(state.history),
         HumanMessage(
-            build_assess_message(state.question, state.sources, state.matched_tools, state.mentions)
+            build_assess_message(state.question, state.sources, state.matched_tools, state.entities)
         ),
     ]
     response = await assess_model().ainvoke(messages)

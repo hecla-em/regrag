@@ -534,11 +534,11 @@ def no_tool_match(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _no_card(question: str) -> tuple[str, ...]:
         return ()
 
-    async def _no_mention(question: str) -> dict[str, tuple[str, ...]]:
+    async def _no_entity(question: str) -> dict[str, tuple[str, ...]]:
         return {}
 
     monkeypatch.setattr("app.chat.graph.nodes.retrieve.match_tool_cards", _no_card)
-    monkeypatch.setattr("app.chat.graph.nodes.retrieve.find_tool_mentions", _no_mention)
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.find_tool_entities", _no_entity)
 
 
 @pytest.fixture

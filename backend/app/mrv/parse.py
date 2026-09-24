@@ -5,9 +5,9 @@ from typing import Any
 
 from openpyxl import load_workbook
 
-from app.mrv.download import MrvFile
 from app.mrv.enums import MrvSheet
-from app.mrv.models import FIGURE_LABELS
+from app.mrv.models import FIGURE_LABELS, MrvFile
+from app.mrv.names import company_key, name_key
 
 HEADER_ROW = 3
 COLUMNS = {
@@ -64,6 +64,10 @@ def parse_workbook(content: bytes, file: MrvFile) -> list[dict[str, Any]]:
                     "imo": str(row["imo"]),
                     "period_label": str(row["period_label"]),
                     "company_imo": str(row["company_imo"]) if row["company_imo"] else None,
+                    "company_key": company_key(row["company_name"])
+                    if row["company_name"]
+                    else None,
+                    "ship_key": name_key(row["ship_name"]),
                     "sheet": sheet_kind(sheet.title),
                     "period": file.period,
                     "version": file.version,

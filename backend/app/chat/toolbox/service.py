@@ -86,20 +86,20 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
         return ()
 
 
-async def find_tool_mentions(question: str) -> dict[str, tuple[str, ...]]:
+async def find_tool_entities(question: str) -> dict[str, tuple[str, ...]]:
     """What the question names in each dataset tool's data, by tool; empty when it names
     nothing or the lookup fails."""
     try:
         async with get_session(auto_commit=False) as session:
             found = {
-                spec.name: await spec.find_mentions(session, question)
+                spec.name: await spec.find_entities(session, question)
                 for spec in TOOLS.values()
-                if spec.find_mentions
+                if spec.find_entities
             }
     except SQLAlchemyError as exc:
-        logger.warning("tool mention lookup failed: %s", exc)
+        logger.warning("tool entity lookup failed: %s", exc)
         return {}
-    return {name: mentions for name, mentions in found.items() if mentions}
+    return {name: entities for name, entities in found.items() if entities}
 
 
 async def embed_tool_cards() -> dict[str, list[float]]:

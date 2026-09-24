@@ -29,7 +29,7 @@ class ToolSpec(NamedTuple):
     run: Callable[..., Awaitable[tuple[ContextBlock, ...]]]
     description: str
     card: str | None = None
-    find_mentions: Callable[[AsyncSession, str], Awaitable[tuple[str, ...]]] | None = None
+    find_entities: Callable[[AsyncSession, str], Awaitable[tuple[str, ...]]] | None = None
 
     def definition(self) -> dict:
         """The tool as bind_tools wants it: an openai function-tool dictionary."""

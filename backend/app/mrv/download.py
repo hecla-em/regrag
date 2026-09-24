@@ -1,21 +1,13 @@
 """EMSA's published THETIS-MRV files: which exist, and one file's bytes."""
 
-from datetime import date, datetime
+from datetime import datetime
 
 import httpx
 
 from app.core.http import http_retry
-from app.core.models import FrozenModel
+from app.mrv.models import MrvFile
 
 API = "https://mrv.emsa.europa.eu/api/public-emission-report"
-
-
-class MrvFile(FrozenModel):
-    """One published file: its reporting period, EMSA's version of it, and when it was generated."""
-
-    period: int
-    version: int
-    generated: date
 
 
 @http_retry
