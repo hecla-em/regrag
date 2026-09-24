@@ -1618,6 +1618,71 @@
           ]
         }
       ]
+    },
+    {
+      "id": "formula-fueleu-rfnbo-subtarget",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "If the FuelEU RFNBO subtarget applies and my ship falls short of it, how are the shortfall and the penalty calculated?",
+      "answer": "The shortfall is the ship's RFNBO compliance balance in MJ: CB_RFNBO = 0.02 × (the sum over all fuels i of M_i × LCV_i) − (the sum over RFNBO fuels i of M_i × LCV_i), so 2 % of the yearly energy used on board minus the energy drawn from RFNBO or from fuels certified as giving equivalent GHG savings. If CB_RFNBO > 0, the penalty in EUR is CB_RFNBO / 41 000 × P_d, where 41 000 MJ is one metric tonne of VLSFO equivalent and P_d is the price difference between RFNBO and fossil fuel compatible with the ship's installation, calculated by a method the Commission sets in implementing acts. The 2 % subtarget only applies from 1 January 2034, and only if RFNBO made up less than 1 % of the energy used on board by ships in the 2031 reporting period.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "IV",
+          "content_hashes": [
+            "6340c4ca0057",
+            "48d5c06d7685",
+            "fa6b3bf7a5f8",
+            "e7790e3795e3",
+            "6899518dae11",
+            "ff976e399207",
+            "19de6bcc1afc",
+            "5ab19d4aacb0",
+            "278bdf90a66f"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "5",
+          "paragraph": "3",
+          "content_hashes": [
+            "dafc7e924cfc"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-mrv-ghg-co2-equivalent",
+      "kind": "in_corpus",
+      "question": "Under the EU MRV Regulation, how do I combine my ship's CO2, methane and nitrous oxide into one greenhouse gas figure in CO2 equivalent?",
+      "answer": "GHG_MRV = CO2_MRV + CH4_MRV × GWP_CH4 + N2O_MRV × GWP_N2O, in tonnes of CO2 equivalent. CO2_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CO2,i. CH4_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CH4,i plus CH4_S, the methane released uncombusted, which is set equal to M_i,NC. N2O_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_N2O,i. M_i is the total mass of fuel i used, and M_i,NC the mass not combusted, the sum over fuels i and emission sources j of M_i,j × C_j / 100 with C_j the slippage coefficient in percent. The emission factors are the tank-to-wake factors in the table under point 2 of that Part of Annex I. GWP_CH4 and GWP_N2O are the 100-year global warming potentials in the Annex to Delegated Regulation (EU) 2020/1044, not values taken from another act.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "annex": "I",
+          "content_hashes": [
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
+            "f65896f2be7f",
+            "102570ce21d2",
+            "7382dffa84ea",
+            "687618b8aafc",
+            "5a742135e2d8",
+            "ce657df84064",
+            "949049fb76a2",
+            "a718471450cf",
+            "38f336324b99",
+            "9c4a6e610e8e",
+            "9ef495a9a035"
+          ]
+        }
+      ]
     }
   ]
 }
