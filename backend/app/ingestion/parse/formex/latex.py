@@ -4,10 +4,12 @@ import re
 import unicodedata
 from xml.etree.ElementTree import Element
 
+from app.ingestion.exceptions import ParseError
+
 BRACKETS = {
     "BRACKET": ("\\left(", "\\right)"),
     "SQBRACKET": ("\\left[", "\\right]"),
-    "BRACE": ("\\left\\{", "\\right."),
+    "BRACE": ("\\left\\{", "\\right\\}"),
     "BAR": ("\\left|", "\\right|"),
 }
 OPERATORS = {"CARTPROD": "\\times", "PLUS": "+", "MINUS": "-", "MULT": "\\cdot", "DIV": "/"}
@@ -62,8 +64,12 @@ def element_to_latex(element: Element) -> str:
         upper = f"^{{{children_to_latex(over)}}}" if over is not None else ""
         return f"\\sum{lower}{upper}"
     if tag == "OP.MATH":
+        if kind not in OPERATORS:
+            raise ParseError(f"unknown Formex {tag} type {kind}")
         return f" {OPERATORS[kind]} "
     if tag == "OP.CMP":
+        if kind not in COMPARISONS:
+            raise ParseError(f"unknown Formex {tag} type {kind}")
         return f" {COMPARISONS[kind]} "
     if tag == "EXPR" and kind in BRACKETS:
         left, right = BRACKETS[kind]
@@ -82,16 +88,16 @@ def children_to_latex(element: Element | None) -> str:
     while index < len(children):
         child = children[index]
         if child.tag in SCRIPTS:
-            run = [child]
+            body = children_to_latex(child)
             while (
                 not (child.tail or "").strip()
                 and index + 1 < len(children)
                 and children[index + 1].tag == child.tag
             ):
+                separator = "\\," if child.tail else ""
                 index += 1
                 child = children[index]
-                run.append(child)
-            body = "".join(children_to_latex(c) for c in run)
+                body += separator + children_to_latex(child)
             parts.append(SCRIPTS[child.tag] + "{" + body + "}")
         else:
             parts.append(element_to_latex(child))

@@ -5,6 +5,7 @@ import re
 import zipfile
 from xml.etree import ElementTree
 
+from app.ingestion.exceptions import ParseError
 from app.ingestion.parse.formex.latex import formula_to_latex
 from app.ingestion.parse.html.text import FORMULA_PLACEHOLDER
 
@@ -19,7 +20,9 @@ FORMULA_IMAGE_RE = re.compile(r'CONTENT="FORMULA"')
 def document_files(archive: zipfile.ZipFile) -> list[str]:
     """The zip's body files in the order its manifest lists them."""
     names = set(archive.namelist())
-    manifest = next(name for name in names if name.endswith(MANIFEST_SUFFIX))
+    manifest = next((name for name in names if name.endswith(MANIFEST_SUFFIX)), None)
+    if manifest is None:
+        raise ParseError("Formex zip has no manifest")
     listed = MANIFEST_FILE_RE.findall(archive.read(manifest).decode("utf-8"))
     return [name for name in listed if name in names and not name.endswith(MANIFEST_SUFFIX)]
 

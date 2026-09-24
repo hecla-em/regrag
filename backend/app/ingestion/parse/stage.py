@@ -21,7 +21,6 @@ def parse_document(raw: RawDocument, html: bytes, formex: bytes | None) -> Parse
         UnicodeDecodeError,
         zipfile.BadZipFile,
         ElementTree.ParseError,
-        StopIteration,
     ) as exc:
         raise DocumentFailed(Stage.PARSE, raw.celex, exc) from exc
     return ParsedDocument(celex=raw.celex, topic=raw.topic, act_title=raw.title, sections=sections)
