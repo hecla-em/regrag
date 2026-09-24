@@ -42,8 +42,9 @@ TABLES = (
 )
 
 FORMULAS = (
-    "Quote a formula from a passage exactly as the passage writes it, between $$ and $$, "
-    "on a line of its own, and cite it in the sentence that introduces it. "
+    "Quote an equation from a passage exactly as the passage writes it, between $$ and $$, "
+    "on a line of its own, and cite it in the sentence that introduces it. Write a symbol "
+    "or short expression inside a sentence between single $, as in $M_{i}$. "
 )
 
 SYSTEM_PROMPT = (
