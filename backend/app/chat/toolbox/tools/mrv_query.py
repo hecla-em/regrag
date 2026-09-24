@@ -1,25 +1,25 @@
-"""mrv_figures: a reporting period's fleet CO2 totals from the THETIS-MRV public dataset."""
+"""mrv_query: a reporting period's fleet CO2 totals from the THETIS-MRV public dataset."""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.blocks import ContextBlock
 from app.chat.enums import ToolStep
 from app.chat.toolbox.models import ToolSpec
-from app.mrv.models import MrvFiguresArgs
-from app.mrv.service import fleet_figures
+from app.mrv.models import MrvQueryArgs
+from app.mrv.service import fleet_totals
 
 
-async def run_mrv_figures(session: AsyncSession, args: MrvFiguresArgs) -> tuple[ContextBlock, ...]:
+async def run_mrv_query(session: AsyncSession, args: MrvQueryArgs) -> tuple[ContextBlock, ...]:
     """The period's figures as one block, or nothing when the period is not loaded."""
-    block = await fleet_figures(session, args.period)
+    block = await fleet_totals(session, args.period)
     return (block,) if block else ()
 
 
-MRV_FIGURES = ToolSpec(
-    name="mrv_figures",
-    step=ToolStep.MRV_FIGURES,
-    args_model=MrvFiguresArgs,
-    run=run_mrv_figures,
+MRV_QUERY = ToolSpec(
+    name="mrv_query",
+    step=ToolStep.MRV_QUERY,
+    args_model=MrvQueryArgs,
+    run=run_mrv_query,
     description="Read one reporting period's fleet totals from the THETIS-MRV public dataset "
     "(2024 onward): CO2 in tonnes from the Full and Partial emissions reports and both together, "
     "as total, to be reported under the EU ETS, and split by EU scope (between, departed from, "

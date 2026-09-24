@@ -51,7 +51,7 @@ def to_figure(value: Any) -> float | None:
 
 
 def parse_workbook(content: bytes, file: MrvFile) -> list[dict[str, Any]]:
-    """Every report in both sheets as a row for ship_emissions."""
+    """Every report in both sheets as a row for mrv_reports."""
     workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
     rows: list[dict[str, Any]] = []
     for sheet in workbook.worksheets:

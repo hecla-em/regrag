@@ -8,6 +8,6 @@ from app.evals.schemas import EvalRun
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.schemas import IngestRun
-from app.mrv.schemas import ShipEmissions
+from app.mrv.schemas import MrvReport
 
-__all__ = ["ChatRequest", "DocumentChunk", "EvalRun", "IngestRun", "RawDocument", "ShipEmissions"]
+__all__ = ["ChatRequest", "DocumentChunk", "EvalRun", "IngestRun", "RawDocument", "MrvReport"]

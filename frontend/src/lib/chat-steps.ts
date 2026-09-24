@@ -11,7 +11,7 @@ const LABELS: Record<ChatStep["step"], { running: string; done: string }> = {
 		running: "Following a reference",
 		done: "Followed a reference",
 	},
-	tool_mrv_figures: {
+	tool_mrv_query: {
 		running: "Reading the THETIS-MRV figures",
 		done: "Read the THETIS-MRV figures",
 	},

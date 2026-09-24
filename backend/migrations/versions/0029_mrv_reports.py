@@ -1,4 +1,4 @@
-"""ship emissions
+"""mrv reports
 
 Revision ID: 0029
 Revises: 0028
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     """THETIS-MRV reports, one row per ship per period, replaced whole on each load."""
     op.create_table(
-        "ship_emissions",
+        "mrv_reports",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("period", sa.Integer(), nullable=False),
         sa.Column("period_label", sa.String(), nullable=False),
@@ -57,11 +57,9 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "ix_ship_emissions_period_sheet", "ship_emissions", ["period", "sheet"], unique=False
-    )
+    op.create_index("ix_mrv_reports_period_sheet", "mrv_reports", ["period", "sheet"], unique=False)
 
 
 def downgrade() -> None:
-    op.drop_index("ix_ship_emissions_period_sheet", table_name="ship_emissions")
-    op.drop_table("ship_emissions")
+    op.drop_index("ix_mrv_reports_period_sheet", table_name="mrv_reports")
+    op.drop_table("mrv_reports")

@@ -281,7 +281,7 @@ export interface components {
          *     graph's nodes without either being read for the other.
          * @enum {string}
          */
-        ToolStep: "tool_search" | "tool_follow_reference" | "tool_mrv_figures" | "tool_refuse" | "tool_unknown";
+        ToolStep: "tool_search" | "tool_follow_reference" | "tool_mrv_query" | "tool_refuse" | "tool_unknown";
         /**
          * TurnRecord
          * @description Where the turn was recorded: the thread it joined, which a follow-up sends back, and

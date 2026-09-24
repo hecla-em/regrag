@@ -16,7 +16,7 @@ from app.chat.toolbox.tools.follow_reference import (  # noqa: F401
     FOLLOW_REFERENCE,
     already_in_context,
 )
-from app.chat.toolbox.tools.mrv_figures import MRV_FIGURES
+from app.chat.toolbox.tools.mrv_query import MRV_QUERY
 from app.chat.toolbox.tools.refuse import REFUSE, is_refusal, refusal_from  # noqa: F401
 from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
@@ -26,11 +26,11 @@ from app.core.llm.errors import LLMError
 
 logger = logging.getLogger(__name__)
 
-TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_FIGURES, REFUSE)}
+TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_QUERY, REFUSE)}
 """Every tool the surface has, whether or not this run offers it to the model."""
 
-CARD_VECTORS: dict[str, list[float]] = {}
-"""Each card's embedding, computed once per process: cards are fixed text."""
+TOOL_CARD_EMBEDDINGS: dict[str, list[float]] = {}
+"""Each tool card's embedding by tool name, computed once per process: cards are fixed text."""
 
 
 def tool_definitions() -> list[dict]:
@@ -88,34 +88,36 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
         return ()
 
 
-def cosine(a: Sequence[float], b: Sequence[float]) -> float:
-    """The cosine similarity of two vectors."""
+def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
+    """How alike two embeddings are in meaning: 1 for the same direction, near 0 for unrelated."""
     dot = sum(x * y for x, y in zip(a, b, strict=True))
     return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
 
 
-async def card_vectors() -> dict[str, list[float]]:
-    """Every tool card's embedding, by tool name."""
+async def embed_tool_cards() -> dict[str, list[float]]:
+    """Every tool card's embedding by tool name, embedding only the cards not yet cached."""
     missing = {
         spec.name: spec.card
         for spec in TOOLS.values()
-        if spec.card and spec.name not in CARD_VECTORS
+        if spec.card and spec.name not in TOOL_CARD_EMBEDDINGS
     }
     if missing:
         vectors = await embed(list(missing.values()), input_type=EmbedInput.DOCUMENT)
-        CARD_VECTORS.update(zip(missing, vectors, strict=True))
-    return CARD_VECTORS
+        TOOL_CARD_EMBEDDINGS.update(zip(missing, vectors, strict=True))
+    return TOOL_CARD_EMBEDDINGS
 
 
 async def match_tool_cards(question: str) -> tuple[str, ...]:
-    """The tools whose card the question sits near enough to open a gate the corpus shut;
-    none when embedding fails, which leaves the gate shut."""
+    """The tools whose card (a fixed description of the data the tool reads) is close enough
+    in meaning to the question to open a gate the corpus shut; none when embedding fails."""
     try:
         (vector,) = await embed([question], input_type=EmbedInput.QUERY)
-        cards = await card_vectors()
+        cards = await embed_tool_cards()
     except LLMError as exc:
         logger.warning("card match failed, gate stays shut: %s", exc)
         return ()
     return tuple(
-        name for name, card in cards.items() if cosine(vector, card) >= config.MIN_CARD_SIMILARITY
+        name
+        for name, card in cards.items()
+        if cosine_similarity(vector, card) >= config.MIN_CARD_SIMILARITY
     )

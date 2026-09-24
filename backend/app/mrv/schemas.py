@@ -9,12 +9,12 @@ from app.core.db.schema import BaseSchema
 from app.mrv.enums import MrvSheet
 
 
-class ShipEmissions(BaseSchema):
+class MrvReport(BaseSchema):
     """One published report: the ship, its company, and its CO2 in tonnes, split by EU scope.
     A period's rows are replaced whole by each load, stamped with EMSA's file version."""
 
-    __tablename__ = "ship_emissions"
-    __table_args__ = (Index("ix_ship_emissions_period_sheet", "period", "sheet"),)
+    __tablename__ = "mrv_reports"
+    __table_args__ = (Index("ix_mrv_reports_period_sheet", "period", "sheet"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     period: Mapped[int]
