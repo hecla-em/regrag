@@ -35,5 +35,6 @@ MRV_QUERY = ToolSpec(
     "totals per reporting period, a company's or ship's ETS exposure, the largest emitters, the "
     "figure to be reported under the EU ETS, full and partial emissions reports, emissions "
     "between, to and from EU ports and at berth, the MRV download.",
+    card_terms=("ets", "mrv", "thetis"),
     find_entities=find_entities,
 )

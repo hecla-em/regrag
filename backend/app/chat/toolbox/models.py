@@ -20,8 +20,8 @@ class ToolCall(FrozenModel):
 class ToolSpec(NamedTuple):
     """One tool the model may call: how it is named and described to the model, the
     arguments it takes, what runs it, the step a call to it records, and, for a dataset
-    tool, the card the gate matches a question against and how it finds what a question names
-    in its data."""
+    tool, the card the gate matches a question against, the terms that open the gate on their
+    own, and how it finds what a question names in its data."""
 
     name: str
     step: ToolStep
@@ -29,6 +29,7 @@ class ToolSpec(NamedTuple):
     run: Callable[..., Awaitable[tuple[ContextBlock, ...]]]
     description: str
     card: str | None = None
+    card_terms: tuple[str, ...] = ()
     find_entities: Callable[[AsyncSession, str], Awaitable[tuple[str, ...]]] | None = None
 
     def definition(self) -> dict:

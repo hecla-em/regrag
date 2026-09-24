@@ -2,6 +2,7 @@
 the step it records."""
 
 import logging
+import re
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -111,9 +112,23 @@ async def embed_tool_cards() -> dict[str, list[float]]:
     return TOOL_CARD_EMBEDDINGS
 
 
+def tools_termed(question: str) -> tuple[str, ...]:
+    """The tools one of whose card terms the question uses as whole words, in any case or
+    punctuation, so 'THETIS-MRV' uses 'mrv'."""
+    words = f" {' '.join(re.findall(r'[a-z0-9]+', question.lower()))} "
+    return tuple(
+        spec.name
+        for spec in TOOLS.values()
+        if any(f" {term} " in words for term in spec.card_terms)
+    )
+
+
 async def match_tool_cards(question: str) -> tuple[str, ...]:
-    """The tools whose card (a fixed description of the data the tool reads) is close enough
-    in meaning to the question to open a gate the corpus shut; none when embedding fails."""
+    """The tools whose card terms the question uses, or else whose card (a fixed description
+    of the data the tool reads) is close enough in meaning to it, to open a gate the corpus
+    shut; none when embedding fails."""
+    if termed := tools_termed(question):
+        return termed
     try:
         vector = await embed_query(question)
         cards = await embed_tool_cards()
