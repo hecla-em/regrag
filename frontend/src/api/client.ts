@@ -1,6 +1,6 @@
 import { createParser, type EventSourceMessage } from "eventsource-parser"
 import { readClientId } from "@/lib/client-id"
-import { mintToken } from "@/lib/turnstile"
+import { prepareToken, takeToken } from "@/lib/turnstile"
 import type {
 	ChatQuery,
 	ChatStreamEvent,
@@ -81,13 +81,13 @@ export async function* streamChat(
 	body: ChatQuery,
 	signal: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
-	const token = await mintToken()
+	const token = await takeToken()
 	const response = await apiFetch("/chat", {
 		method: "POST",
 		headers: token === null ? {} : { "CF-Turnstile-Response": token },
 		body: JSON.stringify(body),
 		signal,
-	})
+	}).finally(prepareToken)
 	if (response.body === null) {
 		throw new Error("Chat response had no body to stream")
 	}

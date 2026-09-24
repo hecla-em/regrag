@@ -4,6 +4,8 @@ const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js"
 const READY_CALLBACK = "onRegRagTurnstileReady"
 const ACTION = "chat"
 const MINT_TIMEOUT_MS = 15_000
+/** Cloudflare redeems a token for 300s, less a margin for the request to reach siteverify. */
+const TOKEN_LIFETIME_MS = 280_000
 
 /** Centred, and shown only while a challenge waits on a click: Turnstile leaves a passed one on screen. */
 const CONTAINER_CLASS =
@@ -42,7 +44,10 @@ type Widget = {
 
 type DeliverToken = (token: string | null) => void
 
+type Minted = { token: string; mintedAt: number }
+
 let reportedMissingSitekey = false
+let prepared: Promise<Minted | null> | null = null
 let pending: DeliverToken | null = null
 let mintTimer: ReturnType<typeof setTimeout> | undefined
 let widget: Promise<Widget> | null = null
@@ -126,8 +131,7 @@ function awaitToken(rendered: Widget): Promise<string | null> {
 	})
 }
 
-/** A token for one question, or null when none could be minted. */
-export async function mintToken(): Promise<string | null> {
+async function mintToken(): Promise<Minted | null> {
 	const sitekey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 	if (!sitekey) {
 		reportMissingSitekey()
@@ -135,9 +139,25 @@ export async function mintToken(): Promise<string | null> {
 	}
 	try {
 		widget ??= openWidget(sitekey)
-		return await awaitToken(await widget)
+		const token = await awaitToken(await widget)
+		return token === null ? null : { token, mintedAt: Date.now() }
 	} catch {
 		widget = null
 		return null
 	}
+}
+
+/** Starts minting the next question's token, so sending it does not wait on the challenge. */
+export function prepareToken(): void {
+	prepared ??= mintToken()
+}
+
+/** A token for one question: the prepared one while Cloudflare would still redeem it, else a fresh mint, or null when none could be minted. */
+export async function takeToken(): Promise<string | null> {
+	const taking = prepared ?? mintToken()
+	prepared = null
+	const minted = await taking
+	if (minted !== null && Date.now() - minted.mintedAt < TOKEN_LIFETIME_MS)
+		return minted.token
+	return (await mintToken())?.token ?? null
 }

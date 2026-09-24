@@ -1,5 +1,6 @@
 """assess ⇄ assess_tools: what the context still needs read, and the round that reads it."""
 
+import asyncio
 import logging
 import time
 from collections.abc import Sequence
@@ -180,18 +181,22 @@ def merge_sources(
     return tuple(merged)
 
 
+async def run_timed_call(call: ToolCall) -> tuple[tuple[ContextBlock, ...], ChatStepResult]:
+    """One call's chunks, with the step that says how long it took."""
+    start = time.perf_counter()
+    blocks = await run_tool_call(call)
+    return blocks, build_call_step(call, ms=elapsed_ms(start))
+
+
 async def assess_tools(state: ChatState) -> dict[str, Any]:
-    """The round's calls run and folded into the context: dedup by block, earlier context
-    kept, growth capped. Each call is timed as its own step, so the path says what it cost.
-    A refuse call fetches nothing and leaves its refusal on the state, which is what routes
-    the round to the refusal."""
-    fetched: list[ContextBlock] = []
-    steps: list[ChatStepResult] = []
+    """The round's calls run at once and folded into the context in the order asked: dedup
+    by block, earlier context kept, growth capped. Each call is timed as its own step, so
+    the path says what it cost. A refuse call fetches nothing and leaves its refusal on the
+    state, which is what routes the round to the refusal."""
+    results = await asyncio.gather(*(run_timed_call(call) for call in state.pending_calls))
+    fetched = [block for blocks, _ in results for block in blocks]
     refusal = state.refusal
     for call in state.pending_calls:
-        start = time.perf_counter()
-        fetched.extend(await run_tool_call(call))
-        steps.append(build_call_step(call, ms=elapsed_ms(start)))
         if refused := refusal_from(call):
             refusal = refused
             logger.info("assess refused for want of context: %s", refused.explanation)
@@ -201,5 +206,5 @@ async def assess_tools(state: ChatState) -> dict[str, Any]:
         "sources": merge_sources(state.sources, fetched, cap=cap),
         "pending_calls": (),
         "refusal": refusal,
-        "steps": tuple(steps),
+        "steps": tuple(step for _, step in results),
     }
