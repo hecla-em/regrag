@@ -1,5 +1,6 @@
 """Shared test fixtures."""
 
+import json
 import pkgutil
 import re
 import zlib
@@ -20,9 +21,10 @@ from alembic import command
 from alembic.config import Config as AlembicConfig
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
+from langchain_core.language_models import BaseChatModel, GenericFakeChatModel
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.messages.ai import UsageMetadata
+from langchain_core.outputs import ChatGeneration, ChatResult
 from redis.asyncio import Redis
 from sentry_sdk.envelope import Envelope
 from sentry_sdk.transport import Transport
@@ -524,6 +526,26 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
     provider = FakeProvider()
     monkeypatch.setattr("app.ingestion.embed.batch.embed", provider)
     return provider
+
+
+class UnchangedRewriteModel(GenericFakeChatModel):
+    """A rewrite model handing back every question as asked, as the prompt says a question
+    that already stands on its own comes back."""
+
+    messages: Iterator[AIMessage] = iter(())
+
+    def _generate(self, messages: list[BaseMessage], *args: Any, **kwargs: Any) -> ChatResult:
+        question = messages[-1].text.rpartition("Latest question: ")[2]
+        restated = AIMessage(content=json.dumps({"question": question}))
+        return ChatResult(generations=[ChatGeneration(message=restated)])
+
+
+@pytest.fixture(autouse=True)
+def rewrite_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rewrite runs on every question, so every run of the graph gets it back as asked and
+    the other fakes answer only the calls they did before; a rewrite test fakes it itself."""
+    model = UnchangedRewriteModel()
+    monkeypatch.setattr("app.chat.graph.nodes.rewrite.rewrite_model", lambda: model)
 
 
 @pytest.fixture

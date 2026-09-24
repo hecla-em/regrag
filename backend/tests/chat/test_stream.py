@@ -70,7 +70,7 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
             TWO_HITS,
             ChatOutcome.DONE,
             None,
-            [ChatNode.RETRIEVE, ChatNode.SYNTHESIZE],
+            [ChatNode.REWRITE, ChatNode.RETRIEVE, ChatNode.SYNTHESIZE],
             ("done",),
             id="an answer is recorded with its path, sources and usage",
         ),
@@ -78,7 +78,7 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
             (junk_result(),),
             ChatOutcome.REFUSED,
             None,
-            [ChatNode.RETRIEVE, ChatNode.REFUSE],
+            [ChatNode.REWRITE, ChatNode.RETRIEVE, ChatNode.REFUSE],
             ("done",),
             id="a gate refusal is recorded with nothing spent past retrieval",
         ),
@@ -86,7 +86,7 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
             LLMError("embedding call failed"),
             ChatOutcome.ERROR,
             "embedding call failed",
-            [],
+            [ChatNode.REWRITE],
             ("error", "LLMError"),
             id="a domain failure is recorded by its message",
         ),
@@ -94,7 +94,7 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
             RuntimeError("pool exhausted"),
             ChatOutcome.ERROR,
             "RuntimeError",
-            [],
+            [ChatNode.REWRITE],
             ("error", "InternalServerError"),
             id="an unexpected failure is recorded by its type and sent as the generic error",
         ),
@@ -192,6 +192,8 @@ async def test_an_answered_question_sends_its_frames_in_order(
     events = await collect_events(ChatQuery(question="q"))
 
     assert frames(events) == [
+        (ChatNode.REWRITE, RUNNING, None),
+        (ChatNode.REWRITE, COMPLETED, None),
         (ChatNode.RETRIEVE, RUNNING, None),
         (ChatNode.RETRIEVE, COMPLETED, None),
         ("sources", [1, 2]),
@@ -270,6 +272,8 @@ async def test_the_loop_streams_its_calls_by_subject_and_none_of_what_assess_sai
     events = await collect_events(ChatQuery(question="q"))
 
     assert frames(events) == [
+        (ChatNode.REWRITE, RUNNING, None),
+        (ChatNode.REWRITE, COMPLETED, None),
         (ChatNode.RETRIEVE, RUNNING, None),
         (ChatNode.RETRIEVE, COMPLETED, None),
         *ASSESS,

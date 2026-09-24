@@ -28,8 +28,8 @@ class ModelCapability(StrEnum):
 
     LISTED_PRICE: litellm knows the model's prices. Without them every call records its
         usage unpriced, which empties the cost column and stops the daily spend cap firing.
-    STRUCTURED_ANSWER: the model answers in the shape decompose binds. Without it every
-        question is searched as asked, which is the run decompose was switched off for.
+    STRUCTURED_ANSWER: the model answers in the shape rewrite and decompose bind. Without it
+        every question is searched as asked, in the words it was asked in.
     TOOL_CALLS: the model calls the tools assess binds. Without them assess asks for
         nothing, the loop never runs, and nothing is written to the log about it.
     """
@@ -76,8 +76,8 @@ def check_listed_price() -> CapabilityCheck:
 
 @wrap_provider_errors("structured answer probe")
 async def check_structured_answer() -> CapabilityCheck:
-    """Whether the model answers in the shape decompose binds. Only the shape is judged:
-    how the model splits the question is a score, not a capability."""
+    """Whether the model answers in the shape decompose binds, as rewrite binds its own. Only
+    the shape is judged: how the model splits the question is a score, not a capability."""
     messages = [SystemMessage(DECOMPOSE_SYSTEM_PROMPT), HumanMessage(DECOMPOSE_PROBE)]
     response = await decompose_model().ainvoke(messages)
     try:
@@ -120,7 +120,7 @@ async def check_model_capabilities(*, retrieval: bool = True) -> tuple[Capabilit
     switched off is never checked, since the run binds nothing to it, and a run answering
     from memory alone binds nothing at all: two model calls at most, and none on a baseline."""
     checks = [check_listed_price()]
-    if retrieval and config.DECOMPOSE_ENABLED:
+    if retrieval:
         checks.append(await check_structured_answer())
     if retrieval and config.ASSESS_ENABLED:
         checks.append(await check_tool_calls())

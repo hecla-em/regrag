@@ -123,7 +123,7 @@ def test_a_first_question_is_answered_from_the_corpus_and_recorded(
         USAGE["output_tokens"],
     )
     assert request.cost_usd is not None and request.cost_usd > 0
-    assert step_names(request) == ["retrieve", "synthesize"]
+    assert step_names(request) == ["rewrite", "retrieve", "synthesize"]
     assert str(request.thread_id) == first_payload(events, "done")["thread_id"]
 
 
@@ -211,6 +211,7 @@ def test_a_tool_round_fetches_from_the_corpus_and_grows_the_context(
     [request] = ledger(seeded_client)
     assert request.sources == len(sources)
     assert step_names(request) == [
+        "rewrite",
         "retrieve",
         "assess",
         "tool_follow_reference",
@@ -351,7 +352,7 @@ def test_a_failed_stream_ends_in_one_error_frame_recorded_and_reported_without_t
         request_id = response.headers["X-Request-ID"]
         events = read_events(response)
 
-    assert [name for name, _ in events] == ["step", "error"]
+    assert [name for name, _ in events] == ["step", "step", "step", "error"]
     error = first_payload(events, "error")
     assert set(error) == {"error", "message", "request_id"}
     assert (error["error"], error["request_id"]) == (code, request_id)

@@ -60,6 +60,7 @@ class TestAssessLoop:
         state = await run_graph()
 
         assert [r.step for r in state.steps] == [
+            ChatNode.REWRITE,
             ChatNode.RETRIEVE,
             ChatNode.ASSESS,
             ToolStep.FOLLOW_REFERENCE,
@@ -92,6 +93,7 @@ class TestAssessLoop:
         state = await run_graph()
 
         assert [r.step for r in state.steps] == [
+            ChatNode.REWRITE,
             ChatNode.RETRIEVE,
             ChatNode.ASSESS,
             ToolStep.SEARCH,
@@ -110,6 +112,7 @@ class TestAssessLoop:
 
         assert state.answer == "Answered [1]."
         assert [r.step for r in state.steps] == [
+            ChatNode.REWRITE,
             ChatNode.RETRIEVE,
             ChatNode.ASSESS,
             ChatNode.SYNTHESIZE,
@@ -170,6 +173,7 @@ class TestRefuseTool:
         assert state.answer == REFUSAL_ANSWER
         assert answer_model.received == []
         assert [r.step for r in state.steps] == [
+            ChatNode.REWRITE,
             ChatNode.RETRIEVE,
             ChatNode.ASSESS,
             ToolStep.REFUSE,
@@ -180,7 +184,7 @@ class TestRefuseTool:
             reason=RefusalReason.INSUFFICIENT_CONTEXT,
             explanation="no block concerns airline luggage",
         )
-        assert state.steps[2].subject == "no block concerns airline luggage"
+        assert state.steps[3].subject == "no block concerns airline luggage"
 
     async def test_the_call_beside_a_fetch_is_dropped_and_the_fetch_runs(
         self, loop_on, one_result, answer_model, assess_turns, tool_results

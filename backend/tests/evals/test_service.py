@@ -71,7 +71,11 @@ async def test_a_run_scores_the_selected_cases_and_records_what_it_ran_against(
     assert result.case == selected
     assert result.state.answer == "Half of it [1]."
     assert result.state.hits == (search_result(),)
-    assert [n.step for n in result.state.steps] == [ChatNode.RETRIEVE, ChatNode.SYNTHESIZE]
+    assert [n.step for n in result.state.steps] == [
+        ChatNode.REWRITE,
+        ChatNode.RETRIEVE,
+        ChatNode.SYNTHESIZE,
+    ]
     assert result.state.outcome is ChatOutcome.DONE
     assert result.state.total_ms is not None
     assert result.state.usage() == REPORTED_USAGE

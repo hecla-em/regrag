@@ -1,6 +1,6 @@
-"""Chat graph: restate a follow-up, split a multi-part question, retrieve corpus context,
-run the assess ⇄ assess_tools loop, then synthesize a cited answer — or refuse, before any
-model call, a question the corpus does not cover."""
+"""Chat graph: restate the question in the law's terms, split a multi-part question, retrieve
+corpus context, run the assess ⇄ assess_tools loop, then synthesize a cited answer — or
+refuse, before any model call, a question the corpus does not cover."""
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -31,19 +31,13 @@ def assess_or_synthesize_or_refuse(state: ChatState) -> ChatNode:
 
 
 def decompose_or_retrieve(state: ChatState) -> ChatNode:
-    """At the start: split the question when the node is on, else search it as asked. An
+    """After rewrite: split the question when the node is on, else search it as asked. An
     edge rather than a check inside the node, so a run with it off records no step."""
     return ChatNode.DECOMPOSE if config.DECOMPOSE_ENABLED else ChatNode.RETRIEVE
 
 
-def rewrite_or_decompose_or_retrieve(state: ChatState) -> ChatNode:
-    """At the start: restate a follow-up first, since the thread is what its pronouns
-    mean; a first question takes the edge decompose_or_retrieve would."""
-    return ChatNode.REWRITE if state.history else decompose_or_retrieve(state)
-
-
 def build_graph() -> CompiledStateGraph[ChatState]:
-    """The compiled (rewrite →) (decompose →) retrieve → (assess ⇄ assess_tools) →
+    """The compiled rewrite → (decompose →) retrieve → (assess ⇄ assess_tools) →
     (synthesize | refuse) graph."""
     graph = StateGraph(ChatState)
     graph.add_node(ChatNode.REWRITE, rewrite)
@@ -53,11 +47,7 @@ def build_graph() -> CompiledStateGraph[ChatState]:
     graph.add_node(ChatNode.ASSESS_TOOLS, assess_tools)
     graph.add_node(ChatNode.SYNTHESIZE, synthesize)
     graph.add_node(ChatNode.REFUSE, refuse)
-    graph.add_conditional_edges(
-        START,
-        rewrite_or_decompose_or_retrieve,
-        [ChatNode.REWRITE, ChatNode.DECOMPOSE, ChatNode.RETRIEVE],
-    )
+    graph.add_edge(START, ChatNode.REWRITE)
     graph.add_conditional_edges(
         ChatNode.REWRITE, decompose_or_retrieve, [ChatNode.DECOMPOSE, ChatNode.RETRIEVE]
     )

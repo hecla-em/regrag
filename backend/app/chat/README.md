@@ -10,18 +10,17 @@ curl -N localhost:8000/chat -H 'content-type: application/json' \
 ## The graph
 
 ```
-START ─┬→ rewrite ─┬→ decompose ──┐                      a follow-up; DECOMPOSE_ENABLED
-       │           └──────────────┤
-       ├→ decompose ──────────────┤                       DECOMPOSE_ENABLED
-       │                          ↓
-       └──────────────────────→ retrieve ─┬→ refuse ──────────────→ END   nothing cleared the gate, or assess refused
+START ──→ rewrite ─┬→ decompose ──┐                      DECOMPOSE_ENABLED
+                   └──────────────┤
+                                  ↓
+                                retrieve ─┬→ refuse ──────────────→ END   nothing cleared the gate, or assess refused
                                           │      ↑
                                           ├→ assess ⇄ assess_tools       while assess asks and the budget remains
                                           │      │
                                           └──────┴→ synthesize ────→ END   the context is settled
 ```
 
-`rewrite` runs only on a follow-up — a question sent with a `thread_id` whose thread has answered turns. It makes one blocking model call, answering in a fixed shape with the question restated to stand on its own: "what penalties does it impose?" searched as typed clears no gate, so the thread's earlier turns are read to say what "it" is. Retrieve and decompose then work from the restated question, while the answer is written to the question as asked, with the earlier turns in front of the model as message pairs — questions and answers only, markers stripped, never their context blocks. A first question takes the edge below and records no step. The call is best-effort like decompose's: one that fails or answers off its shape searches the question as asked.
+`rewrite` runs on every question. It makes one blocking model call, answering in a fixed shape with the question restated in the law's terms: a question that names things as a dataset or a trade would, "Partial ER tabs of the MRV download", searched as typed lands on registry templates rather than the provisions that define those reports. On a follow-up — a question sent with a `thread_id` whose thread has answered turns — it also reads the earlier turns, so that "what penalties does it impose?" says what "it" is. Retrieve and decompose then work from the restated question, while the answer is written to the question as asked, with any earlier turns in front of the model as message pairs — questions and answers only, markers stripped, never their context blocks. The call is best-effort like decompose's: one that fails or answers off its shape searches the question as asked.
 
 `decompose` makes one blocking model call, answering in a fixed shape with the searches the question needs, one per thing it asks, capped at `DECOMPOSE_MAX_PARTS`. A question asking one thing comes back as one query and is searched exactly as asked, so switching the node off and asking a single-part question run the same retrieval; the only trace is the recorded step. `DECOMPOSE_ENABLED=false` takes the edge straight to `retrieve` and records no step. The call is best-effort: one that fails or answers off its shape logs and searches the question as asked.
 
