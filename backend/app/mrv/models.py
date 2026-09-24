@@ -41,7 +41,7 @@ class FigureTotals(FrozenModel):
         return "\n".join(lines)
 
 
-class DatasetBlock(FrozenModel):
+class MrvBlock(FrozenModel):
     """Figures read from one THETIS-MRV reporting period, as one numbered context block."""
 
     site: ClassVar[str] = "THETIS-MRV"

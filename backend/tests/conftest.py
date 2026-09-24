@@ -390,7 +390,7 @@ async def toy_query_embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
 @pytest.fixture
 def query_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Query vectors share the corpus's space, so a search is a real nearest-neighbour test."""
-    monkeypatch.setattr("app.retrieval.search.embed", toy_query_embed)
+    monkeypatch.setattr("app.core.llm.embed.embed", toy_query_embed)
 
 
 @pytest.fixture

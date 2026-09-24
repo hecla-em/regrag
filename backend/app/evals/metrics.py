@@ -233,8 +233,8 @@ def compute_gate_refusal_rate(results: Sequence[EvalCaseResult]) -> float | None
 
 
 def count_false_refusals(results: Sequence[EvalCaseResult]) -> int:
-    """Referenced cases the gate refused."""
-    return sum(_gate_refused(r) for r in scored_referenced(results))
+    """In-corpus cases the gate refused."""
+    return sum(_gate_refused(r) for r in scored_in_corpus(results))
 
 
 def count_refusals_of_a_found_reference(results: Sequence[EvalCaseResult]) -> int:

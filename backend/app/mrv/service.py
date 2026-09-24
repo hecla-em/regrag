@@ -3,12 +3,12 @@
 import logging
 
 import httpx
-from sqlalchemy import ColumnElement, delete, func, insert, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.storage import ObjectStore
 from app.mrv.download import MrvFile, fetch_file, list_files
-from app.mrv.models import FIGURE_LABELS, DatasetBlock, FigureTotals
+from app.mrv.models import FIGURE_LABELS, FigureTotals, MrvBlock
 from app.mrv.parse import parse_workbook
 from app.mrv.schemas import MrvReport
 
@@ -18,9 +18,9 @@ FIRST_PERIOD = 2024
 """The first reporting period the ETS covers shipping for."""
 
 
-async def replace_period(session: AsyncSession, file: MrvFile, rows: list[dict]) -> None:
-    """The period's rows swapped for this file's, in one transaction."""
-    stmt = delete(MrvReport).where(MrvReport.period == file.period)
+async def replace_period(session: AsyncSession, period: int, rows: list[dict]) -> None:
+    """The period's rows swapped for these, in one transaction."""
+    stmt = delete(MrvReport).where(MrvReport.period == period)
     await session.execute(stmt)
     await session.execute(insert(MrvReport), rows)
     await session.commit()
@@ -33,7 +33,7 @@ async def load_period(
     content = await fetch_file(client, file)
     store.put(f"mrv/{file.period}/v{file.version}.xlsx", content)
     rows = parse_workbook(content, file)
-    await replace_period(session, file, rows)
+    await replace_period(session, file.period, rows)
     logger.info("loaded %d MRV reports for %d v%d", len(rows), file.period, file.version)
     return len(rows)
 
@@ -50,23 +50,16 @@ async def load_periods(
 SCOPE_TOLERANCE = 0.01
 """How close the ETS figure must sit to the scope split to count within the reported share."""
 
-
-def scoped() -> ColumnElement[float]:
-    """The ETS scope split: 100% between MS ports and at berth, 50% to or from them."""
-    return (
-        func.coalesce(MrvReport.co2_between_ms, 0)
-        + 0.5 * func.coalesce(MrvReport.co2_departed_ms, 0)
-        + 0.5 * func.coalesce(MrvReport.co2_arrived_ms, 0)
-        + func.coalesce(MrvReport.co2_at_berth, 0)
-    )
+SCOPED = (
+    func.coalesce(MrvReport.co2_between_ms, 0)
+    + 0.5 * func.coalesce(MrvReport.co2_departed_ms, 0)
+    + 0.5 * func.coalesce(MrvReport.co2_arrived_ms, 0)
+    + func.coalesce(MrvReport.co2_at_berth, 0)
+)
+"""The ETS scope split: 100% between MS ports and at berth, 50% to or from them."""
 
 
-def ets_scope_ratio() -> ColumnElement[float]:
-    """The ETS figure as a share of the scope split."""
-    return MrvReport.co2_ets / scoped()
-
-
-async def fleet_totals(session: AsyncSession, period: int) -> DatasetBlock | None:
+async def fleet_totals(session: AsyncSession, period: int) -> MrvBlock | None:
     """A period's totals per sheet, with the ETS figure's spread against the scope split;
     None when the period is not loaded."""
     sums = [
@@ -89,13 +82,13 @@ async def fleet_totals(session: AsyncSession, period: int) -> DatasetBlock | Non
         return None
     ratio_stmt = select(
         func.count(),
-        func.percentile_cont(0.5).within_group(ets_scope_ratio()),
+        func.percentile_cont(0.5).within_group(MrvReport.co2_ets / SCOPED),
         func.count().filter(
-            func.abs(MrvReport.co2_ets - scoped()) <= SCOPE_TOLERANCE * MrvReport.co2_ets
+            func.abs(MrvReport.co2_ets - SCOPED) <= SCOPE_TOLERANCE * MrvReport.co2_ets
         ),
-    ).where(MrvReport.period == period, MrvReport.co2_ets > 0, scoped() != 0)
+    ).where(MrvReport.period == period, MrvReport.co2_ets > 0, SCOPED != 0)
     with_ets, median, matching = (await session.execute(ratio_stmt)).one()
-    return DatasetBlock(
+    return MrvBlock(
         period=period,
         version=rows[0].version,
         generated=rows[0].generated,

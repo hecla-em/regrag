@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.chat.blocks import ContextBlock
+from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.enums import ToolStep
 from app.chat.toolbox.models import ToolCall, ToolSpec
 from app.core.config import config
@@ -36,9 +36,8 @@ def already_in_context(call: ToolCall, sources: Sequence[ContextBlock]) -> bool:
         return False
     shown = [
         s
-        for s in sources
-        if isinstance(s, RetrievedChunk)
-        and s.celex == target.celex
+        for s in corpus_chunks(sources)
+        if s.celex == target.celex
         and (s.article or "").lower() == target.article.lower()
         and s.paragraph == target.paragraph
     ]

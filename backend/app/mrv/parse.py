@@ -7,6 +7,7 @@ from openpyxl import load_workbook
 
 from app.mrv.download import MrvFile
 from app.mrv.enums import MrvSheet
+from app.mrv.models import FIGURE_LABELS
 
 HEADER_ROW = 3
 COLUMNS = {
@@ -23,14 +24,6 @@ COLUMNS = {
     "co2_at_berth": 32,
     "co2_ets": 37,
 }
-FIGURES = (
-    "co2_total",
-    "co2_between_ms",
-    "co2_departed_ms",
-    "co2_arrived_ms",
-    "co2_at_berth",
-    "co2_ets",
-)
 ETS_HEADER = "CO2 emissions to be reported under Directive 2003/87/EC [m tonnes]"
 
 
@@ -66,7 +59,7 @@ def parse_workbook(content: bytes, file: MrvFile) -> list[dict[str, Any]]:
             row = {name: cells[index] for name, index in COLUMNS.items()}
             rows.append(
                 row
-                | {name: to_figure(row[name]) for name in FIGURES}
+                | {name: to_figure(row[name]) for name in FIGURE_LABELS}
                 | {
                     "imo": str(row["imo"]),
                     "period_label": str(row["period_label"]),

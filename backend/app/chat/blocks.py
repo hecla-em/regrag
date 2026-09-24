@@ -5,10 +5,10 @@ from typing import Annotated
 
 from pydantic import Field
 
-from app.mrv.models import DatasetBlock
+from app.mrv.models import MrvBlock
 from app.retrieval.models import RetrievedChunk
 
-ContextBlock = Annotated[RetrievedChunk | DatasetBlock, Field(discriminator="source")]
+ContextBlock = Annotated[RetrievedChunk | MrvBlock, Field(discriminator="source")]
 """A numbered block, tagged by source so a cached answer loads back as the right kind."""
 
 

@@ -57,8 +57,9 @@ class EvalCase(FrozenModel):
         """An in-corpus case is scored against its answer and references, unless a dataset
         trait says the answer needs none; an out-of-corpus case is scored on refusal alone,
         so carrying either would be a mislabelled case."""
-        needs_references = EvalTrait.DATASET not in self.traits
-        has_evidence = self.answer is not None and (bool(self.references) or not needs_references)
+        has_evidence = self.answer is not None and (
+            bool(self.references) or EvalTrait.DATASET in self.traits
+        )
         if self.kind is EvalKind.IN_CORPUS and not has_evidence:
             raise ValueError(f"{self.id}: an in_corpus case needs an answer and references")
         if self.kind is EvalKind.OUT_OF_CORPUS and (self.references or self.answer):

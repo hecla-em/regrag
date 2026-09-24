@@ -2,8 +2,6 @@
 the step it records."""
 
 import logging
-import math
-from collections.abc import Sequence
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,7 +19,7 @@ from app.chat.toolbox.tools.refuse import REFUSE, is_refusal, refusal_from  # no
 from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
 from app.core.db.session import get_session
-from app.core.llm.embed import EmbedInput, embed
+from app.core.llm.embed import EmbedInput, cosine_similarity, embed, embed_query
 from app.core.llm.errors import LLMError
 
 logger = logging.getLogger(__name__)
@@ -88,22 +86,12 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
         return ()
 
 
-def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
-    """How alike two embeddings are in meaning: 1 for the same direction, near 0 for unrelated."""
-    dot = sum(x * y for x, y in zip(a, b, strict=True))
-    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
-
-
 async def embed_tool_cards() -> dict[str, list[float]]:
-    """Every tool card's embedding by tool name, embedding only the cards not yet cached."""
-    missing = {
-        spec.name: spec.card
-        for spec in TOOLS.values()
-        if spec.card and spec.name not in TOOL_CARD_EMBEDDINGS
-    }
-    if missing:
-        vectors = await embed(list(missing.values()), input_type=EmbedInput.DOCUMENT)
-        TOOL_CARD_EMBEDDINGS.update(zip(missing, vectors, strict=True))
+    """Every tool card's embedding by tool name, embedded on first use."""
+    if not TOOL_CARD_EMBEDDINGS:
+        cards = {spec.name: spec.card for spec in TOOLS.values() if spec.card}
+        vectors = await embed(list(cards.values()), input_type=EmbedInput.DOCUMENT)
+        TOOL_CARD_EMBEDDINGS.update(zip(cards, vectors, strict=True))
     return TOOL_CARD_EMBEDDINGS
 
 
@@ -111,7 +99,7 @@ async def match_tool_cards(question: str) -> tuple[str, ...]:
     """The tools whose card (a fixed description of the data the tool reads) is close enough
     in meaning to the question to open a gate the corpus shut; none when embedding fails."""
     try:
-        (vector,) = await embed([question], input_type=EmbedInput.QUERY)
+        vector = await embed_query(question)
         cards = await embed_tool_cards()
     except LLMError as exc:
         logger.warning("card match failed, gate stays shut: %s", exc)

@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import logging
 import sys
 
 import httpx
@@ -12,6 +13,8 @@ from app.core.logger import setup_logging
 from app.core.storage import StorageError, get_object_store
 from app.mrv.parse import MrvLayoutError
 from app.mrv.service import load_periods
+
+logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         loaded = asyncio.run(run_ingest(args.period))
     except (httpx.HTTPError, StorageError, MrvLayoutError) as exc:
+        logger.exception("mrv ingest failed")
         print(f"mrv ingest failed: {exc}", file=sys.stderr)
         return 1
     for period, rows in loaded.items():

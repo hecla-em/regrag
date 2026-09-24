@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.models import ChatTurn
-from app.ingestion.celex import format_act_name
+from app.retrieval.models import RetrievedChunk
 
 THREAD_NOTE = (
     " Earlier turns of the conversation come before the numbered passages; read them only to "
@@ -31,13 +31,13 @@ def format_acts_legend(sources: Sequence[ContextBlock]) -> str:
     """Each act the chunks come from, once, in order of first appearance: the cited name the
     block headers use, then the official title. An act without a stored title is left out,
     and no titles at all leaves no legend; an official title is too long to repeat per block."""
-    titles: dict[str, str] = {}
+    acts: dict[str, RetrievedChunk] = {}
     for source in corpus_chunks(sources):
-        if source.act_title and source.celex not in titles:
-            titles[source.celex] = source.act_title
-    if not titles:
+        if source.act_title and source.celex not in acts:
+            acts[source.celex] = source
+    if not acts:
         return ""
-    lines = [f"{format_act_name(celex, title)}: {title}" for celex, title in titles.items()]
+    lines = [f"{chunk.name}: {chunk.act_title}" for chunk in acts.values()]
     return "\n".join(["Acts:", *lines])
 
 

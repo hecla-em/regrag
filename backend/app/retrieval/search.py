@@ -7,8 +7,7 @@ from sqlalchemy.dialects.postgresql import TSQUERY
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import TextRanker, config
-from app.core.llm.embed import EmbedInput, embed
-from app.core.llm.errors import llm_retry
+from app.core.llm.embed import embed_query
 from app.ingestion.chunk.schemas import DocumentChunk
 from app.ingestion.schemas import IngestRun
 from app.retrieval.models import CHUNK_COLUMNS, SearchFilters, SearchRequest, SearchResult
@@ -23,13 +22,6 @@ BM25_CITATION_WEIGHT = 4.0
 """A query word found in the chunk's own citation counts this many times one found in its
 text, so "Article 11a" lands on Article 11a rather than a chunk that mentions it. Set by
 that test case; the golden questions rarely carry a citation's words."""
-
-
-@llm_retry
-async def _embed_query(query: str) -> list[float]:
-    """Embed one query, retrying transient provider failures."""
-    (vector,) = await embed([query], input_type=EmbedInput.QUERY)
-    return vector
 
 
 async def _tune_hnsw_walk(session: AsyncSession, candidates: int) -> None:
@@ -200,7 +192,7 @@ async def hybrid_search(
 async def search(session: AsyncSession, request: SearchRequest) -> tuple[SearchResult, ...]:
     """The corpus's best answers to a query, fused across both legs and reranked."""
     limit = request.limit or config.SEARCH_DEFAULT_LIMIT
-    embedding = await _embed_query(request.query)
+    embedding = await embed_query(request.query)
     pool = max(limit, config.RERANK_POOL) if config.RERANK_ENABLED else limit
     results = await hybrid_search(
         session,
