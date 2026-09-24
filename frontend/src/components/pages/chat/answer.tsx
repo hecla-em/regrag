@@ -5,7 +5,11 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import type { ChatSource } from "@/api/types"
 import { numberCitations, rehypeCitationMarkers } from "@/lib/citations"
-import { KATEX_OPTIONS, rehypeDisplayFormulas } from "@/lib/formulas"
+import {
+	escapeMoneyDollars,
+	KATEX_OPTIONS,
+	rehypeDisplayFormulas,
+} from "@/lib/formulas"
 import { CitationChip } from "./citation-chip"
 
 const PROSE =
@@ -62,7 +66,7 @@ export function Answer({
 				]}
 				components={components}
 			>
-				{answer}
+				{escapeMoneyDollars(answer)}
 			</ReactMarkdown>
 		</div>
 	)

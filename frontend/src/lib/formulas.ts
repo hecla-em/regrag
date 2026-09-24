@@ -1,9 +1,11 @@
 import type { Element, ElementContent, Root } from "hast"
 import { visit } from "unist-util-visit"
+import { splitMarkdownCode } from "@/lib/citations"
 
 const FORMULA = /\$\$((?:\\[\s\S]|[^\\])+?)\$\$/g
 const FORMULA_DELIMITER = "$$"
 const BLOCK_PARENTS = new Set(["p", "li"])
+const MONEY_DOLLAR = /(?<!\\)\$(?=\d)/g
 const RELATION = /[=<>]|\\(?:leq?|geq?|neq?|approx|equiv)(?![a-zA-Z])/
 
 /** The ingest passes raw Unicode into its LaTeX, which KaTeX sets fine but warns about. */
@@ -54,6 +56,16 @@ export function holdOpenFormula(answer: string): string {
 	return delimiters % 2 === 1
 		? answer.slice(0, answer.lastIndexOf(FORMULA_DELIMITER))
 		: answer
+}
+
+/** The answer with each `$` that starts an amount escaped outside code and formulas, so
+ * "$5 and $10" stays money rather than opening a formula. */
+export function escapeMoneyDollars(markdown: string): string {
+	return splitMarkdownCode(markdown)
+		.map((segment) =>
+			segment.code ? segment.value : segment.value.replace(MONEY_DOLLAR, "\\$"),
+		)
+		.join("")
 }
 
 function neighbourText(node: ElementContent | undefined): string | null {
