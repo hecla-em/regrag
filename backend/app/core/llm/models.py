@@ -6,7 +6,7 @@ import operator
 from collections.abc import Iterable
 
 import litellm
-from langchain_core.messages.ai import UsageMetadata
+from langchain_core.messages import AIMessage
 
 from app.core.models import FrozenModel
 
@@ -45,15 +45,18 @@ class Usage(FrozenModel):
         )
 
     @classmethod
-    def from_metadata(cls, usage: UsageMetadata, model: str | None) -> "Usage":
-        """What one call spent, as langchain reports it on the message, priced at the model
-        the reply named; unpriced when it named none."""
+    def from_reply(cls, reply: AIMessage) -> "Usage | None":
+        """What one call spent: the cost litellm reports on the reply, which is what OpenRouter
+        billed, else the tokens priced at the model it named; None with no usage reported."""
+        usage = reply.usage_metadata
+        if usage is None:
+            return None
         input_tokens, output_tokens = usage["input_tokens"], usage["output_tokens"]
-        return cls(
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cost_usd=price_tokens(model, input_tokens, output_tokens) if model else None,
-        )
+        cost = reply.response_metadata.get("response_cost")
+        model = reply.response_metadata.get("model_name")
+        if cost is None and model:
+            cost = price_tokens(model, input_tokens, output_tokens)
+        return cls(input_tokens=input_tokens, output_tokens=output_tokens, cost_usd=cost)
 
     @classmethod
     def sum_reported(cls, usages: Iterable["Usage | None"]) -> "Usage | None":

@@ -660,16 +660,26 @@ def retrieved_chunk(**overrides: Any) -> RetrievedChunk:
 
 USAGE = UsageMetadata(input_tokens=1500, output_tokens=40, total_tokens=1540)
 """What a faked model reports spending, as langchain carries it."""
-REPLY_METADATA = {"model_name": config.CHAT_MODEL, "model_provider": "litellm"}
-"""What langchain-litellm sets as a reply's response_metadata: the model it called."""
-REPORTED_USAGE = Usage.from_metadata(USAGE, config.CHAT_MODEL)
-"""USAGE as a step records it, priced at the chat model."""
+BILLED_COST_USD = 0.0021
+"""What a faked call was billed, apart from what litellm's price table makes USAGE."""
+REPLY_METADATA = {
+    "model_name": config.CHAT_MODEL,
+    "model_provider": "litellm",
+    "response_cost": BILLED_COST_USD,
+}
+"""What langchain-litellm sets as a reply's response_metadata: the model it called, and
+what the call was billed."""
+REPORTED_USAGE = Usage(
+    input_tokens=USAGE["input_tokens"],
+    output_tokens=USAGE["output_tokens"],
+    cost_usd=BILLED_COST_USD,
+)
+"""USAGE as a step records it, at the billed cost."""
 
 
-def reply_message(usage: UsageMetadata = USAGE, model: str | None = config.CHAT_MODEL) -> AIMessage:
+def reply_message(usage: UsageMetadata = USAGE, metadata: dict = REPLY_METADATA) -> AIMessage:
     """A model's reply as litellm hands it back: the usage it reported, stamped with the
-    model it called — or with nothing, for a reply that named no model."""
-    metadata = {"model_name": model, "model_provider": "litellm"} if model else {}
+    response_metadata langchain-litellm sets."""
     return AIMessage(content="", usage_metadata=usage, response_metadata=metadata)
 
 

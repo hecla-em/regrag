@@ -3,6 +3,7 @@
 from langchain_core.messages.ai import UsageMetadata
 
 from app.core.llm.models import Usage, price_tokens
+from tests.conftest import reply_message
 
 MODEL = "anthropic/claude-haiku-4-5"
 
@@ -19,10 +20,11 @@ def test_a_run_that_reported_nothing_is_unmeasured_not_free() -> None:
     assert Usage.sum_reported(()) is None
 
 
-def test_a_call_usage_is_read_from_the_message_metadata_and_priced_at_its_model() -> None:
+def test_a_reply_billed_nothing_is_priced_at_its_model() -> None:
     """The real seam: litellm's price table for the default chat model."""
     reported = UsageMetadata(input_tokens=100, output_tokens=10, total_tokens=110)
-    usage = Usage.from_metadata(reported, MODEL)
+    usage = Usage.from_reply(reply_message(reported, {"model_name": MODEL}))
+    assert usage is not None
     assert (usage.input_tokens, usage.output_tokens) == (100, 10)
     assert usage.cost_usd is not None
     assert 0 < usage.cost_usd < 0.01

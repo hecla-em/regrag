@@ -128,7 +128,7 @@ def test_the_context_is_settled_once_nothing_more_will_be_fetched(
 def test_usage_without_a_model_is_unmeasured_not_priced_at_a_guess():
     state = ChatState(
         question="q",
-        steps=(ChatStepResult.from_reply(ChatNode.SYNTHESIZE, 1, reply_message(model=None)),),
+        steps=(ChatStepResult.from_reply(ChatNode.SYNTHESIZE, 1, reply_message(metadata={})),),
     )
     usage = state.usage()
     assert usage is not None
