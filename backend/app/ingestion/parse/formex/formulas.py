@@ -3,6 +3,7 @@
 import io
 import re
 import zipfile
+import zlib
 from xml.etree import ElementTree
 
 from app.ingestion.exceptions import ParseError
@@ -13,8 +14,9 @@ MANIFEST_SUFFIX = ".doc.xml"
 MANIFEST_FILE_RE = re.compile(r'FILE="([^"]+\.xml)"')
 INCLUSIONS_RE = re.compile(r"<INCLUSIONS>.*?</INCLUSIONS>", re.DOTALL)
 """The header's list of every image file, which repeats each image the body places."""
-FORMULA_OR_IMAGE_RE = re.compile(r"<FORMULA\b.*?</FORMULA>|<INCL\.ELEMENT\b[^>]*>", re.DOTALL)
+FORMULA_OR_IMAGE_RE = re.compile(r"<FORMULA[\s>].*?</FORMULA>|<INCL\.ELEMENT\b[^>]*>", re.DOTALL)
 FORMULA_IMAGE_RE = re.compile(r'CONTENT="FORMULA"')
+ZIP_READ_ERRORS = (zipfile.BadZipFile, NotImplementedError, RuntimeError, zlib.error, EOFError)
 
 
 def document_files(archive: zipfile.ZipFile) -> list[str]:
@@ -37,8 +39,11 @@ def replacement_for(block: str) -> str:
 
 def read_formex_formulas(formex: bytes) -> tuple[str, ...]:
     """One replacement per formula or image in the Formex, in document order."""
-    with zipfile.ZipFile(io.BytesIO(formex)) as archive:
-        bodies = [archive.read(name).decode("utf-8") for name in document_files(archive)]
+    try:
+        with zipfile.ZipFile(io.BytesIO(formex)) as archive:
+            bodies = [archive.read(name).decode("utf-8") for name in document_files(archive)]
+    except ZIP_READ_ERRORS as exc:
+        raise ParseError(f"Formex zip could not be read: {exc}") from exc
     return tuple(
         replacement_for(block)
         for body in bodies

@@ -1,6 +1,5 @@
 """Parse stage: one fetched document's HTML as a section tree."""
 
-import zipfile
 from xml.etree import ElementTree
 
 from app.ingestion.enums import Stage
@@ -16,11 +15,6 @@ def parse_document(raw: RawDocument, html: bytes, formex: bytes | None) -> Parse
     try:
         formulas = read_formex_formulas(formex) if formex is not None else None
         sections = parse_eurlex_html(html.decode("utf-8"), formulas)
-    except (
-        ParseError,
-        UnicodeDecodeError,
-        zipfile.BadZipFile,
-        ElementTree.ParseError,
-    ) as exc:
+    except (ParseError, UnicodeDecodeError, ElementTree.ParseError) as exc:
         raise DocumentFailed(Stage.PARSE, raw.celex, exc) from exc
     return ParsedDocument(celex=raw.celex, topic=raw.topic, act_title=raw.title, sections=sections)

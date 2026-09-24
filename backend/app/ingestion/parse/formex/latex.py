@@ -17,19 +17,58 @@ COMPARISONS = {"EQ": "=", "LE": "\\leq", "GE": "\\geq", "GT": ">", "LT": "<"}
 SYMBOLS = {"∑": "\\sum ", "–": "-", "−": "-", " ": " "}
 ESCAPES = {"%": "\\%", "&": "\\&", "#": "\\#", "_": "\\_", "$": "\\$", "{": "\\{", "}": "\\}"}
 SCRIPTS = {"IND": "_", "EXPONENT": "^"}
+HT_SCRIPTS = {"SUP": "^", "SUB": "_"}
+PASSTHROUGH_TAGS = {"FORMULA", "DIVIDEND", "DIVISOR", "UNDER", "OVER", "FMT.VALUE"}
+GREEK_CAPITAL_COMMANDS = {
+    "gamma",
+    "delta",
+    "theta",
+    "lambda",
+    "xi",
+    "pi",
+    "sigma",
+    "upsilon",
+    "phi",
+    "psi",
+    "omega",
+}
+GREEK_CAPITAL_LOOKALIKES = {
+    "alpha": "A",
+    "beta": "B",
+    "epsilon": "E",
+    "zeta": "Z",
+    "eta": "H",
+    "iota": "I",
+    "kappa": "K",
+    "mu": "M",
+    "nu": "N",
+    "omicron": "O",
+    "rho": "P",
+    "tau": "T",
+    "chi": "X",
+}
 TOKEN_RE = re.compile(r"[A-Za-z]+(?: [A-Za-z]+)*|.", re.DOTALL)
 """A run of words, which LaTeX would set as a product of italic letters, or any one character."""
 
 
 def greek_command(char: str) -> str | None:
-    """The LaTeX command for a Greek letter, or None for any other character."""
+    """The LaTeX command (or Latin look-alike) for a Greek letter, or None for any other
+    character, including an accented or multi-word Greek letter name."""
     if len(char) != 1:
         return None
     name = unicodedata.name(char, "")
     for prefix, capital in (("GREEK SMALL LETTER ", False), ("GREEK CAPITAL LETTER ", True)):
-        if name.startswith(prefix):
-            letter = name.removeprefix(prefix).lower().replace("lamda", "lambda")
-            return "\\" + (letter.capitalize() if capital else letter) + " "
+        if not name.startswith(prefix):
+            continue
+        words = name.removeprefix(prefix).split(" ")
+        if len(words) != 1:
+            return None
+        letter = words[0].lower().replace("lamda", "lambda")
+        if not capital:
+            return letter if letter == "omicron" else "\\" + letter + " "
+        if letter in GREEK_CAPITAL_COMMANDS:
+            return "\\" + letter.capitalize() + " "
+        return GREEK_CAPITAL_LOOKALIKES.get(letter)
     return None
 
 
@@ -50,9 +89,19 @@ def text_to_latex(text: str) -> str:
     return "".join(parts)
 
 
+def script_symbol(element: Element) -> str | None:
+    """The `_`/`^` an IND, EXPONENT, or HT SUP/SUB element sets its children as, or None for
+    anything else."""
+    if element.tag in SCRIPTS:
+        return SCRIPTS[element.tag]
+    if element.tag == "HT":
+        return HT_SCRIPTS.get(element.get("TYPE", ""))
+    return None
+
+
 def element_to_latex(element: Element) -> str:
     """One markup element as LaTeX, subscripts and exponents excepted: children_to_latex
-    merges those."""
+    merges those. Raises ParseError for any tag or TYPE this converter does not know."""
     tag, kind = element.tag, element.get("TYPE", "")
     if tag == "FRACTION":
         dividend = children_to_latex(element.find("DIVIDEND"))
@@ -71,10 +120,20 @@ def element_to_latex(element: Element) -> str:
         if kind not in COMPARISONS:
             raise ParseError(f"unknown Formex {tag} type {kind}")
         return f" {COMPARISONS[kind]} "
-    if tag == "EXPR" and kind in BRACKETS:
-        left, right = BRACKETS[kind]
-        return f"{left}{children_to_latex(element)}{right}"
-    return children_to_latex(element)
+    if tag == "EXPR":
+        if kind in BRACKETS:
+            left, right = BRACKETS[kind]
+            return f"{left}{children_to_latex(element)}{right}"
+        if kind:
+            raise ParseError(f"unknown Formex {tag} type {kind}")
+        return children_to_latex(element)
+    if tag == "HT":
+        if kind == "ITALIC":
+            return children_to_latex(element)
+        raise ParseError(f"unknown Formex {tag} type {kind}")
+    if tag in PASSTHROUGH_TAGS:
+        return children_to_latex(element)
+    raise ParseError(f"unknown Formex tag {tag}")
 
 
 def children_to_latex(element: Element | None) -> str:
@@ -87,18 +146,19 @@ def children_to_latex(element: Element | None) -> str:
     index = 0
     while index < len(children):
         child = children[index]
-        if child.tag in SCRIPTS:
+        symbol = script_symbol(child)
+        if symbol is not None:
             body = children_to_latex(child)
             while (
                 not (child.tail or "").strip()
                 and index + 1 < len(children)
-                and children[index + 1].tag == child.tag
+                and script_symbol(children[index + 1]) == symbol
             ):
                 separator = "\\," if child.tail else ""
                 index += 1
                 child = children[index]
                 body += separator + children_to_latex(child)
-            parts.append(SCRIPTS[child.tag] + "{" + body + "}")
+            parts.append(symbol + "{" + body + "}")
         else:
             parts.append(element_to_latex(child))
         parts.append(text_to_latex(child.tail or ""))

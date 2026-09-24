@@ -50,7 +50,8 @@ def _reuse_previous_version(
         html = read_document(store, previous)
         if needs_formex(html) != (previous.formex_sha256 is not None):
             return None
-        formex = read_formex(store, previous) if previous.formex_sha256 else None
+        formex_sha256 = previous.formex_sha256
+        formex = read_formex(store, previous, formex_sha256) if formex_sha256 else None
     except (ObjectNotFoundError, StoredBytesMismatchError):
         return None
     raw = RawDocument(
