@@ -124,7 +124,7 @@
         "multi_part"
       ],
       "question": "How is the FuelEU penalty for a GHG intensity shortfall worked out, and does it get worse if we miss again the following year?",
-      "answer": "The penalty is the absolute value of the ship's compliance balance in gCO2eq converted to VLSFO-equivalent tonnes (41,000 MJ per tonne) and multiplied by EUR 2,400 per tonne, payable by 30 June of the verification period. If the ship has a deficit for two or more consecutive reporting periods, the amount is multiplied by 1 + (n − 1)/10, where n is the number of consecutive periods penalised.",
+      "answer": "The penalty in EUR is |compliance balance| / (GHGIE_actual × 41 000) × 2 400: the compliance balance in gCO2eq, divided by the ship's actual GHG intensity to turn it back into MJ, then by 41 000 MJ per VLSFO-equivalent tonne, times EUR 2 400 per tonne, payable by 30 June of the verification period. If the ship has a deficit for two or more consecutive reporting periods, the amount is multiplied by 1 + (n − 1)/10, where n is the number of consecutive periods penalised.",
       "references": [
         {
           "celex": "32023R1805",
@@ -147,15 +147,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "4c45bb6b3c77",
-            "48d5c06d7685",
-            "2e7d19156425",
-            "0d2f6acb2912",
-            "087166f2e373",
-            "90d05abf522e",
-            "b5f0023d0bfd",
-            "5ab19d4aacb0",
-            "4bdb182f7035"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -702,7 +695,7 @@
         "multi_part"
       ],
       "question": "How does the penalty for an EU ETS allowance shortfall compare with the FuelEU penalty for a compliance deficit?",
-      "answer": "The ETS penalty is EUR 100 for each tonne of CO2 equivalent for which allowances were not surrendered, and the company must still surrender the missing allowances the following year. The FuelEU penalty is worked out from the ship's compliance deficit, converted to VLSFO-equivalent tonnes and multiplied by EUR 2,400 per tonne, and it is multiplied by 1 + (n − 1)/10 when the ship has a deficit for two or more consecutive reporting periods.",
+      "answer": "The ETS penalty is EUR 100 for each tonne of CO2 equivalent for which allowances were not surrendered, and the company must still surrender the missing allowances the following year. The FuelEU penalty is |compliance balance| / (GHGIE_actual × 41 000) × 2 400 EUR: the deficit in gCO2eq divided by the ship's actual GHG intensity to give MJ, converted to VLSFO-equivalent tonnes at 41 000 MJ per tonne and multiplied by EUR 2 400 per tonne, and it is multiplied by 1 + (n − 1)/10 when the ship has a deficit for two or more consecutive reporting periods.",
       "references": [
         {
           "celex": "32003L0087",
@@ -745,15 +738,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "4c45bb6b3c77",
-            "48d5c06d7685",
-            "2e7d19156425",
-            "0d2f6acb2912",
-            "087166f2e373",
-            "90d05abf522e",
-            "b5f0023d0bfd",
-            "5ab19d4aacb0",
-            "4bdb182f7035"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -966,8 +952,7 @@
           "celex": "32025R1127",
           "annex": "",
           "content_hashes": [
-            "684176b968b6",
-            "27efa84fb6eb"
+            "638cb40ecde3"
           ]
         }
       ]
@@ -997,15 +982,8 @@
           "celex": "32023R1805",
           "annex": "IV",
           "content_hashes": [
-            "4c45bb6b3c77",
-            "48d5c06d7685",
-            "2e7d19156425",
-            "0d2f6acb2912",
-            "087166f2e373",
-            "90d05abf522e",
-            "b5f0023d0bfd",
-            "5ab19d4aacb0",
-            "4bdb182f7035"
+            "96fba768281d",
+            "82176f41abd1"
           ]
         }
       ]
@@ -1052,8 +1030,7 @@
           "celex": "32023R1805",
           "annex": "III",
           "content_hashes": [
-            "adc551a8bc2b",
-            "aede7abf919b"
+            "91124cd9ad26"
           ]
         }
       ]
@@ -1155,8 +1132,9 @@
           "celex": "32023R1805",
           "annex": "V",
           "content_hashes": [
-            "4b15e5096c28",
-            "cd63287778d2"
+            "b670ad224b14",
+            "e921e4774440",
+            "8d498fb5b5ca"
           ]
         },
         {
@@ -1193,11 +1171,12 @@
           "celex": "32015R0757",
           "annex": "I",
           "content_hashes": [
-            "6bcca4f2daaa",
-            "5c8786181e30",
-            "dcfba0113d61",
-            "494c7cdbf9ec",
-            "bf35f482f57d",
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
             "f65896f2be7f",
             "102570ce21d2",
             "7382dffa84ea",
@@ -1473,6 +1452,203 @@
           "paragraph": "1",
           "content_hashes": [
             "32009779302c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-fueleu-ghg-intensity",
+      "kind": "in_corpus",
+      "question": "How is the GHG intensity of the energy used on board calculated under FuelEU?",
+      "answer": "By Equation (1) in Annex I: GHG intensity [gCO2eq/MJ] = f_wind × (WtT + TtW). WtT is the sum over fuels i of M_i × CO2eq,WtT,i × LCV_i, plus the sum over OPS connection points k of E_k × CO2eq,electricity,k, divided by the sum over fuels of M_i × LCV_i × RWD_i plus the sum of E_k. The electricity term in that numerator is set to zero, so shore power adds energy to the denominator but no emissions. TtW is the sum over fuels i and fuel consumer units j of M_i,j × [(1 − C_slip,j/100) × CO2eq,TtW,i,j + (C_slip,j/100) × CO2eq,TtW,slip,i,j], over the same denominator. M is fuel mass in grams, LCV the lower calorific value in MJ/g, E_k the electricity delivered at berth in MJ, C_slip the percentage of fuel that slips uncombusted, RWD_i the RFNBO reward factor of 2 from 2025 to the end of 2033 (otherwise 1), and f_wind the reward factor for wind-assisted propulsion.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-fueleu-penalty-amount",
+      "kind": "in_corpus",
+      "question": "How do I turn my ship's FuelEU compliance balance into a penalty amount in euros?",
+      "answer": "The compliance balance in gCO2eq is (GHGIE_target − GHGIE_actual) × (the sum over fuels i of M_i × LCV_i plus the sum of electricity E_k delivered at berth), so the gap to the limit times the energy used. The penalty in EUR is |compliance balance| / (GHGIE_actual × 41 000) × 2 400. Dividing by the actual GHG intensity turns the deficit back into MJ of energy, dividing by 41 000 converts that into metric tonnes of VLSFO equivalent (one tonne of VLSFO being 41 000 MJ), and each such tonne costs EUR 2 400.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "IV",
+          "content_hashes": [
+            "96fba768281d",
+            "82176f41abd1"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-mrv-co2-emissions",
+      "kind": "in_corpus",
+      "question": "Under the EU MRV Regulation, how do I calculate my ship's CO2 emissions from its fuel consumption, and does slipped methane count towards the CO2 figure?",
+      "answer": "CO2 is the sum over fuels i of (M_i − M_i,NC) × EF_CO2,i, where M_i is the total mass of fuel i used across all emission sources, M_i,NC the mass of that fuel not combusted but released to the atmosphere, and EF_CO2,i its tank-to-wake CO2 emission factor from the table in point 2. M_i,NC is the fuel mass used in each emission source j times that source's slippage coefficient, M_i,j × C_j / 100, summed. So slipped fuel is taken out of the CO2 figure and counted as methane instead: CH4 is the sum of (M_i − M_i,NC) × EF_CH4,i plus the slip CH4_S = M_i,NC. Total reported GHG in tonnes CO2 equivalent is CO2 + CH4 × GWP_CH4 + N2O × GWP_N2O.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "annex": "I",
+          "content_hashes": [
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
+            "f65896f2be7f",
+            "102570ce21d2",
+            "7382dffa84ea",
+            "687618b8aafc",
+            "5a742135e2d8",
+            "ce657df84064",
+            "949049fb76a2",
+            "a718471450cf",
+            "38f336324b99",
+            "9c4a6e610e8e",
+            "9ef495a9a035"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-red-chp-heat-allocation",
+      "kind": "in_corpus",
+      "question": "Under RED, how are the emissions of a bioliquid-fired cogeneration plant allocated to the useful heat it delivers alongside electricity?",
+      "answer": "EC_h = (E / η_h) × (C_h × η_h) / (C_el × η_el + C_h × η_h). E is the total GHG emissions of the bioliquid before end-conversion, η_h and η_el are the annual heat and electrical efficiencies (useful heat or electricity out divided by fuel energy in), C_el is the exergy fraction of electricity, set to 1, and C_h is the Carnot efficiency of the heat, (T_h − T_0) / T_h, with T_h the delivery temperature of the heat in kelvin and T_0 = 273.15 K. Heat exported for heating buildings below 150 °C may instead use C_h = 0.3546. The electricity takes the matching share, EC_el = (E / η_el) × (C_el × η_el) / (C_el × η_el + C_h × η_h), and a heat-only installation uses EC_h = E / η_h.",
+      "references": [
+        {
+          "celex": "32018L2001",
+          "annex": "V",
+          "content_hashes": [
+            "10bd54837852",
+            "fa1a2b7a64be",
+            "14b85e3c19bb",
+            "920d7820a080",
+            "22c817383b2e",
+            "17e18129084e",
+            "bf043ff83071",
+            "da23dca0603a",
+            "e9fbdf5f1f3c",
+            "7d46f87d46ff",
+            "ce20aa0a3d13",
+            "4d15c8a1233b",
+            "2839a6040e8b",
+            "28ea5c582d0d",
+            "8a6a891f6918",
+            "f0fdc00ab12e",
+            "3a2725617403",
+            "dc3b094a3d65",
+            "a35c1f2564b6",
+            "b85108b4b6fc",
+            "e9aae57665b3",
+            "e60230e3144b",
+            "4b03123edc1f",
+            "5ce5d1aa49d4",
+            "91e36674fa78",
+            "8349a545f4b6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-cbam-complex-goods",
+      "kind": "in_corpus",
+      "question": "Under CBAM, how are the specific embedded emissions of a complex good calculated when it is made from imported precursors?",
+      "answer": "SEE_g = (AttrEm_g + EE_InpMat) / AL_g, in tonnes CO2e per tonne of the good. AttrEm_g is the installation's attributed emissions for the good, DirEm + IndirEm, meaning direct emissions plus indirect emissions from the electricity consumed, within the system boundaries of the production process. AL_g is the activity level, the quantity of the good produced in the reporting period. EE_InpMat is the sum over precursors i of M_i × SEE_i, the mass of each precursor used times its specific embedded emissions. Only precursors listed in Annex I and originating in third countries not exempted under Annex III count. For a simple good the precursor term drops out and SEE_g = AttrEm_g / AL_g.",
+      "references": [
+        {
+          "celex": "32023R0956",
+          "annex": "IV",
+          "content_hashes": [
+            "065e2914044e",
+            "a0e9dcb1f657",
+            "c9a6851619e5",
+            "9553923272d5",
+            "4b2708c508dd",
+            "a6463f5bbc74",
+            "9c7fa321f06c",
+            "c9dc135dd251",
+            "13a0152143b2",
+            "eab15fbb45ba"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-fueleu-rfnbo-subtarget",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "If the FuelEU RFNBO subtarget applies and my ship falls short of it, how are the shortfall and the penalty calculated?",
+      "answer": "The shortfall is the ship's RFNBO compliance balance in MJ: CB_RFNBO = 0.02 × (the sum over all fuels i of M_i × LCV_i) − (the sum over RFNBO fuels i of M_i × LCV_i), so 2 % of the yearly energy used on board minus the energy drawn from RFNBO or from fuels certified as giving equivalent GHG savings. If CB_RFNBO > 0, the penalty in EUR is CB_RFNBO / 41 000 × P_d, where 41 000 MJ is one metric tonne of VLSFO equivalent and P_d is the price difference between RFNBO and fossil fuel compatible with the ship's installation, calculated by a method the Commission sets in implementing acts. The 2 % subtarget only applies from 1 January 2034, and only if RFNBO made up less than 1 % of the energy used on board by ships in the 2031 reporting period.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "IV",
+          "content_hashes": [
+            "96fba768281d",
+            "82176f41abd1"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "5",
+          "paragraph": "3",
+          "content_hashes": [
+            "dafc7e924cfc"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "formula-mrv-ghg-co2-equivalent",
+      "kind": "in_corpus",
+      "question": "Under the EU MRV Regulation, how do I combine my ship's CO2, methane and nitrous oxide into one greenhouse gas figure in CO2 equivalent?",
+      "answer": "GHG_MRV = CO2_MRV + CH4_MRV × GWP_CH4 + N2O_MRV × GWP_N2O, in tonnes of CO2 equivalent. CO2_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CO2,i. CH4_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_CH4,i plus CH4_S, the methane released uncombusted, which is set equal to M_i,NC. N2O_MRV is the sum over fuels i of (M_i − M_i,NC) × EF_N2O,i. M_i is the total mass of fuel i used, and M_i,NC the mass not combusted, the sum over fuels i and emission sources j of M_i,j × C_j / 100 with C_j the slippage coefficient in percent. The emission factors are the tank-to-wake factors in the table under point 2 of that Part of Annex I. GWP_CH4 and GWP_N2O are the 100-year global warming potentials in the Annex to Delegated Regulation (EU) 2020/1044: 28 for CH4 and 265 for N2O, not values taken from another act.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "annex": "I",
+          "content_hashes": [
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
+            "f65896f2be7f",
+            "102570ce21d2",
+            "7382dffa84ea",
+            "687618b8aafc",
+            "5a742135e2d8",
+            "ce657df84064",
+            "949049fb76a2",
+            "a718471450cf",
+            "38f336324b99",
+            "9c4a6e610e8e",
+            "9ef495a9a035"
+          ]
+        },
+        {
+          "celex": "32020R1044",
+          "annex": "",
+          "content_hashes": [
+            "281c103bcb84"
           ]
         }
       ]

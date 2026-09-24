@@ -15,7 +15,8 @@ class RawDocument(BaseSchema):
     celex is the act discovery found and candidates the consolidations it offered; resolved_celex
     is the version CELLAR served, one of those candidates or the act itself. title is the act's
     official English title as discovery read it, NULL where CELLAR had none. No column names the
-    stored object: its key is derived from celex, resolved_celex and sha256.
+    stored object: its key is derived from celex, resolved_celex and sha256. formex_sha256 names
+    the stored Formex zip, NULL where the XHTML draws no inline image or CELLAR had no Formex.
     """
 
     __tablename__ = "raw_documents"
@@ -34,6 +35,7 @@ class RawDocument(BaseSchema):
     title: Mapped[str | None]
     sha256: Mapped[str]
     size_bytes: Mapped[int]
+    formex_sha256: Mapped[str | None]
     fetched_at: Mapped[datetime]
 
     run: Mapped[IngestRun] = relationship()

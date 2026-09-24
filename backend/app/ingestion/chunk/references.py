@@ -45,7 +45,8 @@ ARTICLE_REF = re.compile(rf"Articles?\s+({ARTICLE_NUMBER}){PARAGRAPH}{POINT}")
 ARTICLE_TAIL = re.compile(
     rf"\s*(?:,|and)\s+(?=\d{{1,3}}(?!\d))({ARTICLE_NUMBER}){PARAGRAPH}{POINT}"
 )
-ANNEX_REF = re.compile(rf"Annexe?s?\s+([IVXLC]+|\d+){POINT}")
+ANNEX_REF = re.compile(rf"(?:Annexe?s?\s+([IVXLC]+|\d+)|(?<=\b[Tt]he )Annex(?=\s+to\s)){POINT}")
+"""A numbered annex, or 'the Annex to' an act, which names that act's only, unnumbered annex."""
 ANNEX_TAIL = re.compile(rf"\s*(?:,|and)\s+([IVXLC]{{1,4}}|\d{{1,2}})\b{POINT}")
 
 
@@ -82,14 +83,15 @@ def _find_article_mentions(text: str) -> list[DivisionMention]:
 
 
 def _find_annex_mentions(text: str) -> list[DivisionMention]:
-    """One mention per annex; an annex numbers no paragraphs, but may be cited by a point."""
+    """One mention per annex; an annex numbers no paragraphs, but may be cited by a point. An
+    unnumbered annex is the empty number, as the annex is stored."""
     return [
         DivisionMention(
             start=member.start(),
             end=run_end,
             reference=Reference(
-                raw=format_citation(annex=member.group(1), point=member.group("point")),
-                annex=member.group(1),
+                raw=format_citation(annex=member.group(1) or "", point=member.group("point")),
+                annex=member.group(1) or "",
                 point=member.group("point"),
             ),
         )

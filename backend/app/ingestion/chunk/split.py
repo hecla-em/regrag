@@ -5,7 +5,9 @@ boundaries inside an overlong line, then a hard cut where no boundary is left.
 """
 
 import re
+from collections.abc import Sequence
 
+from app.ingestion.enums import SectionKind
 from app.ingestion.parse.models import Section
 
 CELL_SEPARATOR = " | "
@@ -17,6 +19,38 @@ def split_section_text(section: Section, max_chars: int) -> list[str]:
     if section.rows:
         return _split_table_rows(section.rows, max_chars)
     return _split_text(section.text, max_chars) if section.text else []
+
+
+def pack_leaves(sections: Sequence[Section], max_chars: int) -> list[Section]:
+    """Neighbouring leaves no number or title addresses joined into one paragraph while they
+    fit the budget together, so a formula table stays with the prose that introduces it."""
+    packed: list[Section] = []
+    for section in sections:
+        previous = packed[-1] if packed else None
+        if previous is not None and _is_packable(previous) and _is_packable(section):
+            joined = f"{_leaf_text(previous)}\n{_leaf_text(section)}"
+            if len(joined) <= max_chars:
+                packed[-1] = Section(kind=SectionKind.PARAGRAPH, text=joined)
+                continue
+        packed.append(section)
+    return packed
+
+
+def _is_packable(section: Section) -> bool:
+    """A paragraph or table with nothing beneath it and no number or title of its own."""
+    return (
+        section.kind in (SectionKind.PARAGRAPH, SectionKind.TABLE)
+        and not section.children
+        and section.number is None
+        and section.title is None
+    )
+
+
+def _leaf_text(section: Section) -> str:
+    """A leaf's text as a chunk carries it, a table one row to a line."""
+    if section.rows:
+        return "\n".join(CELL_SEPARATOR.join(row) for row in section.rows)
+    return section.text
 
 
 def _split_text(text: str, max_chars: int) -> list[str]:

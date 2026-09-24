@@ -2,10 +2,12 @@
 cleaning every read goes through."""
 
 import re
+from collections.abc import Sequence
 
 from selectolax.parser import HTMLParser
 
-FORMULA_PLACEHOLDER = "[formula]"
+from app.ingestion.exceptions import ParseError
+from app.ingestion.parse.models import FORMULA_PLACEHOLDER
 
 AMENDMENT_REF = "p.modref"
 FOOTNOTE_MARKER = "span.superscript, span.oj-super"
@@ -24,11 +26,19 @@ ANNEX_NUMBER_RE = re.compile(r"ANNEX\s+([IVXLC]+|\d+)", re.IGNORECASE)
 LEADING_NUMBER_RE = re.compile(r"^(\d+(?:-?[a-z]+)?)\.\s*")
 
 
-def replace_formula_images(tree: HTMLParser) -> None:
-    """Stand every base64 formula image down to a marker a chunk can carry."""
-    for image in tree.css("img"):
-        if (image.attributes.get("src") or "").startswith("data:"):
-            image.replace_with(FORMULA_PLACEHOLDER)
+def replace_formula_images(tree: HTMLParser, formulas: Sequence[str] | None) -> None:
+    """Stand each base64 image down to its formula in document order, or to [formula]."""
+    images = [
+        image
+        for image in tree.css("img")
+        if (image.attributes.get("src") or "").startswith("data:")
+    ]
+    if formulas is None:
+        formulas = [FORMULA_PLACEHOLDER] * len(images)
+    elif len(formulas) != len(images):
+        raise ParseError(f"{len(formulas)} formulas for {len(images)} inline images")
+    for image, formula in zip(images, formulas, strict=True):
+        image.replace_with(formula)
 
 
 def drop_non_legal_markup(tree: HTMLParser) -> None:

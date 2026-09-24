@@ -19,8 +19,10 @@ class FetchedDocument(NamedTuple):
 
     change compares the version this run resolved against the one the previous run did, so a
     document whose bytes were reused and one re-downloaded to the same version read alike.
+    formex is the version's Formex zip, None where it needs none or CELLAR had none.
     """
 
     raw: RawDocument
     html: bytes
+    formex: bytes | None
     change: DocChange

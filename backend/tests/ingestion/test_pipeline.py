@@ -18,7 +18,7 @@ from app.ingestion.fetch import stage as fetch_stage
 from app.ingestion.fetch.models import RawDocsQuery
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.service import get_raw_documents
-from app.ingestion.fetch.storage import document_key, read_document
+from app.ingestion.fetch.storage import HTML_EXTENSION, object_key, read_document
 from app.ingestion.models import IngestRunResult
 from app.ingestion.pipeline import ingest
 from app.ingestion.schemas import IngestRun
@@ -353,7 +353,7 @@ async def test_a_source_document_lost_from_the_store_is_downloaded_again(
 
     rows = await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"]))
     row = rows["32015R0757"]
-    assert local_store.exists(document_key(row.celex, row.resolved_celex, row.sha256))
+    assert local_store.exists(object_key(row.celex, row.resolved_celex, row.sha256, HTML_EXTENSION))
     assert report.ok
 
 
@@ -503,10 +503,10 @@ async def test_a_row_that_will_not_flush_fails_only_its_own_document(
     real = fetch_stage._download_new_version
 
     async def unstorable(client, store, discovered, run):
-        document, content = await real(client, store, discovered, run)
+        document, content, formex = await real(client, store, discovered, run)
         if discovered.celex == "32015R0757":
             document.size_bytes = 2**40
-        return document, content
+        return document, content, formex
 
     monkeypatch.setattr(fetch_stage, "_download_new_version", unstorable)
     report = await ingest_mrv(db_session, local_store, corpus_client)
