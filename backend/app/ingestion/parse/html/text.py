@@ -1,18 +1,11 @@
 """EUR-Lex text conventions: the markup stripped before any text is read, and the
 cleaning every read goes through."""
 
-import base64
-import hashlib
 import re
 
 from selectolax.parser import HTMLParser
 
-from app.ingestion.parse.models import ParsedImage
-
-IMAGE_HASH_CHARS = 16
-IMAGE_PLACEHOLDER = "[image:{}]"
-IMAGE_PLACEHOLDER_RE = re.compile(r"( ?)\[image:([0-9a-f]{16})\]")
-DATA_URI_RE = re.compile(r"data:(image/[\w.+-]+);base64,(.*)", re.DOTALL)
+FORMULA_PLACEHOLDER = "[formula]"
 
 AMENDMENT_REF = "p.modref"
 FOOTNOTE_MARKER = "span.superscript, span.oj-super"
@@ -31,19 +24,11 @@ ANNEX_NUMBER_RE = re.compile(r"ANNEX\s+([IVXLC]+|\d+)", re.IGNORECASE)
 LEADING_NUMBER_RE = re.compile(r"^(\d+(?:-?[a-z]+)?)\.\s*")
 
 
-def replace_inline_images(tree: HTMLParser) -> dict[str, ParsedImage]:
-    """Stand every base64 image down to a placeholder naming its hash, returning the images by
-    hash."""
-    images: dict[str, ParsedImage] = {}
+def replace_formula_images(tree: HTMLParser) -> None:
+    """Stand every base64 formula image down to a marker a chunk can carry."""
     for image in tree.css("img"):
-        match = DATA_URI_RE.fullmatch(image.attributes.get("src") or "")
-        if match is None:
-            continue
-        content = base64.b64decode(match.group(2))
-        digest = hashlib.sha256(content).hexdigest()[:IMAGE_HASH_CHARS]
-        images[digest] = ParsedImage(media_type=match.group(1), content=content)
-        image.replace_with(IMAGE_PLACEHOLDER.format(digest))
-    return images
+        if (image.attributes.get("src") or "").startswith("data:"):
+            image.replace_with(FORMULA_PLACEHOLDER)
 
 
 def drop_non_legal_markup(tree: HTMLParser) -> None:

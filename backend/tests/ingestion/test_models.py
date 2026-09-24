@@ -37,13 +37,7 @@ def test_report_covers_every_stage_with_its_counts_and_failures(run: IngestRunRe
     assert run.report() == {
         "discover": {"documents": 2, "dropped": 1, "failed": {}},
         "fetch": {"documents": 2, "new": 1, "updated": 0, "reused": 1, "failed": {}},
-        "parse": {
-            "documents": 3,
-            "parsed": 2,
-            "images_read": 0,
-            "images_reused": 0,
-            "failed": {"c": "ParseError: no body"},
-        },
+        "parse": {"documents": 3, "parsed": 2, "failed": {"c": "ParseError: no body"}},
         "chunk": {"chunks": 42, "added": 12, "deleted": 0, "kept": 30, "updated": 0, "failed": {}},
         "embed": {"chunks": 12, "embedded": 12, "already_embedded": 0, "failed": {}},
     }

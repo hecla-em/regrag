@@ -13,7 +13,7 @@ def test_recitals_and_citations_are_excluded():
         '<div class="eli-subdivision" id="art_1"><p class="oj-ti-art">Article 1</p>'
         '<p class="oj-normal">Subject matter.</p></div>'
         "</body></html>"
-    ).sections
+    )
     text = " ".join(s.text for s in all_sections(sections))
     assert "Subject matter." in text
     assert "Whereas" not in text
@@ -27,7 +27,7 @@ def test_a_footnote_marker_is_dropped_with_the_brackets_around_it():
         '<p class="oj-normal">Directive 2003/87/EC of the Council (<a href="#E0001">'
         '<span class="oj-super">1</span></a>);</p></div>'
         "</body></html>"
-    ).sections
+    )
     assert article.children[0].text == "Directive 2003/87/EC of the Council;"
 
 
@@ -55,7 +55,7 @@ FLAT_CONSOLIDATED_HTML = (
 
 
 def test_flat_consolidated_articles_are_grouped_under_their_headings():
-    sections = articles(parse_eurlex_html(FLAT_CONSOLIDATED_HTML).sections)
+    sections = articles(parse_eurlex_html(FLAT_CONSOLIDATED_HTML))
     assert [(s.number, s.title) for s in sections] == [("1", "Subject matter"), ("2", "Scope")]
     assert sections[0].children[0].text == "This Regulation lays down obligations."
     assert [p.number for p in sections[1].children] == ["1", "2"]
@@ -63,7 +63,7 @@ def test_flat_consolidated_articles_are_grouped_under_their_headings():
 
 
 def test_flat_consolidated_annexes_end_at_the_footnotes():
-    sections = annexes(parse_eurlex_html(FLAT_CONSOLIDATED_HTML).sections)
+    sections = annexes(parse_eurlex_html(FLAT_CONSOLIDATED_HTML))
     assert [s.number for s in sections] == ["I"]
     text = " ".join(s.text for s in all_sections(sections))
     assert "Annex prose." in text

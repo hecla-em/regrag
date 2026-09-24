@@ -15,20 +15,6 @@ class Section(FrozenModel):
     children: tuple["Section", ...] = ()
 
 
-class ParsedImage(FrozenModel):
-    """An inline image lifted out of the text, named there by the hash its placeholder carries."""
-
-    media_type: str
-    content: bytes
-
-
-class ParsedHtml(FrozenModel):
-    """One document's section tree, with the images its placeholders name."""
-
-    sections: tuple[Section, ...]
-    images: dict[str, ParsedImage] = {}
-
-
 class ParsedDocument(FrozenModel):
     """A parsed act: identity from the ingest record, body as a section tree."""
 
@@ -36,4 +22,3 @@ class ParsedDocument(FrozenModel):
     topic: str
     act_title: str | None = None
     sections: tuple[Section, ...]
-    images: dict[str, ParsedImage] = {}

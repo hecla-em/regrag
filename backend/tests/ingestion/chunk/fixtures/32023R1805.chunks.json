@@ -403,7 +403,7 @@
     "topic": "fueleu",
     "act_title": null,
     "kind": "table",
-    "text": "1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9\n | WtT | TtW\nFuel Class | Pathway name | LCV [image:5e6515ff8bca47e7] | CO2eq WtT [image:5e6515ff8bca47e7] | Fuel Consumer Unit Class | [image:5e6515ff8bca47e7] [image:5e6515ff8bca47e7] | [image:5e6515ff8bca47e7] [image:5e6515ff8bca47e7] | [image:5e6515ff8bca47e7] [image:5e6515ff8bca47e7] | Cslip As % of the mass of the fuel used by the engine\nFossil | HFO ISO 8217 Grades RME to RMK | 0,0405 | 13,5 | ALL ICEs | 3,114 | 0,00005 | 0,00018 | -\nLFO ISO 8217 Grades RMA to RMD | 0,041 | 13,2 | ALL ICEs | 3,151 | 0,00005 | 0,00018 | -",
+    "text": "1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9\n | WtT | TtW\nFuel Class | Pathway name | LCV [formula] | CO2eq WtT [formula] | Fuel Consumer Unit Class | [formula] [formula] | [formula] [formula] | [formula] [formula] | Cslip As % of the mass of the fuel used by the engine\nFossil | HFO ISO 8217 Grades RME to RMK | 0,0405 | 13,5 | ALL ICEs | 3,114 | 0,00005 | 0,00018 | -\nLFO ISO 8217 Grades RMA to RMD | 0,041 | 13,2 | ALL ICEs | 3,151 | 0,00005 | 0,00018 | -",
     "paragraph": null,
     "part": 1,
     "parts": 1,

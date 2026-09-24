@@ -370,12 +370,6 @@ class IngestConfig(BaseConfig):
     EMBED_CONCURRENCY: provider calls in flight at once; llm_retry absorbs the rate limits.
     MAX_FAILURE_CHARS: cut for a stored failure message, so one talkative provider cannot
         bloat the run row.
-    FORMULA_MODEL: the vision model that reads each inline image into LaTeX. A frontier model,
-        as each distinct image is read once and a wrong subscript is the failure that matters.
-    FORMULA_CONCURRENCY: images read at once. One, as OpenRouter caps a new account at 20
-        requests a minute for the formula model and each read takes several seconds.
-    FORMULA_TIMEOUT: seconds for one image's read.
-    FORMULA_MAX_TOKENS: the cap on one image's answer.
     """
 
     TOPIC_BASE_ACTS: dict[str, str] = {
@@ -393,10 +387,6 @@ class IngestConfig(BaseConfig):
     EMBED_PAGE_SIZE: int = 500
     EMBED_CONCURRENCY: int = 4
     MAX_FAILURE_CHARS: int = 500
-    FORMULA_MODEL: str = "openrouter/anthropic/claude-opus-5"
-    FORMULA_CONCURRENCY: int = 1
-    FORMULA_TIMEOUT: int = 120
-    FORMULA_MAX_TOKENS: int = 2048
 
 
 class TextRanker(StrEnum):
