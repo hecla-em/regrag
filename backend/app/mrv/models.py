@@ -20,6 +20,9 @@ FIGURE_LABELS = {
 }
 """Each summed CO2 figure's field, and the label the model reads it under."""
 
+FIRST_ETS_PERIOD = 2024
+"""The first reporting period whose file names each report's company and its EU ETS figure."""
+
 ETS_PHASE_IN = {2024: 0.40, 2025: 0.70}
 """The share of a year's ETS figure surrendered for under Article 3gb of Directive 2003/87/EC;
 every later year is surrendered for in full."""
@@ -46,12 +49,17 @@ class FigureTotals(FrozenModel):
     co2_arrived_ms: float
     co2_at_berth: float
 
-    def describe(self, phase_in: float) -> str:
-        """The group's figures on labelled lines, closing with what is surrendered for."""
+    def describe(self, phase_in: float | None) -> str:
+        """The group's figures on labelled lines, closing with what is surrendered for; no ETS
+        lines without a phase-in, for a period before the ETS covered shipping."""
         lines = [f"{self.label} — {self.reports:,} report{'' if self.reports == 1 else 's'}"]
         lines += [
-            f"  {label}: {getattr(self, name):,.0f} t" for name, label in FIGURE_LABELS.items()
+            f"  {label}: {getattr(self, name):,.0f} t"
+            for name, label in FIGURE_LABELS.items()
+            if phase_in is not None or name != "co2_ets"
         ]
+        if phase_in is None:
+            return "\n".join(lines)
         lines.append(
             f"  surrendered for, worked out here and not a dataset column (EU ETS emissions × "
             f"the Article 3gb phase-in of {phase_in:.0%}): {self.co2_ets * phase_in:,.0f} t"
@@ -77,7 +85,7 @@ class MrvBlock(FrozenModel):
     group_count: int
     overall: FigureTotals
     reports_with_ets: int
-    median_ets_ratio: float
+    median_ets_ratio: float | None
     matching_ets_ratio: int
 
     @property
@@ -89,8 +97,8 @@ class MrvBlock(FrozenModel):
         return f"mrv:{self.period}:{self.version}:{self.subject}"
 
     @property
-    def phase_in(self) -> float:
-        return ETS_PHASE_IN.get(self.period, 1.0)
+    def phase_in(self) -> float | None:
+        return ETS_PHASE_IN.get(self.period, 1.0) if self.period >= FIRST_ETS_PERIOD else None
 
     @property
     def text(self) -> str:
@@ -101,19 +109,26 @@ class MrvBlock(FrozenModel):
             f"THETIS-MRV public dataset (file version {self.version}, generated "
             f"{self.generated.isoformat()}), in tonnes of CO2, not CO2 equivalent."
         )
+        if self.phase_in is None:
+            heading += (
+                f" Files before {FIRST_ETS_PERIOD} name no company and carry no EU ETS figure, "
+                "as the ETS covered shipping only from then."
+            )
         if not self.overall.reports:
             return f"{heading}\n\nNo report in this period matches."
+        ranked_by = "total CO2" if self.phase_in is None else "ETS figure"
         shown = (
-            f"The {len(self.groups)} largest by ETS figure of {self.group_count:,} are shown."
+            f"The {len(self.groups)} largest by {ranked_by} of {self.group_count:,} are shown."
             if len(self.groups) < self.group_count
             else ""
         )
-        share = self.matching_ets_ratio / self.reports_with_ets if self.reports_with_ets else 0.0
         check = (
             f"Across the {self.reports_with_ets:,} matched reports with an ETS figure, the ETS "
             "figure ÷ (100% between MS ports + 50% departed + 50% arrived + 100% at berth) has a "
-            f"median of {self.median_ets_ratio:.2f}, and {share:.0%} of reports sit within 1% of "
-            "it."
+            f"median of {self.median_ets_ratio:.2f}, and "
+            f"{self.matching_ets_ratio / self.reports_with_ets:.0%} of reports sit within 1% of it."
+            if self.median_ets_ratio is not None
+            else ""
         )
         totals = [group.describe(self.phase_in) for group in (*self.groups, self.overall)]
         return "\n\n".join(part for part in [heading, shown, *totals, check] if part)
@@ -125,7 +140,7 @@ class MrvQueryArgs(FrozenModel):
     """A THETIS-MRV query: one reporting period's reports, narrowed to a company or ship when
     named, summed per report type, company or ship."""
 
-    period: int = Field(description="Reporting period (calendar year), 2024 or later.")
+    period: int = Field(description="Reporting period (calendar year), 2018 or later.")
     company: str | None = Field(
         default=None, description="Only this company's reports: its name or IMO company number."
     )

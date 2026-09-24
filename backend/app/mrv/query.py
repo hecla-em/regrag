@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import ColumnElement, false, func, or_, select
+from sqlalchemy import ColumnElement, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
@@ -13,7 +13,8 @@ from app.mrv.names import company_key, name_key
 from app.mrv.schemas import MrvReport
 
 GROUP_LIMIT = 10
-"""The most companies or ships one query lists; the rest count only in the overall line."""
+"""The most companies or ships one query lists, largest ETS figure first, else largest total
+before the ETS; the rest count only in the overall line."""
 
 SCOPE_TOLERANCE = 0.01
 """How close the ETS figure must sit to the scope split to count within the reported share."""
@@ -47,24 +48,28 @@ ETS_CHECK = (
 GROUPINGS = {
     MrvGrouping.REPORT_TYPE: (MrvReport.sheet, func.format("%s ERs", MrvReport.sheet)),
     MrvGrouping.COMPANY: (
-        MrvReport.company_imo,
-        func.format(
-            "%s (IMO company number %s)", func.max(MrvReport.company_name), MrvReport.company_imo
+        func.coalesce(MrvReport.company_imo, MrvReport.company_key),
+        func.concat(
+            func.max(MrvReport.company_name),
+            literal(" (IMO company number ") + func.max(MrvReport.company_imo) + ")",
         ),
     ),
     MrvGrouping.SHIP: (
         MrvReport.imo,
-        func.format(
-            "%s (IMO %s, %s, %s)",
-            func.max(MrvReport.ship_name),
-            MrvReport.imo,
-            func.max(MrvReport.ship_type),
-            func.max(MrvReport.company_name),
+        func.concat(
+            func.format(
+                "%s (IMO %s, %s",
+                func.max(MrvReport.ship_name),
+                MrvReport.imo,
+                func.max(MrvReport.ship_type),
+            ),
+            literal(", ") + func.max(MrvReport.company_name),
+            ")",
         ),
     ),
 }
-"""What each grouping sums per, an IMO number rather than a name EMSA spells variously, and
-the label naming a group, one spelling picked per group."""
+"""What each grouping sums per, an IMO number rather than a name EMSA spells variously (a
+company's stored key where it has none), and the label naming a group, one spelling picked."""
 
 
 def key_or_imo(
@@ -73,9 +78,11 @@ def key_or_imo(
     query: str,
     to_key: Callable[[str], str],
 ) -> ColumnElement[bool]:
-    """Reports whose IMO number is the query, or whose stored key holds the query's."""
+    """Reports whose IMO number is the query, or whose stored key holds the query's key as
+    whole words, so 'msc' matches 'msc mediterranean' but not 'amsco'."""
     query_key = to_key(query)
-    return or_(imo == query.strip(), key.contains(query_key) if query_key else false())
+    whole_words = (" " + key + " ").contains(f" {query_key} ")
+    return or_(imo == query.strip(), whole_words if query_key else false())
 
 
 def matched_reports(args: MrvQueryArgs) -> list[ColumnElement[bool]]:
@@ -109,13 +116,15 @@ async def query_reports(session: AsyncSession, args: MrvQueryArgs) -> MrvBlock |
             *FIGURE_SUMS,
             func.count().over().label("group_count"),
         )
-        .where(*matched)
+        .where(*matched, key.is_not(None))
         .group_by(key)
     )
     ordered = (
         grouped.order_by(key)
         if args.by is MrvGrouping.REPORT_TYPE
-        else grouped.order_by(func.sum(MrvReport.co2_ets).desc().nulls_last()).limit(GROUP_LIMIT)
+        else grouped.order_by(
+            func.sum(MrvReport.co2_ets).desc().nulls_last(), func.sum(MrvReport.co2_total).desc()
+        ).limit(GROUP_LIMIT)
     )
     rows = (await session.execute(ordered)).all()
     overall_stmt = select(func.count().label("reports"), *FIGURE_SUMS, *ETS_CHECK).where(*matched)
@@ -129,6 +138,6 @@ async def query_reports(session: AsyncSession, args: MrvQueryArgs) -> MrvBlock |
         group_count=rows[0].group_count if rows else 0,
         overall=FigureTotals(**overall._asdict(), label="all matched reports together"),
         reports_with_ets=overall.reports_with_ets,
-        median_ets_ratio=overall.median_ets_ratio or 0.0,
+        median_ets_ratio=overall.median_ets_ratio,
         matching_ets_ratio=overall.matching_ets_ratio,
     )

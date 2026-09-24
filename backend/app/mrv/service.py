@@ -14,9 +14,6 @@ from app.mrv.schemas import MrvReport
 
 logger = logging.getLogger(__name__)
 
-FIRST_PERIOD = 2024
-"""The first reporting period the ETS covers shipping for."""
-
 
 async def load_period(
     session: AsyncSession, client: httpx.AsyncClient, store: ObjectStore, file: MrvFile
@@ -34,20 +31,16 @@ async def load_period(
     return len(rows)
 
 
-async def load_periods(
-    session: AsyncSession, client: httpx.AsyncClient, store: ObjectStore, periods: list[int] | None
-) -> dict[int, int]:
-    """Every requested period from FIRST_PERIOD on, or all of them; rows loaded per period."""
-    chosen = [
-        file
-        for file in await list_files(client)
-        if file.period >= FIRST_PERIOD and (periods is None or file.period in periods)
-    ]
-    return {file.period: await load_period(session, client, store, file) for file in chosen}
-
-
-async def loaded_versions(session: AsyncSession) -> str:
-    """Each loaded period with its file version, like '2024v243,2025v58'; empty when none is."""
+async def loaded_files(session: AsyncSession) -> dict[int, int]:
+    """Each loaded period's file version."""
     stmt = select(MrvReport.period, MrvReport.version).distinct().order_by(MrvReport.period)
-    rows = (await session.execute(stmt)).all()
-    return ",".join(f"{period}v{version}" for period, version in rows)
+    return {period: version for period, version in (await session.execute(stmt)).all()}
+
+
+async def load_new_files(
+    session: AsyncSession, client: httpx.AsyncClient, store: ObjectStore
+) -> dict[int, int]:
+    """Every period whose latest published file is not the one loaded; rows loaded per period."""
+    loaded = await loaded_files(session)
+    files = [file for file in await list_files(client) if loaded.get(file.period) != file.version]
+    return {file.period: await load_period(session, client, store, file) for file in files}

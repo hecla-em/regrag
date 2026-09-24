@@ -21,7 +21,8 @@ MRV_QUERY = ToolSpec(
     step=ToolStep.MRV_QUERY,
     args_model=MrvQueryArgs,
     run=run_mrv_query,
-    description="Read one reporting period of the THETIS-MRV public dataset (2024 onward): "
+    description="Read one reporting period of the THETIS-MRV public dataset (2018 onward, "
+    "companies and the EU ETS figure from 2024): "
     "how many emissions reports were filed and their CO2 in tonnes as total, to be reported "
     "under the EU ETS, and split by EU scope (between, departed from, arrived at Member State "
     "ports, at berth), plus how the ETS figure compares with that scope split. Covers the whole "
