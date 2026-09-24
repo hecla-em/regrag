@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from itertools import pairwise
 from xml.etree.ElementTree import Element
 
 from app.ingestion.exceptions import ParseError
@@ -113,33 +114,42 @@ def element_to_latex(element: Element) -> str:
     raise ParseError(f"unknown Formex {tag} type {kind!r}")
 
 
+def script_runs(element: Element) -> list[list[Element]]:
+    """An element's children in runs: adjacent subscripts (or exponents) with only whitespace
+    between them share a run, every other child stands alone."""
+    runs: list[list[Element]] = []
+    for child in element:
+        symbol = script_symbol(child)
+        previous = runs[-1][-1] if runs else None
+        if (
+            previous is not None
+            and symbol is not None
+            and script_symbol(previous) == symbol
+            and not (previous.tail or "").strip()
+        ):
+            runs[-1].append(child)
+        else:
+            runs.append([child])
+    return runs
+
+
 def children_to_latex(element: Element | None) -> str:
     """An element's text and children as LaTeX, adjacent subscripts (or exponents) merged
     into one."""
     if element is None:
         return ""
     parts = [text_to_latex(element.text or "")]
-    children = list(element)
-    index = 0
-    while index < len(children):
-        child = children[index]
-        symbol = script_symbol(child)
-        if symbol is not None:
-            body = children_to_latex(child)
-            while (
-                not (child.tail or "").strip()
-                and index + 1 < len(children)
-                and script_symbol(children[index + 1]) == symbol
-            ):
-                separator = "\\," if child.tail else ""
-                index += 1
-                child = children[index]
-                body += separator + children_to_latex(child)
-            parts.append(symbol + "{" + body + "}")
+    for run in script_runs(element):
+        symbol = script_symbol(run[0])
+        if symbol is None:
+            parts.append(element_to_latex(run[0]))
         else:
-            parts.append(element_to_latex(child))
-        parts.append(text_to_latex(child.tail or ""))
-        index += 1
+            body = children_to_latex(run[0]) + "".join(
+                ("\\," if previous.tail else "") + children_to_latex(child)
+                for previous, child in pairwise(run)
+            )
+            parts.append(symbol + "{" + body + "}")
+        parts.append(text_to_latex(run[-1].tail or ""))
     return "".join(parts).strip()
 
 
