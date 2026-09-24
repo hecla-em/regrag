@@ -4,8 +4,6 @@ const SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js"
 const READY_CALLBACK = "onRegRagTurnstileReady"
 const ACTION = "chat"
 const MINT_TIMEOUT_MS = 15_000
-/** Cloudflare redeems a token for 300s, less a margin for the request to reach siteverify. */
-const TOKEN_LIFETIME_MS = 280_000
 
 /** Centred, and shown only while a challenge waits on a click: Turnstile leaves a passed one on screen. */
 const CONTAINER_CLASS =
@@ -28,6 +26,8 @@ type TurnstileApi = {
 	render: (container: HTMLElement, options: TurnstileOptions) => string
 	execute: (widgetId: string) => void
 	reset: (widgetId: string) => void
+	getResponse: (widgetId: string) => string | undefined
+	isExpired: (widgetId: string) => boolean
 }
 
 declare global {
@@ -40,14 +40,13 @@ type Widget = {
 	execute: () => void
 	reset: () => void
 	hide: () => void
+	currentToken: () => string | null
 }
 
 type DeliverToken = (token: string | null) => void
 
-type Minted = { token: string; mintedAt: number }
-
 let reportedMissingSitekey = false
-let prepared: Promise<Minted | null> | null = null
+let prepared: Promise<string | null> | null = null
 let pending: DeliverToken | null = null
 let mintTimer: ReturnType<typeof setTimeout> | undefined
 let widget: Promise<Widget> | null = null
@@ -110,6 +109,8 @@ async function openWidget(sitekey: string): Promise<Widget> {
 		execute: () => turnstile.execute(id),
 		reset: () => turnstile.reset(id),
 		hide: () => container.classList.add(HIDDEN_CLASS),
+		currentToken: () =>
+			turnstile.isExpired(id) ? null : (turnstile.getResponse(id) ?? null),
 	}
 }
 
@@ -131,7 +132,7 @@ function awaitToken(rendered: Widget): Promise<string | null> {
 	})
 }
 
-async function mintToken(): Promise<Minted | null> {
+async function mintToken(): Promise<string | null> {
 	const sitekey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 	if (!sitekey) {
 		reportMissingSitekey()
@@ -139,8 +140,7 @@ async function mintToken(): Promise<Minted | null> {
 	}
 	try {
 		widget ??= openWidget(sitekey)
-		const token = await awaitToken(await widget)
-		return token === null ? null : { token, mintedAt: Date.now() }
+		return await awaitToken(await widget)
 	} catch {
 		widget = null
 		return null
@@ -152,12 +152,13 @@ export function prepareToken(): void {
 	prepared ??= mintToken()
 }
 
-/** A token for one question: the prepared one while Cloudflare would still redeem it, else a fresh mint, or null when none could be minted. */
+/** A token for one question: the prepared one, as Turnstile has kept it refreshed, else a fresh mint, or null when none could be minted. */
 export async function takeToken(): Promise<string | null> {
-	const taking = prepared ?? mintToken()
+	const taking = prepared
 	prepared = null
-	const minted = await taking
-	if (minted !== null && Date.now() - minted.mintedAt < TOKEN_LIFETIME_MS)
-		return minted.token
-	return (await mintToken())?.token ?? null
+	if (taking !== null && (await taking) !== null) {
+		const current = (await widget)?.currentToken()
+		if (current) return current
+	}
+	return mintToken()
 }
