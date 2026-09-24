@@ -6,7 +6,8 @@ const MARKER_PATTERN = /\[(\d+)\]/g
 const MARKER_RUN_BEFORE_PUNCTUATION = / ?((?:\[\d+\])+)([.,;:])/g
 const MARKER_RUN = / ?(?:\[\d+\]){2,}/g
 const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})/
-const INLINE_CODE_OR_FORMULA = /(`+)(?:[\s\S]*?\1|[\s\S]*$)|\$\$[\s\S]+?\$\$/g
+const INLINE_CODE_OR_FORMULA =
+	/(`+)(?:[\s\S]*?\1|[\s\S]*$)|\$\$[\s\S]+?\$\$|\$(?!\d)[^$]+\$/g
 
 /** Superscripts follow punctuation: `claim [1][2].` becomes `claim.[1][2]`. */
 export function moveMarkersAfterPunctuation(
@@ -85,12 +86,12 @@ function splitInlineCode(value: string): MarkdownSegment[] {
 }
 
 /**
- * The answer split into its code — fenced blocks, inline spans and `$$` formulas — and the
+ * The answer split into its code — fenced blocks, inline spans and `$` formulas — and the
  * prose around it, so markers inside code are neither read as citations nor rewritten.
  * Mirrors the `code` parent that `rehypeCitationMarkers` skips, and rejoins to exactly what
  * it was given.
  */
-function splitMarkdownCode(markdown: string): MarkdownSegment[] {
+export function splitMarkdownCode(markdown: string): MarkdownSegment[] {
 	const segments: MarkdownSegment[] = []
 	const lines = markdown.split("\n")
 	let prose = ""

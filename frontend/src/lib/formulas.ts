@@ -1,9 +1,12 @@
 import type { Element, ElementContent, Root } from "hast"
 import { visit } from "unist-util-visit"
+import { splitMarkdownCode } from "@/lib/citations"
 
 const FORMULA = /\$\$((?:\\[\s\S]|[^\\])+?)\$\$/g
 const FORMULA_DELIMITER = "$$"
 const BLOCK_PARENTS = new Set(["p", "li"])
+const MONEY_DOLLAR = /(?<!\\)\$(?=\d)/g
+const RELATION = /[=<>]|\\(?:leq?|geq?|neq?|approx|equiv)(?![a-zA-Z])/
 
 /** The ingest passes raw Unicode into its LaTeX, which KaTeX sets fine but warns about. */
 export const KATEX_OPTIONS = { strict: "ignore" } as const
@@ -55,24 +58,48 @@ export function holdOpenFormula(answer: string): string {
 		: answer
 }
 
+/** The answer with each `$` that starts an amount escaped outside code and formulas, so
+ * "$5 and $10" stays money rather than opening a formula. */
+export function escapeMoneyDollars(markdown: string): string {
+	return splitMarkdownCode(markdown)
+		.map((segment) =>
+			segment.code ? segment.value : segment.value.replace(MONEY_DOLLAR, "\\$"),
+		)
+		.join("")
+}
+
 function neighbourText(node: ElementContent | undefined): string | null {
 	if (node === undefined) return null
 	if (node.type === "element" && node.tagName === "br") return "\n"
 	return node.type === "text" ? node.value : ""
 }
 
-/** Marks remark-math's inline formulas that stand alone on a paragraph's or list item's line
- * as display maths, so rehype-katex sets them as blocks. */
+/** Whether the answer wrote a formula between `$$`, which it keeps for equations, rather
+ * than a single `$`, which it keeps for symbols inside a sentence. */
+function isDoubleDollar(node: Element, file: { value: unknown }): boolean {
+	const offset = node.position?.start.offset
+	return (
+		offset !== undefined &&
+		String(file.value).startsWith(FORMULA_DELIMITER, offset)
+	)
+}
+
+/** Marks remark-math's inline `$$` formulas as display maths, so rehype-katex sets them as
+ * blocks, when they are an equation or stand alone on a paragraph's or list item's line. */
 export function rehypeDisplayFormulas() {
-	return (tree: Root) => {
+	return (tree: Root, file: { value: unknown }) => {
 		visit(tree, "element", (node: Element, index, parent) => {
 			const classes = node.properties.className
 			if (!Array.isArray(classes) || !classes.includes("math-inline")) return
 			if (parent?.type !== "element" || !BLOCK_PARENTS.has(parent.tagName))
 				return
-			if (index === undefined) return
+			if (index === undefined || !isDoubleDollar(node, file)) return
 			const siblings = parent.children as ElementContent[]
+			const latex = node.children.map((child) =>
+				child.type === "text" ? child.value : "",
+			)
 			if (
+				RELATION.test(latex.join("")) ||
 				standsAlone(
 					neighbourText(siblings[index - 1]),
 					neighbourText(siblings[index + 1]),
