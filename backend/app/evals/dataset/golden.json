@@ -124,7 +124,7 @@
         "multi_part"
       ],
       "question": "How is the FuelEU penalty for a GHG intensity shortfall worked out, and does it get worse if we miss again the following year?",
-      "answer": "The penalty is the absolute value of the ship's compliance balance in gCO2eq converted to VLSFO-equivalent tonnes (41,000 MJ per tonne) and multiplied by EUR 2,400 per tonne, payable by 30 June of the verification period. If the ship has a deficit for two or more consecutive reporting periods, the amount is multiplied by 1 + (n − 1)/10, where n is the number of consecutive periods penalised.",
+      "answer": "The penalty in EUR is |compliance balance| / (GHGIE_actual × 41 000) × 2 400: the compliance balance in gCO2eq, divided by the ship's actual GHG intensity to turn it back into MJ, then by 41 000 MJ per VLSFO-equivalent tonne, times EUR 2 400 per tonne, payable by 30 June of the verification period. If the ship has a deficit for two or more consecutive reporting periods, the amount is multiplied by 1 + (n − 1)/10, where n is the number of consecutive periods penalised.",
       "references": [
         {
           "celex": "32023R1805",
@@ -695,7 +695,7 @@
         "multi_part"
       ],
       "question": "How does the penalty for an EU ETS allowance shortfall compare with the FuelEU penalty for a compliance deficit?",
-      "answer": "The ETS penalty is EUR 100 for each tonne of CO2 equivalent for which allowances were not surrendered, and the company must still surrender the missing allowances the following year. The FuelEU penalty is worked out from the ship's compliance deficit, converted to VLSFO-equivalent tonnes and multiplied by EUR 2,400 per tonne, and it is multiplied by 1 + (n − 1)/10 when the ship has a deficit for two or more consecutive reporting periods.",
+      "answer": "The ETS penalty is EUR 100 for each tonne of CO2 equivalent for which allowances were not surrendered, and the company must still surrender the missing allowances the following year. The FuelEU penalty is |compliance balance| / (GHGIE_actual × 41 000) × 2 400 EUR: the deficit in gCO2eq divided by the ship's actual GHG intensity to give MJ, converted to VLSFO-equivalent tonnes at 41 000 MJ per tonne and multiplied by EUR 2 400 per tonne, and it is multiplied by 1 + (n − 1)/10 when the ship has a deficit for two or more consecutive reporting periods.",
       "references": [
         {
           "celex": "32003L0087",
