@@ -152,13 +152,13 @@ export function prepareToken(): void {
 	prepared ??= mintToken()
 }
 
-/** A token for one question: the prepared one, as Turnstile has kept it refreshed, else a fresh mint, or null when none could be minted. */
-export async function takeToken(): Promise<string | null> {
+/** A token for one question: the prepared one, as Turnstile has kept it refreshed, else a fresh mint, or null when none could be minted. A question given up while it waited mints nothing, so it cannot supersede the next question's mint. */
+export async function takeToken(signal: AbortSignal): Promise<string | null> {
 	const taking = prepared
 	prepared = null
 	if (taking !== null && (await taking) !== null) {
 		const current = (await widget)?.currentToken()
 		if (current) return current
 	}
-	return mintToken()
+	return signal.aborted ? null : mintToken()
 }

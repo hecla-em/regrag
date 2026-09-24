@@ -81,13 +81,15 @@ export async function* streamChat(
 	body: ChatQuery,
 	signal: AbortSignal,
 ): AsyncGenerator<ChatStreamEvent> {
-	const token = await takeToken()
+	const token = await takeToken(signal)
 	const response = await apiFetch("/chat", {
 		method: "POST",
 		headers: token === null ? {} : { "CF-Turnstile-Response": token },
 		body: JSON.stringify(body),
 		signal,
-	}).finally(prepareToken)
+	}).finally(() => {
+		if (!signal.aborted) prepareToken()
+	})
 	if (response.body === null) {
 		throw new Error("Chat response had no body to stream")
 	}
