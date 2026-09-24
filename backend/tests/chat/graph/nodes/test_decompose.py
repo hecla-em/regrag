@@ -7,6 +7,7 @@ import litellm
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.chat.blocks import corpus_chunks
 from app.chat.enums import ChatNode
 from app.chat.graph.nodes.decompose import DecomposedQuestion, decompose
 from app.chat.graph.nodes.decompose import logger as decompose_logger
@@ -82,7 +83,7 @@ class TestDecomposeInTheGraph:
         ]
         assert state.queries == ("what is A", "what is B")
         assert {r.query for r in requests} == {"what is A", "what is B"}
-        assert tuple(chunk.id for chunk in state.sources) == (1, 2)
+        assert tuple(chunk.id for chunk in corpus_chunks(state.sources)) == (1, 2)
         [messages] = answer_model.received
         assert messages[1].content.endswith("Question: What are A and B?")
 

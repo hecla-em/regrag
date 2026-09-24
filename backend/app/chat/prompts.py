@@ -5,10 +5,8 @@ from collections.abc import Callable, Sequence
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.models import ChatTurn
-from app.ingestion.celex import format_act_name
-from app.ingestion.chunk.split import CELL_SEPARATOR
-from app.ingestion.enums import SectionKind
 from app.retrieval.models import RetrievedChunk
 
 THREAD_NOTE = (
@@ -24,37 +22,27 @@ def system_prompt(base: str, history: Sequence[ChatTurn]) -> str:
     return f"{base}{THREAD_NOTE}" if history else base
 
 
-def format_markdown_table(text: str) -> str:
-    """A table chunk's separated rows as a markdown table, its first row the header."""
-    header, *body = (f"| {line} |" for line in text.split("\n"))
-    rule = "|" + " --- |" * (header.count(CELL_SEPARATOR) + 1)
-    return "\n".join([header, rule, *body])
+def format_context_block(marker: int, block: ContextBlock) -> str:
+    """One block as the numbered block a citation marker refers to, under its name and citation."""
+    return f"[{marker}] ({block.name}, {block.citation})\n{block.prompt_text}"
 
 
-def format_context_block(marker: int, source: RetrievedChunk) -> str:
-    """One chunk as the numbered block a citation marker refers to, under the act's name
-    as it is cited."""
-    name = format_act_name(source.celex, source.act_title)
-    text = format_markdown_table(source.text) if source.kind is SectionKind.TABLE else source.text
-    return f"[{marker}] ({name}, {source.citation})\n{text}"
-
-
-def format_acts_legend(sources: Sequence[RetrievedChunk]) -> str:
+def format_acts_legend(sources: Sequence[ContextBlock]) -> str:
     """Each act the chunks come from, once, in order of first appearance: the cited name the
     block headers use, then the official title. An act without a stored title is left out,
     and no titles at all leaves no legend; an official title is too long to repeat per block."""
-    titles: dict[str, str] = {}
-    for source in sources:
-        if source.act_title and source.celex not in titles:
-            titles[source.celex] = source.act_title
-    if not titles:
+    acts: dict[str, RetrievedChunk] = {}
+    for source in corpus_chunks(sources):
+        if source.act_title and source.celex not in acts:
+            acts[source.celex] = source
+    if not acts:
         return ""
-    lines = [f"{format_act_name(celex, title)}: {title}" for celex, title in titles.items()]
+    lines = [f"{chunk.name}: {chunk.act_title}" for chunk in acts.values()]
     return "\n".join(["Acts:", *lines])
 
 
 def format_context(
-    sources: Sequence[RetrievedChunk], footer: Callable[[RetrievedChunk], str] | None = None
+    sources: Sequence[ContextBlock], footer: Callable[[ContextBlock], str] | None = None
 ) -> str:
     """The retrieved chunks as the numbered blocks the citation markers refer to, each
     block followed by what the caller's footer adds to it, under a legend naming the acts.

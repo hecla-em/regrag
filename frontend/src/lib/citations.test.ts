@@ -173,9 +173,9 @@ describe("rehypeCitationMarkers", () => {
 function source(marker: number): ChatSource {
 	return {
 		marker,
-		chunk_id: marker,
-		celex: "32023R1805",
-		act: "Regulation (EU) 2023/1805",
+		name: "Regulation (EU) 2023/1805",
+		url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023R1805",
+		site: "EUR-Lex",
 		citation: "Article 4(1)",
 		title: "Greenhouse gas intensity limit",
 		text: "The limit applies from 2025.",

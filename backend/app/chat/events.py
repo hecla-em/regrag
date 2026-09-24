@@ -1,40 +1,40 @@
 """SSE event values: every frame a chat stream carries, and what each one holds."""
 
+from collections.abc import Sequence
 from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatErrorCode, ChatEventName, ChatNode, ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.core.exceptions import ErrorCode
 from app.core.models import ErrorResponse, FrozenModel
-from app.ingestion import celex
-from app.retrieval.models import RetrievedChunk
 
 
 class ChatSource(FrozenModel):
-    """One context block as the sources event reports it, binding marker to chunk."""
+    """One context block as the sources event reports it: what the popover shows and links to."""
 
     marker: int
-    chunk_id: int
-    celex: str
-    act: str
+    name: str
     citation: str
     title: str | None
     text: str
+    url: str
+    site: str
 
     @classmethod
-    def from_result(cls, marker: int, result: RetrievedChunk) -> "ChatSource":
-        """The event payload for one retrieved chunk at one marker position."""
+    def from_block(cls, marker: int, block: ContextBlock) -> "ChatSource":
+        """The event payload for one context block at one marker position."""
         return cls(
             marker=marker,
-            chunk_id=result.id,
-            celex=result.celex,
-            act=celex.format_act_name(result.celex, result.act_title),
-            citation=result.citation,
-            title=result.title,
-            text=result.text,
+            name=block.name,
+            citation=block.citation,
+            title=block.title,
+            text=block.text,
+            url=block.url,
+            site=block.site,
         )
 
 
@@ -63,11 +63,11 @@ class SourcesEvent(ChatEventBase):
     data: tuple[ChatSource, ...]
 
     @classmethod
-    def from_results(cls, results: tuple[RetrievedChunk, ...]) -> "SourcesEvent":
+    def from_results(cls, results: Sequence[ContextBlock]) -> "SourcesEvent":
         """Markers run 1..n in context order, matching the prompt's numbering."""
         return cls(
             data=tuple(
-                ChatSource.from_result(marker, result)
+                ChatSource.from_block(marker, result)
                 for marker, result in enumerate(results, start=1)
             )
         )

@@ -1,10 +1,14 @@
 """Retrieval values: what a caller asks for, and what comes back."""
 
+from typing import ClassVar, Literal
+
 from pydantic import Field, model_validator
 
 from app.core.models import FrozenModel
+from app.ingestion.celex import eur_lex_url, format_act_name
 from app.ingestion.chunk.models import Reference, format_citation
 from app.ingestion.chunk.schemas import DocumentChunk
+from app.ingestion.chunk.split import format_markdown_table
 from app.ingestion.enums import SectionKind
 
 SNIPPET = 160
@@ -78,6 +82,9 @@ class ReferenceTarget(FrozenModel):
 class RetrievedChunk(FrozenModel):
     """A chunk as a caller sees it, without the vectors it is found by."""
 
+    site: ClassVar[str] = "EUR-Lex"
+
+    source: Literal["corpus"] = "corpus"
     id: int
     celex: str
     topic: str
@@ -95,8 +102,28 @@ class RetrievedChunk(FrozenModel):
     part: int
     parts: int
 
+    @property
+    def name(self) -> str:
+        """The act as it is cited: 'Regulation (EU) 2023/1805'."""
+        return format_act_name(self.celex, self.act_title)
 
-CHUNK_COLUMNS = tuple(getattr(DocumentChunk, name) for name in RetrievedChunk.model_fields)
+    @property
+    def url(self) -> str:
+        return eur_lex_url(self.celex)
+
+    @property
+    def dedupe_key(self) -> str:
+        return f"chunk:{self.id}"
+
+    @property
+    def prompt_text(self) -> str:
+        """The text as a prompt shows it: a table as markdown."""
+        return format_markdown_table(self.text) if self.kind is SectionKind.TABLE else self.text
+
+
+CHUNK_COLUMNS = tuple(
+    getattr(DocumentChunk, name) for name in RetrievedChunk.model_fields if name != "source"
+)
 """The columns a RetrievedChunk is built from: a chunk without the vectors it is found by."""
 
 

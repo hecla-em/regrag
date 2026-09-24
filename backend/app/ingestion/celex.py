@@ -80,6 +80,11 @@ def format_act_name(celex: str, title: str | None = None) -> str:
     return cited.group("name") if cited else celex
 
 
+def eur_lex_url(celex: str) -> str:
+    """The act's page on EUR-Lex."""
+    return f"https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:{celex}"
+
+
 def consolidated_stem(celex: str) -> str:
     """Prefix shared by every consolidated version of an act: 32015R0757 -> 02015R0757-."""
     return f"{CONSOLIDATED}{celex[1:]}-"

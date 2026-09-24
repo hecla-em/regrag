@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from pydantic import ValidationError
 
+from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState, ChatStepResult
 from app.chat.prompts import format_context, system_prompt, thread_messages
@@ -38,15 +39,27 @@ ASSESS_SYSTEM_PROMPT = (
     "that line's document number and division; search runs a fresh corpus search — "
     "use it when a needed concept is named without a citation, or a part of the "
     "question has no context at all, narrowing with celex when the act is known. "
+    "mrv_query reads one reporting period of the THETIS-MRV public dataset: how many emissions "
+    "reports were filed and their CO2 totals, for the whole fleet or narrowed to a company or "
+    "ship named in the question, summed per report type (Full, Partial) or per company or ship "
+    "to rank them or list a company's ships, and how the ETS figure compares with the ETS scope "
+    "split — use it whenever the answer needs one of those figures or one worked out from "
+    "them, such as a share, a change between periods, a company's exposure or an amount to "
+    "surrender, or turns on what the dataset's figures include; the regulations say what is "
+    "to be reported, never what the dataset holds, so a "
+    "question about the dataset needs mrv_query even when the blocks state the rule. An "
+    "amount to surrender or a company's exposure needs both mrv_query and, unless the context "
+    "shows it, follow_reference to Article 3gb of Directive 2003/87/EC (32003L0087), the "
+    "phase-in. You get one round, so call every tool the question needs together. "
     "Never re-fetch what the context already shows. You never answer the question "
     "yourself: your output is tool calls, or nothing when the context suffices."
 )
 
 ASSESS_REFUSAL_INSTRUCTION = (
     " If no block bears on the question and no search or fetch of this corpus of EU "
-    "maritime regulation could — it asks about another regime, about a named company, "
-    "ship or event, for a statistic or a figure no provision states, or about a topic "
-    "outside the corpus — call refuse, alone, saying why. Blocks on the "
+    "maritime regulation could — it asks about another regime, about an event, for a "
+    "figure neither a provision nor mrv_query holds, or about a topic outside the corpus — "
+    "call refuse, alone, saying why. Blocks on the "
     "subject the question touches that do not answer it are not a part answer. Never call "
     "it on a question the context answers in part, or one a search or fetch might yet "
     "answer."
@@ -73,17 +86,32 @@ def reference_addresses(source: RetrievedChunk) -> list[str]:
     return list(dict.fromkeys(addresses))
 
 
-def cites_line(source: RetrievedChunk) -> str:
-    """What a block cites, as the line assess reads it off, or nothing when it cites no
-    address that can be followed."""
-    addresses = reference_addresses(source)
+def cites_line(block: ContextBlock) -> str:
+    """What a chunk cites, as the line assess reads it off; nothing for a block that is not a
+    chunk or cites no followable address."""
+    if not isinstance(block, RetrievedChunk):
+        return ""
+    addresses = reference_addresses(block)
     return f"cites: {', '.join(addresses)}" if addresses else ""
 
 
-def build_assess_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
-    """The full assess turn: the same numbered blocks synthesize will cite, each followed
-    by the addresses it cites so follow_reference can be pointed at one, then the question."""
-    return f"Context:\n\n{format_context(sources, cites_line)}\n\nQuestion: {question}"
+def build_assess_message(
+    question: str,
+    sources: Sequence[ContextBlock],
+    matched_tools: Sequence[str] = (),
+    entities: Sequence[str] = (),
+) -> str:
+    """The full assess turn: the numbered blocks with their cites lines, or, when only a
+    tool opened the gate, which tools the question matched; what the question names in a
+    dataset's data; then the question."""
+    context = (
+        f"Context:\n\n{format_context(sources, cites_line)}"
+        if sources
+        else "Context: no corpus passage matched. The question matches what these tools hold: "
+        f"{', '.join(matched_tools)}."
+    )
+    named = f"\n\nThe question names {'; '.join(entities)}." if entities else ""
+    return f"{context}{named}\n\nQuestion: {question}"
 
 
 def assess_model() -> Runnable:
@@ -106,7 +134,9 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
             )
         ),
         *thread_messages(state.history),
-        HumanMessage(build_assess_message(state.question, state.sources)),
+        HumanMessage(
+            build_assess_message(state.question, state.sources, state.matched_tools, state.entities)
+        ),
     ]
     response = await assess_model().ainvoke(messages)
     asked = [ToolCall(name=c["name"], args=c["args"]) for c in response.tool_calls]
@@ -133,29 +163,29 @@ async def assess(state: ChatState) -> dict[str, Any]:
 
 
 def merge_sources(
-    sources: tuple[RetrievedChunk, ...], additions: Sequence[RetrievedChunk], *, cap: int
-) -> tuple[RetrievedChunk, ...]:
-    """The context grown by a tool round: new chunks appended in arrival order, a chunk
+    sources: tuple[ContextBlock, ...], additions: Sequence[ContextBlock], *, cap: int
+) -> tuple[ContextBlock, ...]:
+    """The context grown by a tool round: new blocks appended in arrival order, a block
     already present kept as it was, and nothing appended once the cap is reached. The cap
     counts the whole context, so it is read against what retrieve produced, not this round."""
     merged = list(sources)
-    seen = {chunk.id for chunk in merged}
-    for chunk in additions:
+    seen = {block.dedupe_key for block in merged}
+    for block in additions:
         if len(merged) >= cap:
             break
-        if chunk.id in seen:
+        if block.dedupe_key in seen:
             continue
-        seen.add(chunk.id)
-        merged.append(chunk)
+        seen.add(block.dedupe_key)
+        merged.append(block)
     return tuple(merged)
 
 
 async def assess_tools(state: ChatState) -> dict[str, Any]:
-    """The round's calls run and folded into the context: dedup by chunk id, earlier context
+    """The round's calls run and folded into the context: dedup by block, earlier context
     kept, growth capped. Each call is timed as its own step, so the path says what it cost.
     A refuse call fetches nothing and leaves its refusal on the state, which is what routes
     the round to the refusal."""
-    fetched: list[RetrievedChunk] = []
+    fetched: list[ContextBlock] = []
     steps: list[ChatStepResult] = []
     refusal = state.refusal
     for call in state.pending_calls:

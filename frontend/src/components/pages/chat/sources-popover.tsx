@@ -21,10 +21,6 @@ const STACKED_BADGES = 3
 /** What the popover shows: the list, or one source's text, placed at a marker or the button. */
 export type SourcesView = { marker: number | null; anchor: Element | null }
 
-function eurLexUrl(celex: string): string {
-	return `https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:${celex}`
-}
-
 function SourcesLabel({ cited }: { cited: CitedSource[] }) {
 	return (
 		<>
@@ -69,7 +65,7 @@ function SourceRows({
 							{source.citation}
 						</span>
 						<span className="col-start-2 truncate text-faint-foreground text-xs">
-							{source.act}
+							{source.name}
 						</span>
 					</button>
 				</li>
@@ -109,7 +105,7 @@ function SourceText({
 				<div className="min-w-0">
 					<p className="font-semibold text-[13px]">{source.citation}</p>
 					<p className="truncate text-faint-foreground text-xs">
-						{source.act}
+						{source.name}
 						{source.title ? ` · ${source.title}` : ""}
 					</p>
 				</div>
@@ -119,12 +115,12 @@ function SourceText({
 			</div>
 			<div className="flex items-center justify-between border-t px-1 pt-1.5">
 				<a
-					href={eurLexUrl(source.celex)}
+					href={source.url}
 					target="_blank"
 					rel="noreferrer"
 					className="inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-primary text-xs hover:underline"
 				>
-					Open in EUR-Lex
+					Open in {source.site}
 					<ArrowUpRightIcon className="size-3" aria-hidden />
 				</a>
 				{cited.length > 1 && (

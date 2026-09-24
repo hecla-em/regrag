@@ -2,10 +2,12 @@
 the step it records."""
 
 import logging
+import re
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.chat.toolbox.models import ToolCall
@@ -13,17 +15,21 @@ from app.chat.toolbox.tools.follow_reference import (  # noqa: F401
     FOLLOW_REFERENCE,
     already_in_context,
 )
+from app.chat.toolbox.tools.mrv_query import MRV_QUERY
 from app.chat.toolbox.tools.refuse import REFUSE, is_refusal, refusal_from  # noqa: F401
 from app.chat.toolbox.tools.search import SEARCH
 from app.core.config import config
 from app.core.db.session import get_session
+from app.core.llm.embed import EmbedInput, cosine_similarity, embed, embed_query
 from app.core.llm.errors import LLMError
-from app.retrieval.models import RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
-TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, REFUSE)}
+TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_QUERY, REFUSE)}
 """Every tool the surface has, whether or not this run offers it to the model."""
+
+TOOL_CARD_EMBEDDINGS: dict[str, list[float]] = {}
+"""Each tool card's embedding by tool name, computed once per process: cards are fixed text."""
 
 
 def tool_definitions() -> list[dict]:
@@ -58,7 +64,7 @@ def build_call_step(
     )
 
 
-async def run_tool_call(call: ToolCall) -> tuple[RetrievedChunk, ...]:
+async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
     """One call's chunks; an unknown tool, an invalid target or a failing call yields
     nothing, never an error — the loop is best-effort and a bad call adds nothing.
 
@@ -79,3 +85,58 @@ async def run_tool_call(call: ToolCall) -> tuple[RetrievedChunk, ...]:
     except (LLMError, SQLAlchemyError) as exc:
         logger.warning("assess call to %s failed: %s", call.name, exc)
         return ()
+
+
+async def find_tool_entities(question: str) -> dict[str, tuple[str, ...]]:
+    """What the question names in each dataset tool's data, by tool; empty when it names
+    nothing or the lookup fails."""
+    try:
+        async with get_session(auto_commit=False) as session:
+            found = {
+                spec.name: await spec.find_entities(session, question)
+                for spec in TOOLS.values()
+                if spec.find_entities
+            }
+    except SQLAlchemyError as exc:
+        logger.warning("tool entity lookup failed: %s", exc)
+        return {}
+    return {name: entities for name, entities in found.items() if entities}
+
+
+async def embed_tool_cards() -> dict[str, list[float]]:
+    """Every tool card's embedding by tool name, embedded on first use."""
+    if not TOOL_CARD_EMBEDDINGS:
+        cards = {spec.name: spec.card for spec in TOOLS.values() if spec.card}
+        vectors = await embed(list(cards.values()), input_type=EmbedInput.DOCUMENT)
+        TOOL_CARD_EMBEDDINGS.update(zip(cards, vectors, strict=True))
+    return TOOL_CARD_EMBEDDINGS
+
+
+def tools_termed(question: str) -> tuple[str, ...]:
+    """The tools one of whose card terms the question uses as whole words, in any case or
+    punctuation, so 'THETIS-MRV' uses 'mrv'."""
+    words = f" {' '.join(re.findall(r'[a-z0-9]+', question.lower()))} "
+    return tuple(
+        spec.name
+        for spec in TOOLS.values()
+        if any(f" {term} " in words for term in spec.card_terms)
+    )
+
+
+async def match_tool_cards(question: str) -> tuple[str, ...]:
+    """The tools whose card terms the question uses, or else whose card (a fixed description
+    of the data the tool reads) is close enough in meaning to it, to open a gate the corpus
+    shut; none when embedding fails."""
+    if termed := tools_termed(question):
+        return termed
+    try:
+        vector = await embed_query(question)
+        cards = await embed_tool_cards()
+    except LLMError as exc:
+        logger.warning("card match failed, gate stays shut: %s", exc)
+        return ()
+    return tuple(
+        name
+        for name, card in cards.items()
+        if cosine_similarity(vector, card) >= config.MIN_CARD_SIMILARITY
+    )

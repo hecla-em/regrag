@@ -5,6 +5,7 @@ import re
 from collections.abc import Sequence
 from statistics import mean
 
+from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.citations import find_cited_markers, find_cited_sources
 from app.chat.enums import ChatNode, ChatOutcome, RefusalReason
 from app.core.llm.models import Usage
@@ -56,7 +57,7 @@ def score_reference_recall(
     return sum(_division(target) in retrieved for target in targets) / len(targets)
 
 
-def score_citation_validity(answer: str, sources: Sequence[RetrievedChunk]) -> float | None:
+def score_citation_validity(answer: str, sources: Sequence[ContextBlock]) -> float | None:
     """Share of the answer's markers addressing a block it was given; None when it cited
     nothing, which is unmeasured rather than zero."""
     markers = find_cited_markers(answer)
@@ -66,15 +67,17 @@ def score_citation_validity(answer: str, sources: Sequence[RetrievedChunk]) -> f
 
 
 def score_reference_citation_rate(
-    answer: str,
-    sources: Sequence[RetrievedChunk],
-    targets: Sequence[ReferenceTarget],
+    answer: str, sources: Sequence[ContextBlock], targets: Sequence[ReferenceTarget]
 ) -> float | None:
     """Share of a case's authored references the answer cited, scored over the references
     so an extra citation is not an error; None when the case names none."""
     if not targets:
         return None
-    cited = {_division(source) for _, source in find_cited_sources(answer, sources)}
+    cited = {
+        _division(source)
+        for _, source in find_cited_sources(answer, sources)
+        if isinstance(source, RetrievedChunk)
+    }
     return sum(_division(target) in cited for target in targets) / len(targets)
 
 
@@ -103,6 +106,11 @@ def scored_in_corpus(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
 
 def scored_out_of_corpus(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
     return [r for r in _scored(results) if r.case.kind is EvalKind.OUT_OF_CORPUS]
+
+
+def scored_referenced(results: Sequence[EvalCaseResult]) -> list[EvalCaseResult]:
+    """In-corpus cases that name references, the only ones recall can score."""
+    return [r for r in scored_in_corpus(results) if r.case.references]
 
 
 # Counts: the run's shape
@@ -135,27 +143,27 @@ def _raw_recall(result: EvalCaseResult) -> float:
 
 
 def _expanded_recall(result: EvalCaseResult) -> float:
-    return score_reference_recall(result.case.references, result.state.sources)
+    return score_reference_recall(result.case.references, corpus_chunks(result.state.sources))
 
 
 def compute_raw_hit_rate(results: Sequence[EvalCaseResult]) -> float | None:
-    """Share of in-corpus cases where search found at least one authored reference."""
-    return mean_or_none([_raw_recall(r) > 0 for r in scored_in_corpus(results)])
+    """Share of referenced cases where search found at least one authored reference."""
+    return mean_or_none([_raw_recall(r) > 0 for r in scored_referenced(results)])
 
 
 def compute_raw_recall(results: Sequence[EvalCaseResult]) -> float | None:
     """Mean share of authored references search found, before expansion widened it."""
-    return mean_or_none([_raw_recall(r) for r in scored_in_corpus(results)])
+    return mean_or_none([_raw_recall(r) for r in scored_referenced(results)])
 
 
 def compute_expanded_hit_rate(results: Sequence[EvalCaseResult]) -> float | None:
-    """Share of in-corpus cases where at least one authored reference reached the prompt."""
-    return mean_or_none([_expanded_recall(r) > 0 for r in scored_in_corpus(results)])
+    """Share of referenced cases where at least one authored reference reached the prompt."""
+    return mean_or_none([_expanded_recall(r) > 0 for r in scored_referenced(results)])
 
 
 def compute_expanded_recall(results: Sequence[EvalCaseResult]) -> float | None:
     """Mean share of authored references that reached the prompt."""
-    return mean_or_none([_expanded_recall(r) for r in scored_in_corpus(results)])
+    return mean_or_none([_expanded_recall(r) for r in scored_referenced(results)])
 
 
 def compute_retrieval_metrics(results: Sequence[EvalCaseResult]) -> RetrievalMetrics:

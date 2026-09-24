@@ -1,6 +1,6 @@
 """Chat graph: restate a follow-up, split a multi-part question, retrieve corpus context,
 run the assess ⇄ assess_tools loop, then synthesize a cited answer — or refuse, before any
-model call, a question the corpus does not cover."""
+model call, a question neither the corpus nor a dataset tool's card covers."""
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -16,16 +16,19 @@ from app.chat.models import ChatState
 from app.core.config import config
 
 
-def assess_tools_or_synthesize(state: ChatState) -> ChatNode:
-    """After assess: run what it asked for, or answer when it asked for nothing."""
-    return ChatNode.SYNTHESIZE if state.context_settled else ChatNode.ASSESS_TOOLS
+def assess_tools_or_synthesize_or_refuse(state: ChatState) -> ChatNode:
+    """After assess: run what it asked for, else answer with the context, or refuse when a
+    card opened the gate and assess asked for nothing to fill it."""
+    if not state.context_settled:
+        return ChatNode.ASSESS_TOOLS
+    return ChatNode.SYNTHESIZE if state.sources else ChatNode.REFUSE
 
 
 def assess_or_synthesize_or_refuse(state: ChatState) -> ChatNode:
-    """After retrieve or a tool round: refuse for want of context — none cleared the gate,
-    or assess found what there is bears on nothing — else review again while budget
-    remains, or answer with what there is."""
-    if not state.sources or state.refusal is not None:
+    """After retrieve or a tool round: refuse for want of context — none cleared the gate
+    and no card opened it, the loop ended with nothing, or assess found what there is bears
+    on nothing — else review again while budget remains, or answer with what there is."""
+    if state.refusal is not None or (not state.sources and state.context_settled):
         return ChatNode.REFUSE
     return ChatNode.SYNTHESIZE if state.context_settled else ChatNode.ASSESS
 
@@ -68,7 +71,9 @@ def build_graph() -> CompiledStateGraph[ChatState]:
         [ChatNode.ASSESS, ChatNode.SYNTHESIZE, ChatNode.REFUSE],
     )
     graph.add_conditional_edges(
-        ChatNode.ASSESS, assess_tools_or_synthesize, [ChatNode.ASSESS_TOOLS, ChatNode.SYNTHESIZE]
+        ChatNode.ASSESS,
+        assess_tools_or_synthesize_or_refuse,
+        [ChatNode.ASSESS_TOOLS, ChatNode.SYNTHESIZE, ChatNode.REFUSE],
     )
     graph.add_conditional_edges(
         ChatNode.ASSESS_TOOLS,

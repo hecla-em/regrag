@@ -14,6 +14,13 @@ CELL_SEPARATOR = " | "
 SENTENCE = re.compile(r"(?<=[.;:])\s+")
 
 
+def format_markdown_table(text: str) -> str:
+    """A table chunk's separated rows as a markdown table, its first row the header."""
+    header, *body = (f"| {line} |" for line in text.split("\n"))
+    rule = "|" + " --- |" * (header.count(CELL_SEPARATOR) + 1)
+    return "\n".join([header, rule, *body])
+
+
 def split_section_text(section: Section, max_chars: int) -> list[str]:
     """A leaf's embeddable text; a section with neither rows nor text yields nothing."""
     if section.rows:

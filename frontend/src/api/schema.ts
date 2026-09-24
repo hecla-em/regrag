@@ -107,23 +107,23 @@ export interface components {
         };
         /**
          * ChatSource
-         * @description One context block as the sources event reports it, binding marker to chunk.
+         * @description One context block as the sources event reports it: what the popover shows and links to.
          */
         ChatSource: {
             /** Marker */
             marker: number;
-            /** Chunk Id */
-            chunk_id: number;
-            /** Celex */
-            celex: string;
-            /** Act */
-            act: string;
+            /** Name */
+            name: string;
             /** Citation */
             citation: string;
             /** Title */
             title: string | null;
             /** Text */
             text: string;
+            /** Url */
+            url: string;
+            /** Site */
+            site: string;
         };
         /**
          * ChatStep
@@ -281,7 +281,7 @@ export interface components {
          *     graph's nodes without either being read for the other.
          * @enum {string}
          */
-        ToolStep: "tool_search" | "tool_follow_reference" | "tool_refuse" | "tool_unknown";
+        ToolStep: "tool_search" | "tool_follow_reference" | "tool_mrv_query" | "tool_refuse" | "tool_unknown";
         /**
          * TurnRecord
          * @description Where the turn was recorded: the thread it joined, which a follow-up sends back, and

@@ -390,7 +390,7 @@ async def toy_query_embed(texts: list[str], **kwargs: Any) -> list[list[float]]:
 @pytest.fixture
 def query_embeddings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Query vectors share the corpus's space, so a search is a real nearest-neighbour test."""
-    monkeypatch.setattr("app.retrieval.search.embed", toy_query_embed)
+    monkeypatch.setattr("app.core.llm.embed.embed", toy_query_embed)
 
 
 @pytest.fixture
@@ -524,6 +524,21 @@ def embeddings(monkeypatch: pytest.MonkeyPatch) -> FakeProvider:
     provider = FakeProvider()
     monkeypatch.setattr("app.ingestion.embed.batch.embed", provider)
     return provider
+
+
+@pytest.fixture(autouse=True)
+def no_tool_match(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No question names anything in a tool's data or sits near its card, so a shut gate stays
+    shut without a lookup or an embed call."""
+
+    async def _no_card(question: str) -> tuple[str, ...]:
+        return ()
+
+    async def _no_entity(question: str) -> dict[str, tuple[str, ...]]:
+        return {}
+
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.match_tool_cards", _no_card)
+    monkeypatch.setattr("app.chat.graph.nodes.retrieve.find_tool_entities", _no_entity)
 
 
 @pytest.fixture

@@ -6,12 +6,12 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState
 from app.chat.prompts import format_context, system_prompt, thread_messages
 from app.core.config import config
 from app.core.llm.errors import llm_retry, wrap_provider_errors
-from app.retrieval.models import RetrievedChunk
 
 ROLE = "You are RegRag, an assistant answering questions about EU maritime regulation. "
 
@@ -29,10 +29,11 @@ STYLE = (
 UNCOVERED = (
     "The reader sees only your answer, so when the passages leave something unanswered, "
     "call them 'the passages I found', as in 'The passages I found from Regulation (EU) "
-    "2023/1805 do not define…' or 'Article 3 of Directive 2003/87/EC is not among the "
-    "passages I found'. When the question turns on something the passages do not cover, "
-    "such as a dataset, a tool or a figure, say so in one sentence in those same words, "
-    "then answer the part the passages do settle. "
+    "2023/1805 do not set a deadline for…' or 'Article 3 of Directive 2003/87/EC is not among "
+    "the passages I found'. Mention a gap only when it is a part of what the question asks "
+    "that no block, passage or dataset, answers: in one sentence, then answer the rest. Never "
+    "mention one as an aside, and never for something a block gives. Read a loosely worded "
+    "question in its plain sense rather than remarking on its wording. "
 )
 
 TABLES = (
@@ -42,10 +43,19 @@ TABLES = (
 
 SYSTEM_PROMPT = (
     f"{ROLE}"
-    "Answer using only the numbered passages of regulation text you are shown. Cite every "
-    "claim inline with the marker of the passage it comes from, like [1] or [2][3], placed "
-    "after the punctuation that ends the claim (e.g. 'must be reported.[1]'), never before "
-    "it. If the passages do not answer the question, say so plainly instead of guessing. "
+    "Answer using only the numbered blocks you are shown: passages of regulation text, or "
+    "figures from the THETIS-MRV public dataset, which answer a question just as a passage "
+    "does. Cite a dataset block by its number like any passage and say which figures you "
+    "used; its CO2 figures answer a question about a ship's or company's emissions. When the "
+    "question needs a figure worked out from them, such as a share, a difference or a "
+    "phase-in percentage applied, do the sum and show it. The figure to be reported under "
+    "Directive 2003/87/EC is the emissions under the EU ETS; what is surrendered for a year, "
+    "which is also a company's ETS exposure, is the block's surrendered-for line, so quote it "
+    "rather than working it out; that line is worked out from the dataset, not a column of "
+    "it. Cite every claim inline with the marker of the passage it comes from, like [1] or "
+    "[2][3], placed after the punctuation that ends the claim (e.g. 'must be reported.[1]'), "
+    "never before it. If the passages do not answer the question, say so plainly instead of "
+    "guessing. "
     f"{UNCOVERED}"
     f"{TABLES}"
     f"{STYLE}"
@@ -63,7 +73,7 @@ BASELINE_SYSTEM_PROMPT = (
 graph refuses before synthesize when nothing was retrieved, so no chat request sees it."""
 
 
-def build_user_message(question: str, sources: Sequence[RetrievedChunk]) -> str:
+def build_user_message(question: str, sources: Sequence[ContextBlock]) -> str:
     """The full user turn: the numbered passages first, then the question."""
     return f"Passages found:\n\n{format_context(sources)}\n\nQuestion: {question}"
 

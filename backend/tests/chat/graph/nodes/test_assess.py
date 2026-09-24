@@ -3,6 +3,7 @@
 import pytest
 from langchain_core.messages import AIMessage
 
+from app.chat.blocks import corpus_chunks
 from app.chat.enums import ChatNode, RefusalReason, ToolStep
 from app.chat.graph.nodes.assess import (
     ASSESS_SYSTEM_PROMPT,
@@ -43,7 +44,7 @@ def test_a_tool_round_grows_the_context_without_touching_what_was_there(
 
     grown = merge_sources(context, fetched, cap=cap)
 
-    assert tuple(chunk.id for chunk in grown) == merged
+    assert tuple(chunk.id for chunk in corpus_chunks(grown)) == merged
     assert grown[: len(context)] == context
 
 
@@ -70,7 +71,7 @@ class TestAssessLoop:
         assert run_calls == [
             ToolCall(name="follow_reference", args={"celex": "32023R1805", "article": "6"})
         ]
-        assert tuple(chunk.id for chunk in state.sources) == (1, 42)
+        assert tuple(chunk.id for chunk in corpus_chunks(state.sources)) == (1, 42)
         assert state.pending_calls == ()
         first, second = assess.received
         assert str(first[0].content).startswith(ASSESS_SYSTEM_PROMPT)
@@ -131,7 +132,7 @@ class TestAssessLoop:
         state = await run_graph()
 
         assert state.retrieved_sources == 1
-        assert tuple(chunk.id for chunk in state.sources) == (1, 2, 3)
+        assert tuple(chunk.id for chunk in corpus_chunks(state.sources)) == (1, 2, 3)
 
     async def test_a_follow_of_a_block_already_shown_is_dropped_before_the_cap(
         self, loop_on, one_result, answer_model, assess_turns, tool_results, monkeypatch
@@ -175,7 +176,7 @@ class TestRefuseTool:
             ToolStep.REFUSE,
             ChatNode.REFUSE,
         ]
-        assert tuple(chunk.id for chunk in state.sources) == (1,)
+        assert tuple(chunk.id for chunk in corpus_chunks(state.sources)) == (1,)
         assert state.refusal == Refusal(
             reason=RefusalReason.INSUFFICIENT_CONTEXT,
             explanation="no block concerns airline luggage",

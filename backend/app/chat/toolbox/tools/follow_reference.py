@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chat.blocks import ContextBlock, corpus_chunks
 from app.chat.enums import ToolStep
 from app.chat.toolbox.models import ToolCall, ToolSpec
 from app.core.config import config
@@ -21,7 +22,7 @@ async def run_follow_reference(
     return chunks[: config.ASSESS_FOLLOW_LIMIT]
 
 
-def already_in_context(call: ToolCall, sources: Sequence[RetrievedChunk]) -> bool:
+def already_in_context(call: ToolCall, sources: Sequence[ContextBlock]) -> bool:
     """Whether the call would only fetch what the context already shows: a point some shown
     part lists, or a paragraph shown in full. A whole article or annex is never known to be
     shown in full: its chapeau's parts say nothing about what sits under it."""
@@ -35,7 +36,7 @@ def already_in_context(call: ToolCall, sources: Sequence[RetrievedChunk]) -> boo
         return False
     shown = [
         s
-        for s in sources
+        for s in corpus_chunks(sources)
         if s.celex == target.celex
         and (s.article or "").lower() == target.article.lower()
         and s.paragraph == target.paragraph

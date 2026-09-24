@@ -95,7 +95,7 @@ def install_fakes(monkeypatch: pytest.MonkeyPatch) -> None:
     """The model and query embeddings faked, and rerank and the loop off. The limiter and
     the answer cache are already off, by the tests package."""
     install_chat_model(monkeypatch, ScriptedChatModel())
-    monkeypatch.setattr("app.retrieval.search.embed", toy_query_embed)
+    monkeypatch.setattr("app.core.llm.embed.embed", toy_query_embed)
     monkeypatch.setattr(config, "MIN_COSINE_SIMILARITY", ON_TOPIC_COSINE)
     monkeypatch.setattr(config, "RERANK_ENABLED", False)
     monkeypatch.setattr(config, "ASSESS_ENABLED", False)

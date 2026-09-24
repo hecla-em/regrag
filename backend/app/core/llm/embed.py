@@ -1,13 +1,15 @@
 """Voyage embeddings through LiteLLM: one call, wrapped errors."""
 
 import logging
+import math
+from collections.abc import Sequence
 from enum import StrEnum
 from operator import itemgetter
 
 import litellm
 
 from app.core.config import EMBED_DIMENSIONS, config
-from app.core.llm.errors import LLMError, wrap_provider_errors
+from app.core.llm.errors import LLMError, llm_retry, wrap_provider_errors
 from app.core.llm.keys import api_key_for
 
 logger = logging.getLogger(__name__)
@@ -44,3 +46,16 @@ async def embed(texts: list[str], *, input_type: EmbedInput) -> list[list[float]
         )
         raise LLMError("embedding call failed")
     return [item["embedding"] for item in sorted(response.data, key=itemgetter("index"))]
+
+
+@llm_retry
+async def embed_query(query: str) -> list[float]:
+    """Embed one query, retrying transient provider failures."""
+    (vector,) = await embed([query], input_type=EmbedInput.QUERY)
+    return vector
+
+
+def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
+    """How alike two embeddings are in meaning: 1 for the same direction, near 0 for unrelated."""
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    return dot / (math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b)))
