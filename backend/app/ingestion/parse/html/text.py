@@ -7,8 +7,7 @@ from collections.abc import Sequence
 from selectolax.parser import HTMLParser
 
 from app.ingestion.exceptions import ParseError
-
-FORMULA_PLACEHOLDER = "[formula]"
+from app.ingestion.parse.models import FORMULA_PLACEHOLDER
 
 AMENDMENT_REF = "p.modref"
 FOOTNOTE_MARKER = "span.superscript, span.oj-super"
@@ -28,16 +27,18 @@ LEADING_NUMBER_RE = re.compile(r"^(\d+(?:-?[a-z]+)?)\.\s*")
 
 
 def replace_formula_images(tree: HTMLParser, formulas: Sequence[str] | None) -> None:
-    """Stand each base64 image down to its Formex formula in document order, or to [formula]."""
+    """Stand each base64 image down to its formula in document order, or to [formula]."""
     images = [
         image
         for image in tree.css("img")
         if (image.attributes.get("src") or "").startswith("data:")
     ]
-    if formulas is not None and len(formulas) != len(images):
-        raise ParseError(f"Formex has {len(formulas)} formulas for {len(images)} inline images")
-    for index, image in enumerate(images):
-        image.replace_with(FORMULA_PLACEHOLDER if formulas is None else formulas[index])
+    if formulas is None:
+        formulas = [FORMULA_PLACEHOLDER] * len(images)
+    elif len(formulas) != len(images):
+        raise ParseError(f"{len(formulas)} formulas for {len(images)} inline images")
+    for image, formula in zip(images, formulas, strict=True):
+        image.replace_with(formula)
 
 
 def drop_non_legal_markup(tree: HTMLParser) -> None:

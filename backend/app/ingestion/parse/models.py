@@ -3,6 +3,8 @@
 from app.core.models import FrozenModel
 from app.ingestion.enums import SectionKind
 
+FORMULA_PLACEHOLDER = "[formula]"
+
 
 class Section(FrozenModel):
     """One node of a document tree; rows is populated only for TABLE."""

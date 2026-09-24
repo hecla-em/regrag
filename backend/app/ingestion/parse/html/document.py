@@ -14,9 +14,8 @@ from app.ingestion.parse.models import Section
 
 
 def prepare(html: str, formulas: Sequence[str] | None = None) -> HTMLParser:
-    """Parse the HTML with the non-legal markup already stripped, before any text is read, and
-    a flat consolidated layout regrouped into article and annex containers, and each inline
-    image replaced by its Formex formula."""
+    """Parse the HTML with a flat consolidated layout regrouped into article and annex
+    containers, inline images replaced by formulas and non-legal markup stripped."""
     tree = HTMLParser(html)
     if tree.css_first(ARTICLE_CONTAINER) is None and tree.css_first(consolidated.ARTICLE_HEADING):
         tree = HTMLParser(consolidated.wrap_flat_layout(tree))
@@ -27,7 +26,7 @@ def prepare(html: str, formulas: Sequence[str] | None = None) -> HTMLParser:
 
 def parse_eurlex_html(html: str, formulas: Sequence[str] | None = None) -> tuple[Section, ...]:
     """Parse one EUR-Lex document into the format-neutral section tree, each inline image
-    replaced by its Formex formula."""
+    replaced by its formula."""
     tree = prepare(html, formulas)
     dialect = detect_dialect(tree)
 

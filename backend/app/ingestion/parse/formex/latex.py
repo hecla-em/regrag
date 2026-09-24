@@ -16,9 +16,9 @@ OPERATORS = {"CARTPROD": "\\times", "PLUS": "+", "MINUS": "-", "MULT": "\\cdot",
 COMPARISONS = {"EQ": "=", "LE": "\\leq", "GE": "\\geq", "GT": ">", "LT": "<"}
 SYMBOLS = {"∑": "\\sum ", "–": "-", "−": "-", " ": " "}
 ESCAPES = {"%": "\\%", "&": "\\&", "#": "\\#", "_": "\\_", "$": "\\$", "{": "\\{", "}": "\\}"}
-SCRIPTS = {"IND": "_", "EXPONENT": "^"}
-HT_SCRIPTS = {"SUP": "^", "SUB": "_"}
+SCRIPTS = {("IND", ""): "_", ("EXPONENT", ""): "^", ("HT", "SUB"): "_", ("HT", "SUP"): "^"}
 PASSTHROUGH_TAGS = {"FORMULA", "DIVIDEND", "DIVISOR", "UNDER", "OVER", "FMT.VALUE"}
+PASSTHROUGH_TYPED_TAGS = {("EXPR", ""), ("HT", "ITALIC")}
 GREEK_CAPITAL_COMMANDS = {
     "gamma",
     "delta",
@@ -47,56 +47,45 @@ GREEK_CAPITAL_LOOKALIKES = {
     "tau": "T",
     "chi": "X",
 }
+GREEK_NAME_RE = re.compile(r"GREEK (SMALL|CAPITAL) LETTER (\w+)")
 TOKEN_RE = re.compile(r"[A-Za-z]+(?: [A-Za-z]+)*|.", re.DOTALL)
 """A run of words, which LaTeX would set as a product of italic letters, or any one character."""
 
 
 def greek_command(char: str) -> str | None:
     """The LaTeX command (or Latin look-alike) for a Greek letter, or None for any other
-    character, including an accented or multi-word Greek letter name."""
-    if len(char) != 1:
+    character, including an accented Greek letter."""
+    match = GREEK_NAME_RE.fullmatch(unicodedata.name(char, ""))
+    if match is None:
         return None
-    name = unicodedata.name(char, "")
-    for prefix, capital in (("GREEK SMALL LETTER ", False), ("GREEK CAPITAL LETTER ", True)):
-        if not name.startswith(prefix):
-            continue
-        words = name.removeprefix(prefix).split(" ")
-        if len(words) != 1:
-            return None
-        letter = words[0].lower().replace("lamda", "lambda")
-        if not capital:
-            return letter if letter == "omicron" else "\\" + letter + " "
-        if letter in GREEK_CAPITAL_COMMANDS:
-            return "\\" + letter.capitalize() + " "
-        return GREEK_CAPITAL_LOOKALIKES.get(letter)
-    return None
+    case, letter = match[1], match[2].lower().replace("lamda", "lambda")
+    if case == "SMALL":
+        return letter if letter == "omicron" else "\\" + letter + " "
+    if letter in GREEK_CAPITAL_COMMANDS:
+        return "\\" + letter.capitalize() + " "
+    return GREEK_CAPITAL_LOOKALIKES.get(letter)
 
 
 def text_to_latex(text: str) -> str:
     """Formex text as LaTeX: words upright in \\text{}, symbols and Greek letters as commands."""
     parts = []
     for token in TOKEN_RE.findall(text):
-        if token in SYMBOLS:
+        if len(token) > 1:
+            parts.append(f"\\text{{{token}}}")
+        elif token in SYMBOLS:
             parts.append(SYMBOLS[token])
         elif command := greek_command(token):
             parts.append(command)
         elif token in ESCAPES:
             parts.append(ESCAPES[token])
-        elif len(token) > 1:
-            parts.append(f"\\text{{{token}}}")
         else:
             parts.append(token)
     return "".join(parts)
 
 
 def script_symbol(element: Element) -> str | None:
-    """The `_`/`^` an IND, EXPONENT, or HT SUP/SUB element sets its children as, or None for
-    anything else."""
-    if element.tag in SCRIPTS:
-        return SCRIPTS[element.tag]
-    if element.tag == "HT":
-        return HT_SCRIPTS.get(element.get("TYPE", ""))
-    return None
+    """The `_`/`^` an IND, EXPONENT, or HT SUP/SUB element sets its children as, or None."""
+    return SCRIPTS.get((element.tag, element.get("TYPE", "")))
 
 
 def element_to_latex(element: Element) -> str:
@@ -112,28 +101,16 @@ def element_to_latex(element: Element) -> str:
         lower = f"_{{{children_to_latex(under)}}}" if under is not None else ""
         upper = f"^{{{children_to_latex(over)}}}" if over is not None else ""
         return f"\\sum{lower}{upper}"
-    if tag == "OP.MATH":
-        if kind not in OPERATORS:
-            raise ParseError(f"unknown Formex {tag} type {kind}")
+    if tag == "OP.MATH" and kind in OPERATORS:
         return f" {OPERATORS[kind]} "
-    if tag == "OP.CMP":
-        if kind not in COMPARISONS:
-            raise ParseError(f"unknown Formex {tag} type {kind}")
+    if tag == "OP.CMP" and kind in COMPARISONS:
         return f" {COMPARISONS[kind]} "
-    if tag == "EXPR":
-        if kind in BRACKETS:
-            left, right = BRACKETS[kind]
-            return f"{left}{children_to_latex(element)}{right}"
-        if kind:
-            raise ParseError(f"unknown Formex {tag} type {kind}")
+    if tag == "EXPR" and kind in BRACKETS:
+        left, right = BRACKETS[kind]
+        return f"{left}{children_to_latex(element)}{right}"
+    if tag in PASSTHROUGH_TAGS or (tag, kind) in PASSTHROUGH_TYPED_TAGS:
         return children_to_latex(element)
-    if tag == "HT":
-        if kind == "ITALIC":
-            return children_to_latex(element)
-        raise ParseError(f"unknown Formex {tag} type {kind}")
-    if tag in PASSTHROUGH_TAGS:
-        return children_to_latex(element)
-    raise ParseError(f"unknown Formex tag {tag}")
+    raise ParseError(f"unknown Formex {tag} type {kind!r}")
 
 
 def children_to_latex(element: Element | None) -> str:
