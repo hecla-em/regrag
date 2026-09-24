@@ -18,7 +18,7 @@ from app.ingestion.fetch import stage as fetch_stage
 from app.ingestion.fetch.models import RawDocsQuery
 from app.ingestion.fetch.schemas import RawDocument
 from app.ingestion.fetch.service import get_raw_documents
-from app.ingestion.fetch.storage import document_key, read_document
+from app.ingestion.fetch.storage import HTML_EXTENSION, object_key, read_document
 from app.ingestion.models import IngestRunResult
 from app.ingestion.pipeline import ingest
 from app.ingestion.schemas import IngestRun
@@ -353,7 +353,7 @@ async def test_a_source_document_lost_from_the_store_is_downloaded_again(
 
     rows = await get_raw_documents(db_session, RawDocsQuery(include_topics=["mrv"]))
     row = rows["32015R0757"]
-    assert local_store.exists(document_key(row.celex, row.resolved_celex, row.sha256))
+    assert local_store.exists(object_key(row.celex, row.resolved_celex, row.sha256, HTML_EXTENSION))
     assert report.ok
 
 

@@ -20,24 +20,11 @@ def _is_version_missing(response: httpx.Response) -> bool:
 
 
 @http_retry
-async def _download_version_html(client: httpx.AsyncClient, version_celex: str) -> bytes | None:
-    """The XHTML CELLAR serves for one version, or None if it denies having that version."""
-    response = await client.get(
-        DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=DOCUMENT_HEADERS
-    )
-    if _is_version_missing(response):
-        return None
-
-    response.raise_for_status()
-    return response.content
-
-
-@http_retry
-async def download_version_formex(client: httpx.AsyncClient, version_celex: str) -> bytes | None:
-    """The Formex zip CELLAR serves for one version, or None if it has none."""
-    response = await client.get(
-        DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=FORMEX_HEADERS
-    )
+async def download_version(
+    client: httpx.AsyncClient, version_celex: str, headers: dict[str, str]
+) -> bytes | None:
+    """What CELLAR serves for one version under these headers, or None if it has none."""
+    response = await client.get(DOCUMENT_URL_TEMPLATE.format(celex=version_celex), headers=headers)
     if _is_version_missing(response):
         return None
 
@@ -50,7 +37,7 @@ async def download_fetchable_version(
 ) -> tuple[str, bytes]:
     """The newest version CELLAR will serve, and the XHTML it served for it."""
     for version_celex in document.versions:
-        html = await _download_version_html(client, version_celex)
+        html = await download_version(client, version_celex, DOCUMENT_HEADERS)
         if html is not None:
             return version_celex, html
 
