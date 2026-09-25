@@ -3494,7 +3494,7 @@
       "id": "mrv-monitoring-plan-per-ship",
       "kind": "in_corpus",
       "question": "We have twelve sister ships. Can we submit one MRV monitoring plan for the whole fleet, or does each ship need its own?",
-      "answer": "Each ship needs its own. Article 6 of Regulation (EU) 2015/757 requires companies to submit a monitoring plan for each of their ships, and Article 6(3) makes each plan a complete and transparent documentation of the monitoring method for the ship concerned, starting with that ship's name, IMO identification number, port of registry or home port and shipowner.",
+      "answer": "Each ship needs its own. Article 6 of Regulation (EU) 2015/757 requires companies to submit a monitoring plan for each of their ships, documenting the monitoring method for the ship concerned.",
       "references": [
         {
           "celex": "32015R0757",
@@ -3681,9 +3681,9 @@
       "question": "We run a feeder between Rotterdam and Bergen. Does the Norwegian port count like an EU port for the ETS, so the full voyage is covered, or is it only 50%?"
     },
     {
-      "id": "external-market-ets-buying-allowances",
+      "id": "external-market-ets-auction-bid-size",
       "kind": "out_of_corpus",
-      "question": "Where do we actually buy EU allowances for our ships? Is there an exchange or auction we can go to directly?"
+      "question": "What's the minimum bid size in the EU allowance auctions, and what fee does a shipping company pay to be admitted as a bidder?"
     },
     {
       "id": "unpublished-guidance-ets-biofuel-allocation",
@@ -3696,9 +3696,9 @@
       "question": "Is there an official EU standard ETS clause we can drop into our time charter parties?"
     },
     {
-      "id": "external-system-thetis-mrv-plan-upload",
+      "id": "external-system-thetis-mrv-validation-error",
       "kind": "out_of_corpus",
-      "question": "Where in THETIS-MRV do I upload the revised monitoring plan? Is there an online form, or do I upload a file in a set format?"
+      "question": "THETIS-MRV keeps rejecting our revised monitoring plan with a 'validation failed' error. What does that error mean and how do we get past it?"
     },
     {
       "id": "external-territory-mrv-greenland-voyage",
