@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/react"
 import { createRouter, RouterProvider } from "@tanstack/react-router"
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
+import { prepareToken } from "@/lib/turnstile"
 import { routeTree } from "./routeTree.gen"
 import "./index.css"
 
@@ -21,6 +22,8 @@ if (import.meta.env.VITE_UMAMI_WEBSITE_ID) {
 	umami.dataset.domains = "ask.hecla-em.com"
 	document.head.appendChild(umami)
 }
+
+prepareToken()
 
 const router = createRouter({ routeTree })
 
