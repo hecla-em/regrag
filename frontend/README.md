@@ -48,16 +48,14 @@ The app is then on `http://localhost:5173`.
 | `pnpm knip`         | Report unused files, exports and dependencies      |
 | `pnpm generate-api` | Regenerate `src/api/schema.ts` from `openapi.json` |
 
-`pnpm generate-api` expects an `openapi.json` already exported from the backend;
-[`../scripts/generate-client.sh`](../scripts/generate-client.sh) does both steps,
-dumping the FastAPI schema and then regenerating the types.
+`pnpm generate-api` expects an `openapi.json` exported from the backend.
+[`../scripts/generate-client.sh`](../scripts/generate-client.sh) does both steps.
 
 ## End-to-end tests
 
 `e2e/` drives the built site in Chromium against the real backend, with only the
-model and embeddings faked. Playwright starts both: the backend launcher
-(`backend/tests/e2e/server.py`) on `:8000`, seeding its own `regrag_e2e` database
-and Redis index 2, and `vite preview` on `:5173`. Both ports must be free.
+model and embeddings faked. Playwright starts both, on `:8000` and `:5173`, so
+both ports must be free.
 
 ```bash
 docker compose -f ../backend/compose.yaml up -d db redis
@@ -74,16 +72,15 @@ src/
 │   ├── pages/chat/      # The chat page: prompt, answer, citations, sources
 │   ├── shared/errors/   # Error and not-found boundaries
 │   └── ui/              # Base UI primitives
-├── hooks/               # use-chat-stream: turn state as frames arrive
-├── lib/                 # Citation parsing and helpers
+├── hooks/               # use-chat-threads: a tab's threads and their turns
+├── lib/                 # Turn and thread state, citation parsing, helpers
 └── routes/              # File-based routing (TanStack Router)
 ```
 
 ## Streaming
 
-`POST /chat` answers over SSE. `api/client.ts` decodes the frames and
-`use-chat-stream` folds them into one turn: a `sources` frame naming the context
-blocks the answer may cite, `text` frames appended as the model writes, then
-`done` — or a single `error` frame, which marks the turn failed. Citation
-markers in the streamed markdown are rewritten and split in `lib/citations.ts`,
-then rendered as chips that open the cited article in the source panel.
+`POST /chat` answers over SSE, with the frames listed in the
+[chat README](../backend/app/chat/README.md). `api/client.ts` decodes them and
+`lib/chat-turns.ts` folds them into one turn. Citation markers in the streamed
+markdown are rewritten in `lib/citations.ts`, then rendered as chips that open
+the cited source in a popover.

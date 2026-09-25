@@ -9,7 +9,7 @@ uv run retrieve "..." --celex 32023R1805 --limit 5    # one act, fewer results
 
 ## Hybrid search
 
-A hybrid search that combines keyword search with vector search, using Reciprocal Rank Fusion to merge the two rankings into one. Keyword search catches exact terms, vector search catches paraphrases, and fusion means a chunk found by either leg still surfaces.
+BM25 keyword search and vector search, merged by Reciprocal Rank Fusion in one SQL query. Keyword search catches exact terms, vector search catches paraphrases, and fusion means a chunk found by either leg still surfaces.
 
 ## Reranking
 
@@ -21,7 +21,7 @@ To minimise hallucination and avoid the cost of answer synthesis, we require a m
 
 ## Section expansion
 
-Search ranks chunks, but the section is the unit that answers — "the limit referred to in paragraph 1" means nothing on its own. So each hit can be widened out to the article it was cut from. Off by default, since widening eats context that authored references would otherwise fill.
+Search ranks chunks, but the section is the unit that answers — "the limit referred to in paragraph 1" means nothing on its own. So each hit can be widened out to the article it was cut from. Off by default: in tuning it doubled context cost for no recall gain.
 
 ## Following references
 
