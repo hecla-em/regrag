@@ -2,6 +2,7 @@
 
 app = 'regrag'
 primary_region = 'lhr'
+kill_signal = 'SIGTERM'
 
 [build]
 
