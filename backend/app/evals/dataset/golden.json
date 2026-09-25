@@ -1336,6 +1336,395 @@
       ]
     },
     {
+      "id": "fueleu-island-ferry-exemption",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "We operate a ro-pax ferry between the Greek mainland and an island of about 20,000 people. Can that route be exempted from FuelEU, and for how long?",
+      "answer": "Yes, but only if the Member State grants it. A Member State may exempt specific routes and ports for passenger ships other than cruise ships sailing between its own ports and an island port under its jurisdiction with fewer than 200,000 permanent residents. The exemption covers the energy used on those voyages and during the stay in the island's port. The Member State must notify the exemption to the Commission before it takes effect, and the Commission publishes it in the Official Journal. No such exemption applies beyond 31 December 2029.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "2",
+          "content_hashes": [
+            "cebdcb0a2d14",
+            "d955a3cb432e",
+            "8f7cb48ca636",
+            "c1bcd569281b",
+            "a0230bff6858",
+            "74235ca8320d",
+            "1489b60f7645"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-onboard-carbon-capture",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We're looking at fitting onboard carbon capture on one of our tankers. Would the captured CO2 bring down our FuelEU GHG intensity?",
+      "answer": "Not under the current rules. The GHG intensity formula in Annex I counts well-to-tank and tank-to-wake emissions of the fuel used, with a reward factor only for wind-assisted propulsion. It has no term for captured carbon. Article 30(2)(i) only requires the Commission, in its review due by 31 December 2027 and every five years after, to consider including new abatement technologies such as onboard carbon capture in the GHG intensity and compliance balance calculations, subject to a verifiable method for monitoring and accounting for the captured carbon.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "30",
+          "content_hashes": [
+            "33e31cbb0759",
+            "195985fe6084",
+            "655c9a9e2a6d",
+            "101dae497834",
+            "d47c892208a1",
+            "1511c11b4193",
+            "4924032d9b00"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-rfnbo-subtarget-other-fuels",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "If the 2% RFNBO subtarget kicks in from 2034, can we meet it with advanced biofuels like UCO biodiesel instead of e-fuels?",
+      "answer": "Not with UCO biodiesel. Article 5(9) lets a ship escape the subtarget if it shows the same share of its yearly energy is met by other fuels that give equivalent GHG emissions savings and are certified under Article 10. Biofuels from the feedstocks in Part B of Annex IX to the Renewable Energy Directive are excluded, and that Part lists used cooking oil. Other certified fuels with equivalent savings can count.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "5",
+          "content_hashes": [
+            "7ea896cd586d",
+            "6e9965b194ce",
+            "dafc7e924cfc",
+            "44afefd85c42",
+            "0bb6db9d1c8c",
+            "22360405506f",
+            "5f78a0666ad0",
+            "2ed8ecc748ab",
+            "10d91ed16c3a",
+            "62777faee874"
+          ]
+        },
+        {
+          "celex": "32018L2001",
+          "annex": "IX",
+          "content_hashes": [
+            "92ea9b96dc3e",
+            "cc2bf3db9f4c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-boilers-at-berth",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Once our cruise ship is plugged into shore power, do we also have to shut down the oil-fired boilers while we're alongside?",
+      "answer": "No. The shore-power obligation in Article 6 requires the ship to connect to OPS and use it for all its electrical power demand at berth, which Article 3(25) defines as the demand for electricity to meet all energy needs based on electricity on board. Oil-fired boilers meet a non-electrical need, so they are not caught. The fuel they burn at berth still counts as energy used in the port of call, and boilers are among the fuel consumer units in the Annex I GHG intensity calculation.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "3",
+          "content_hashes": [
+            "5eab2b27f70b",
+            "e40761c0ca23",
+            "d32c58bef04a",
+            "ad2efed8061c",
+            "004484f93ea6"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-con-ro-scope",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We run a con-ro that carries both containers and trailers. Does the 2030 FuelEU shore-power requirement apply to us?",
+      "answer": "No, unless it is a passenger ship. The shore-power obligations in Article 6(1) to (3) apply only to containerships and passenger ships. Article 3(31) defines a containership as a ship designed exclusively for the carriage of containers in holds and on deck, so a con-ro that also carries trailers falls outside.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "3",
+          "content_hashes": [
+            "5eab2b27f70b",
+            "e40761c0ca23",
+            "d32c58bef04a",
+            "ad2efed8061c",
+            "004484f93ea6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-unavailable-cap",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "The terminal had no shore power available at our berth this call. Are we exempt, and is there a limit on how often we can use that excuse?",
+      "answer": "Yes, for that call. Article 6(5)(d) exempts ships unable to connect because the port has no OPS connection point available, and the competent authority records the exception in the FuelEU database. From 1 January 2035, in ports covered by Article 9 of the AFIR Regulation, this exception and the grid-stability and incompatibility ones ((e) and (f)) can together cover at most 10% of the ship's port calls in the reporting period, rounded up, or 10 port calls, whichever is lower. A call does not count towards that cap if the company shows, from the advance information exchanged with the port, that it could not reasonably have known the ship would be unable to connect.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-vlsfo-default-factors",
+      "kind": "in_corpus",
+      "question": "Which FuelEU default emission factors do we use for the VLSFO we bunker?",
+      "answer": "FuelEU has no VLSFO category. Annex II sets fossil fuel defaults by ISO 8217 grade, so it depends on the grade on the bunker delivery note. RME to RMK (HFO): LCV 0.0405 MJ/g, WtT 13.5 gCO2eq/MJ, Cf CO2 3.114 g/g. RMA to RMD (LFO): LCV 0.041, WtT 13.2, Cf CO2 3.151. DMX to DMB (MDO/MGO): LCV 0.0427, WtT 14.4, Cf CO2 3.206. All three use Cf CH4 0.00005 and Cf N2O 0.00018 for all ICEs. For fossil fuels the well-to-tank defaults cannot be replaced with actual values.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "II",
+          "content_hashes": [
+            "2a3678b506f3",
+            "7f0a315a6c4b",
+            "455563e23c7e",
+            "b262b430c152",
+            "4ce7fdb5cd19"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "10",
+          "content_hashes": [
+            "c65c67064687",
+            "cce9b74b33c4",
+            "638f9c94850d",
+            "6bccd7bd7652",
+            "98eae203e70e",
+            "af46cf31c0d7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-methane-slip-actual-values",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our engine maker says our dual-fuel engine slips far less methane than the FuelEU default. Can we use a lower slip figure, and what is the default we'd otherwise get?",
+      "answer": "Yes, if it is certified. Article 10(5) lets a company diverge from the Annex II tank-to-wake defaults, except the tank-to-wake CO2 factors of fossil fuels, where actual values are certified by laboratory testing or direct emissions measurement. The method goes in the monitoring plan and is assessed by the verifier. The Annex II LNG slip defaults (Cslip, as % of fuel mass, at 50% engine load) are 3.1% for Otto dual-fuel medium speed, 1.7% for Otto dual-fuel slow speed, 0.2% for Diesel dual-fuel slow speed and 2.6% for LBSI engines.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "10",
+          "content_hashes": [
+            "c65c67064687",
+            "cce9b74b33c4",
+            "638f9c94850d",
+            "6bccd7bd7652",
+            "98eae203e70e",
+            "af46cf31c0d7"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "II",
+          "content_hashes": [
+            "2a3678b506f3",
+            "7f0a315a6c4b",
+            "455563e23c7e",
+            "b262b430c152",
+            "4ce7fdb5cd19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-per-voyage-report-deadline",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Under FuelEU do we have to record fuel for every voyage, or can we just report yearly totals? And when is the report due to our verifier?",
+      "answer": "Every voyage and port call. From 1 January 2025, Article 15(1) requires companies to monitor and record, for each ship arriving at or departing from a port of call and for each voyage in scope, the ports and times, fuel consumed at berth and at sea by type, OPS electricity, the emission factors and substitute energy used. They compile this annually, and by 31 January of the verification period they give the verifier a ship-specific FuelEU report containing it.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "15",
+          "content_hashes": [
+            "388374b2a3b9",
+            "7a3b22a541ae",
+            "ed7fd89fc99d",
+            "428ee8d04589"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-pool-borrowing-single-pool",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "multi_part"
+      ],
+      "question": "If one of our ships is in a FuelEU pool, can it also borrow compliance from next year, and can it be in two pools at once?",
+      "answer": "No to borrowing, and only one pool per target. Article 21(7) says Article 20(2), the borrowing of an advance compliance surplus, does not apply to a ship in a pool. A ship's compliance balance cannot be in more than one pool in the same reporting period, though two separate pools may be used, one for the GHG intensity target and one for the RFNBO subtarget. Any surplus the ship ends up with after pooling can still be banked under Article 20(1).",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "21",
+          "content_hashes": [
+            "93a26861019b",
+            "a38ee4529416",
+            "67a9d12ab2ad",
+            "ec7246ac25b2",
+            "f5bb3aae5c22",
+            "44d67bc052d9",
+            "5aff897cec25",
+            "51610c5c13a9"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "20",
+          "content_hashes": [
+            "6351f36d642b",
+            "a0d6d951ef1f",
+            "5111b03862fe",
+            "29922b89e44f"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-penalty-charterer-reimbursement",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our time charterer buys all the fuel and sets the route. Can we pass the FuelEU penalty on to them, and who is actually liable to pay it?",
+      "answer": "The company stays liable. It must pay the FuelEU penalty to its administering State by 30 June of the verification period. Article 23(8) lets it agree contractually that the commercial operator reimburses it, where the operator is responsible for buying the fuel or operating the ship, meaning deciding the cargo, route and speed. Article 23(9) allows the same with fuel suppliers. Neither agreement moves the legal responsibility off the company.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "23",
+          "content_hashes": [
+            "df3cd9e19ad5",
+            "d72d419e0d1d",
+            "407656d8e29a",
+            "61f40a77eac6",
+            "81ab6e346afb",
+            "b8dbfb610622",
+            "d170a9df22e6",
+            "e88d4e4384f5",
+            "6b353d5a0ea6",
+            "94bfd6e5c0eb",
+            "d80f8434371b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-wind-reward-factor",
+      "kind": "in_corpus",
+      "question": "We're fitting rotor sails that give about 10% of our propulsion power. How much does that cut our FuelEU GHG intensity?",
+      "answer": "About 3%. Annex I multiplies the GHG intensity result by a wind reward factor based on P_wind/P_prop: 0.99 at 0.05, 0.97 at 0.1 and 0.95 at 0.15 or more. A ratio of 0.1 gives 0.97. P_wind is the available effective power of the wind-assisted propulsion systems, calculated under the IMO EEDI/EEXI guidance on innovative technologies (MEPC.1/Circ.896), and P_prop is the ship's propulsion power.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
       "id": "mrv-verification-report",
       "kind": "in_corpus",
       "traits": [
@@ -1343,7 +1732,7 @@
         "multi_part"
       ],
       "question": "What has to go into the verification report our MRV verifier issues, and what makes it come out satisfactory?",
-      "answer": "Article 13 of Regulation (EU) 2015/757 sets the outcome: where the verifier concludes with reasonable assurance that the emissions report is free from material misstatements it issues a verification report stating the report has been verified as satisfactory, specifying all issues relevant to the work carried out; where misstatements or non-conformities were communicated and not corrected and, individually or combined, lead to material misstatements, the verifier issues a report stating that the emissions report does not comply. Article 22 of Implementing Regulation (EU) 2023/2917 holds the contents: the report goes to the company, which submits it with the emissions report to the administering authority responsible, and it must include a statement verifying the report as satisfactory or unsatisfactory, along with the company name and IMO unique company and registered owner identification number and identification of the ship, a title making clear it is a verification report, the identity of the verifier and a contact person, the objectives and scope of the verification, a reference to the emissions report and reporting period, a reference to the monitoring plans assessed as satisfactory, the verification standards used, a summary of the verifier's procedures including site visits, and a verification statement.",
+      "answer": "Article 13 of Regulation (EU) 2015/757 sets the outcome: where the verifier concludes with reasonable assurance that the emissions report is free from material misstatements it issues a verification report stating the report has been verified as satisfactory, specifying all issues relevant to the work carried out; where misstatements or non-conformities were communicated and not corrected and, individually or combined, lead to material misstatements, the verifier issues a report stating that the emissions report does not comply. Article 22 of Delegated Regulation (EU) 2023/2917 holds the contents: the report goes to the company, which submits it with the emissions report to the administering authority responsible, and it must include a statement verifying the report as satisfactory or unsatisfactory, along with the company name and IMO unique company and registered owner identification number and identification of the ship, a title making clear it is a verification report, the identity of the verifier and a contact person, the objectives and scope of the verification, a reference to the emissions report and reporting period, a reference to the monitoring plans assessed as satisfactory, the verification standards used, a summary of the verifier's procedures including site visits, and a verification statement.",
       "references": [
         {
           "celex": "32015R0757",
@@ -1396,6 +1785,26 @@
       "id": "adjacent-regime-uk-ets-maritime",
       "kind": "out_of_corpus",
       "question": "From what date does the UK ETS cover domestic maritime voyages, and which ships does it apply to?"
+    },
+    {
+      "id": "external-agreement-fueleu-norway-iceland",
+      "kind": "out_of_corpus",
+      "question": "Does FuelEU apply when my ship calls at Norwegian or Icelandic ports, or only at EU ones?"
+    },
+    {
+      "id": "unpublished-method-fueleu-reference-value",
+      "kind": "out_of_corpus",
+      "question": "What fleet data and method was the 91.16 g/MJ FuelEU reference value calculated from?"
+    },
+    {
+      "id": "external-market-fueleu-pool-price",
+      "kind": "out_of_corpus",
+      "question": "What's the going rate per tonne CO2e to buy surplus into a FuelEU pool for a ship in deficit?"
+    },
+    {
+      "id": "unpublished-guidance-fueleu-biofuel-allocation",
+      "kind": "out_of_corpus",
+      "question": "We burn B30 on a Rotterdam to Houston run. Can we allocate all of the bio part to the half of the energy that counts under FuelEU?"
     },
     {
       "id": "ets-surrender-base-full-plus-partial-reports",
@@ -1944,6 +2353,1357 @@
           ]
         }
       ]
+    },
+    {
+      "id": "ets-offshore-ships-from-2027",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We operate a 6,500 GT offshore supply vessel working out of Esbjerg. Do we have to surrender ETS allowances for it already, or only from a later year?",
+      "answer": "Only from 2027. Annex I of the ETS Directive brings in the maritime transport activities covered by Regulation (EU) 2015/757, except, until 31 December 2026, those covered by Article 2(1b) of that Regulation. Article 2(1b) is the provision that brought offshore ships of 5 000 gross tonnage and above into MRV from 1 January 2025. So the vessel is monitored and reported under MRV now, but its emissions fall under the ETS only from 1 January 2027.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "annex": "I",
+          "content_hashes": [
+            "acbf32110116",
+            "28b2f82ab780",
+            "f046d6bf9e2a",
+            "200d1bc834e0",
+            "2014c9704a8f",
+            "65347c870df9",
+            "b6835c9a69bc",
+            "0ba6803a6bd4",
+            "0249325b5fa8",
+            "dc2eafc4bf68",
+            "e1800569759e",
+            "d0588227b7db"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-methane-from-2026",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our LNG carriers have some methane slip. Do we need ETS allowances for the methane as well as the CO2, and from which year?",
+      "answer": "Yes, from 2026. Annex I of the ETS Directive lists carbon dioxide as the greenhouse gas for maritime transport and adds methane and nitrous oxide from 1 January 2026, so methane emitted from 2026 onwards needs allowances alongside the CO2.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "annex": "I",
+          "content_hashes": [
+            "acbf32110116",
+            "28b2f82ab780",
+            "f046d6bf9e2a",
+            "200d1bc834e0",
+            "2014c9704a8f",
+            "65347c870df9",
+            "b6835c9a69bc",
+            "0ba6803a6bd4",
+            "0249325b5fa8",
+            "dc2eafc4bf68",
+            "e1800569759e",
+            "d0588227b7db"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-bunker-stop-not-port-of-call",
+      "kind": "in_corpus",
+      "question": "On a Houston to Rotterdam run our tanker stops at Las Palmas only to take on bunkers. Does that stop count as a port of call and split the voyage for the ETS?",
+      "answer": "No. Article 3(z) of the ETS Directive defines a port of call as a port where a ship stops to load or unload cargo or to embark or disembark passengers, and excludes stops for the sole purpose of refuelling. Las Palmas therefore does not count, and for the ETS the voyage runs from Houston to Rotterdam: a voyage from a port outside the EU to a Member State port, for which Article 3ga(1) applies surrender requirements to 50 % of the emissions.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3",
+          "content_hashes": [
+            "451fe52df3d5",
+            "11ccfd5b8bee",
+            "1261afc40213",
+            "c9a6efcc1da5",
+            "3db2e4db4163",
+            "37ab169db45a"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "content_hashes": [
+            "55c0156f0c8f",
+            "1f7fd823bf54",
+            "ccc6d2fd1578"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-no-offset-credits",
+      "kind": "in_corpus",
+      "question": "We already buy voluntary carbon offsets for our fleet. Can we use those credits against our EU ETS obligation instead of buying allowances?",
+      "answer": "No. Article 12(3)(c) of the ETS Directive requires each shipping company to surrender a number of allowances equal to its total verified emissions for the preceding calendar year, so the obligation can only be met with allowances, and voluntary offset credits do not reduce it.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-moha-request-deadline",
+      "kind": "in_corpus",
+      "question": "We weren't on the Commission's list of shipping companies and our first ETS voyage was last month. How long do we have to request a maritime operator holding account?",
+      "answer": "65 working days from that first voyage. Under Article 15a(1) of the Union Registry Regulation, a shipping company not included in the Commission's list must, within 65 working days of its first voyage falling within the scope of Article 3ga of the ETS Directive, give the relevant national administrator the information set out in Annex VIIa and request it to open a maritime operator holding account.",
+      "references": [
+        {
+          "celex": "32019R1122",
+          "article": "15a",
+          "content_hashes": [
+            "d6506a3e0e38",
+            "ffcaa5a766b0",
+            "8610cb3f9fb5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-general-allowances-not-ets2",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Do we need a special shipping allowance to surrender, or do we use the same EUAs as industry? Could we use the new ETS2 allowances instead?",
+      "answer": "There is no separate shipping allowance. Article 38(1) of the Union Registry Regulation has the central administrator transfer general allowances for stationary installations and maritime operators to the EU Auction Account, and Article 3(8) defines general allowances as allowances created under Chapter III of Directive 2003/87/EC. ETS2 allowances cannot be used instead: Article 36(5) makes allowances under Chapter IVa of the Directive non-fungible with those under Chapters II and III, and bars them from maritime operator holding accounts.",
+      "references": [
+        {
+          "celex": "32019R1122",
+          "article": "3",
+          "content_hashes": [
+            "316400b93a06",
+            "7a84a6ed6e85",
+            "8b988843f569",
+            "979d055ef57b"
+          ]
+        },
+        {
+          "celex": "32019R1122",
+          "article": "36",
+          "content_hashes": [
+            "73ae2a184b39",
+            "2de59f145f78",
+            "fa1e63b7e645",
+            "c47fe1fcce21",
+            "bc986906d649"
+          ]
+        },
+        {
+          "celex": "32019R1122",
+          "article": "38",
+          "content_hashes": [
+            "27f7e009d329",
+            "3cc3b19de81a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-trading-account-residence",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "We're a shipowner registered in Singapore. Besides our maritime operator holding account, can we open a trading account in the Union Registry, or can the Member State refuse us for not being based there?",
+      "answer": "You can request one, but the Member State may impose local conditions. Under Article 16 of the Union Registry Regulation any prospective account holder submits the request to the national administrator with at least the information in Annex IV. The Member State of that national administrator may require, as a condition for opening the account, that the holder has its permanent residence or registration in that Member State, or is registered for VAT there.",
+      "references": [
+        {
+          "celex": "32019R1122",
+          "article": "16",
+          "content_hashes": [
+            "b72db623600a",
+            "c7d4b739fc80",
+            "f6c838116455",
+            "c9506d339813"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-allowances-no-expiry",
+      "kind": "in_corpus",
+      "question": "If we buy more allowances this year than we need, can we keep them for later years, or do they expire?",
+      "answer": "They do not expire. Article 13 of the ETS Directive makes allowances issued from 1 January 2013 onwards valid indefinitely, so surplus allowances can be kept for later years.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "13",
+          "content_hashes": [
+            "50c6ecda6261"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-ism-mandate-document",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our ISM manager is going to take on ETS compliance for the ships we own. What does the administering authority need to accept that, and who is liable if the paperwork isn't there?",
+      "answer": "A signed mandate, and without it the shipowner stays liable. Under Article 1 of Implementing Regulation (EU) 2023/2599, the ISM company must be duly mandated by the shipowner and give its administering authority a document clearly showing that mandate, signed by both the shipowner and the ISM company. The document gives the name and IMO unique company and registered owner identification number of both parties, the ISM company's country of registration, the shipowner's contact person, the date the mandate applies from, and the IMO number of each ship it covers. If the ISM company cannot provide that document, the shipowner is considered the entity responsible for the ETS obligations.",
+      "references": [
+        {
+          "celex": "32023R2599",
+          "article": "1",
+          "content_hashes": [
+            "643c20a028a5",
+            "2c725d18e4b0",
+            "c06b817e30ea",
+            "2a9634bfaacb"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-company-change-surrender",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "A ship moved from our management to another company on 1 April. Which of us surrenders allowances for its emissions from January to March?",
+      "answer": "You do, as the previous company. On a change of company, Article 11(2) of Regulation (EU) 2015/757 requires the previous company to submit a verified report limited to the period of activities under its responsibility. Under Article 11a(1) each company builds its aggregated emissions data at company level from the emissions reports and these Article 11(2) reports for every ship under its responsibility during the reporting period. Article 12(3)(c) of the ETS Directive then has each shipping company surrender allowances equal to its total verified emissions, so the January to March emissions fall in your total and April to December in the new company's.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "11",
+          "content_hashes": [
+            "083eabdaf38a",
+            "09c160a312db",
+            "07a0c766aea3",
+            "eff445a76af7"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "11a",
+          "content_hashes": [
+            "32009779302c",
+            "16abb4e268d6",
+            "1404172536b5",
+            "b1b95b25e43c"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-moha-excluded-no-activity",
+      "kind": "in_corpus",
+      "question": "None of our ships called at an EU port last year, but we still have a maritime operator holding account. What happens to the account for that year?",
+      "answer": "It is set to excluded. Under Article 9(6b) of the Union Registry Regulation, once the competent authority notifies that a shipping company is no longer included in the EU ETS under Annex I to Directive 2003/87/EC in a given year, the national administrator sets its maritime operator holding account to excluded status, after giving the company prior notice. The account stays excluded until the administering authority notifies that the company is included in the EU ETS again.",
+      "references": [
+        {
+          "celex": "32019R1122",
+          "article": "9",
+          "content_hashes": [
+            "94fe09eb2816",
+            "8396a8979f84",
+            "74d179699aef",
+            "f8ae3c49fcb5",
+            "323e8275eecd",
+            "845a48dbad04",
+            "c9aa68faa711",
+            "0b599c6d4a1c",
+            "362212f07a35",
+            "c4fdf7fc16db"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-reattribution-after-reregistration",
+      "kind": "in_corpus",
+      "question": "We moved our company's registration from Cyprus to Greece this year. Does our ETS administering authority change straight away?",
+      "answer": "No. Under Article 3gf(3), the administering authority responsible for a company on the Commission's list keeps that responsibility regardless of later changes in the company's registration until the change is reflected in an updated list, so Cyprus stays responsible for now. Under Article 3gf(2)(b), the Commission adopts an updated list before 1 February 2026 and every two years after that, reattributing companies that changed their Member State of registration within the Union. Greece then becomes the administering authority, as a company registered in a Member State is administered by that Member State.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gf",
+          "content_hashes": [
+            "47b6b3b3ce5a",
+            "ae1df915cc15",
+            "1804519bdb1a",
+            "2f7d17d0c359"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-company-not-on-list",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Our company isn't on the Commission's list of shipping companies and administering authorities. Does that mean the ETS doesn't apply to us?",
+      "answer": "No. The list under Article 3gf(2) attributes shipping companies to administering authorities, and companies that later perform a maritime transport activity listed in Annex I within the scope of Article 3ga are added in an updated list, adopted before 1 February 2026 and every two years after that. A shipping company not included in the list must, within 65 working days of its first voyage falling within the scope of Article 3ga, give the relevant national administrator the information in Annex VIIa to the Union Registry Regulation and ask it to open a maritime operator holding account (Article 15a(1) of Regulation (EU) 2019/1122).",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gf",
+          "content_hashes": [
+            "47b6b3b3ce5a",
+            "ae1df915cc15",
+            "1804519bdb1a",
+            "2f7d17d0c359"
+          ]
+        },
+        {
+          "celex": "32019R1122",
+          "article": "15a",
+          "content_hashes": [
+            "d6506a3e0e38",
+            "ffcaa5a766b0",
+            "8610cb3f9fb5"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-first-voyage-attribution",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We're registered in Panama, weren't on the attribution list, and our first ETS voyage was Algeciras to Genoa. Which Member State will administer us?",
+      "answer": "Spain. Under Article 3gf(1)(c), a shipping company not registered in a Member State that carried out no voyage within the scope of Article 3ga in the preceding four monitoring years is administered by the Member State where one of its ships started or ended its first voyage within that scope. Where that first voyage started at a port of one Member State and ended at a port of another, Article 4 of Regulation (EU) 2023/2599 makes the administering authority the Member State where the voyage started, so the departure from Algeciras decides.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "3gf",
+          "content_hashes": [
+            "47b6b3b3ce5a",
+            "ae1df915cc15",
+            "1804519bdb1a",
+            "2f7d17d0c359"
+          ]
+        },
+        {
+          "celex": "32023R2599",
+          "article": "4",
+          "content_hashes": [
+            "f7020111f759"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-attribution-data-sources",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "What data does the Commission use to decide which Member State a non-EU shipping company is attributed to? Where do the port call counts come from?",
+      "answer": "Thetis MRV for registration and SafeSeaNet for port calls. Under Article 3 of Regulation (EU) 2023/2599, a shipping company's country of registration is the country recorded in Thetis MRV. Port call data for attributing a company not registered in a Member State are based on data stored in SafeSeaNet, the Union maritime information and exchange system set up by Directive 2002/59/EC. Where the SafeSeaNet data is insufficient, the Commission may use complementary data, such as Automatic Identification System data, stored by other information systems.",
+      "references": [
+        {
+          "celex": "32023R2599",
+          "article": "3",
+          "content_hashes": [
+            "96249216828f",
+            "acf082159bdc"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-company-data-verifier-accreditation",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Does the verifier checking our ETS company-level emissions data need a particular accreditation, and who grants it?",
+      "answer": "Yes. Under Article 16(1) of Regulation (EU) 2015/757, verifiers that assess the aggregated emissions data at company level, as well as monitoring plans and emissions reports, and that issue verification reports and documents of compliance, must be accredited for activities within the scope of that Regulation. The accreditation is granted by a national accreditation body pursuant to Regulation (EC) No 765/2008.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "16",
+          "content_hashes": [
+            "6f7f387d6bf2",
+            "48c813c28639",
+            "bca07e5ba897"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-auction-revenue-maritime-use",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Do Member States have to spend their ETS auction revenue on anything in particular? Does any of it go back into decarbonising shipping or ports?",
+      "answer": "They must spend it on listed purposes, and maritime decarbonisation is one of them. Under Article 10(3), Member States use auction revenues, other than those used to compensate indirect carbon costs or entered in the Union budget as own resources, or the equivalent in financial value, for one or more listed purposes. Point (f) covers measures to decarbonise the maritime sector, including the energy efficiency of ships, ports, innovative technologies and infrastructure, sustainable alternative fuels such as hydrogen and ammonia produced from renewables, and zero-emission propulsion technologies. Article 10(3) does not reserve any revenue for shipping, but under Article 3ga(3) the revenue from the extra share of allowances attributed until 31 December 2030 to Member States with more than 15 shipping companies per million inhabitants should be used for point (g) with regard to the maritime sector and for points (f) and (i).",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "10",
+          "content_hashes": [
+            "20adba14d717",
+            "5647608c57c9",
+            "aa8da71612a8",
+            "b8395b0927b6",
+            "3c1cde2cd786",
+            "93855b89bd93",
+            "2b5e24965e3b",
+            "4c6342c48905",
+            "0a56bfd68b7f",
+            "2f4ee014adb3"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3ga",
+          "content_hashes": [
+            "55c0156f0c8f",
+            "1f7fd823bf54",
+            "ccc6d2fd1578"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-outermost-region-voyages",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Our ro-ro runs between Las Palmas and Cádiz. Do we have to surrender ETS allowances for those voyages?",
+      "answer": "Not for emissions released until 31 December 2030. Las Palmas is in the Canary Islands, an outermost region under Article 349 TFEU. Under Article 12(3-b), no obligation to surrender allowances arises for emissions released until 31 December 2030 from voyages between a port in an outermost region of a Member State and a port in the same Member State, or from those ships' activities within a port in relation to such voyages. Las Palmas to Cádiz is such a voyage, as both ports are in Spain.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        },
+        {
+          "celex": "32016L0802",
+          "article": "2",
+          "content_hashes": [
+            "79975eead578",
+            "c402d44456c8",
+            "32f104cf7e5b",
+            "e9490298a994"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-transnational-pso-ferry",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We operate the Piraeus to Limassol passenger ferry under the Greece-Cyprus public service contract. Do we have to surrender allowances for those voyages?",
+      "answer": "Not for emissions released until 31 December 2030. Article 12(3-c) lets the Commission, at the joint request of two Member States, provide that Member States treat the surrender obligation and the penalties in Article 16 as satisfied and take no action for voyages by passenger or ro-pax ships under a transnational public service contract or obligation connecting them, and for those ships' activities in port in relation to such voyages. Article 1(b) of Implementing Decision (EU) 2023/2895 does this for the contracts listed in its Annex II, which lists the public service contract for the passenger maritime link between Cyprus and Greece connecting Piraeus, Larnaca and Limassol.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        },
+        {
+          "celex": "32023D2895",
+          "article": "1",
+          "content_hashes": [
+            "c47f6dd827fa"
+          ]
+        },
+        {
+          "celex": "32023D2895",
+          "annex": "II",
+          "content_hashes": [
+            "cc594b8b7a0a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-derogated-ships-still-monitored",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "All our ships are island ferries covered by the ETS surrender derogation. Do we still have to monitor and report their emissions?",
+      "answer": "Yes. The island derogation in Article 12(3-d) only has Member States treat the surrender obligation in Article 12(3), point (c), and the penalties in Article 16 as satisfied and take no action against the company. Under Annex II to Regulation (EU) 2015/757, emissions under the derogation are multiplied by zero in the total to be reported under the ETS, but the company must still monitor, per voyage, the ports and times of departure and arrival, the amount and emission factor of each fuel, the greenhouse gas emissions, the distance travelled and the time spent at sea. Where all of a ship's emissions in a reporting period fall under the derogations and the ship performs more than 300 voyages in that period according to its schedule, that information need not be monitored per voyage.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "II",
+          "content_hashes": [
+            "284acedbeb17",
+            "b3015d064055",
+            "e385c64c3654",
+            "92dc34d1652d",
+            "609f03015592",
+            "eafb849a1930",
+            "6881d4eea365",
+            "0616ead9c73c",
+            "09223ffd4ecc",
+            "ae2b24fb342e",
+            "7dcede886354",
+            "5286e50822a0",
+            "0aa0a3e34459"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-sustainable-biofuel-zero-rated",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "If we switch our container ships to a certified sustainable biofuel blend, do we still need allowances for the emissions from the bio share?",
+      "answer": "Not for its CO2. Under Annex II to Regulation (EU) 2015/757, where a company uses a fuel complying with the sustainability and greenhouse gas emission saving criteria for biomass in Directive (EU) 2018/2001, the CO2 emission factor of the biomass fraction of the fuel is zero in the emissions reported under the ETS. Only the CO2 emission factor is zeroed, so methane and nitrous oxide from the fuel still count, and the ETS covers those gases for maritime transport from 1 January 2026 under Annex I to Directive 2003/87/EC.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "annex": "II",
+          "content_hashes": [
+            "284acedbeb17",
+            "b3015d064055",
+            "e385c64c3654",
+            "92dc34d1652d",
+            "609f03015592",
+            "eafb849a1930",
+            "6881d4eea365",
+            "0616ead9c73c",
+            "09223ffd4ecc",
+            "ae2b24fb342e",
+            "7dcede886354",
+            "5286e50822a0",
+            "0aa0a3e34459"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "annex": "I",
+          "content_hashes": [
+            "acbf32110116",
+            "28b2f82ab780",
+            "f046d6bf9e2a",
+            "200d1bc834e0",
+            "2014c9704a8f",
+            "65347c870df9",
+            "b6835c9a69bc",
+            "0ba6803a6bd4",
+            "0249325b5fa8",
+            "dc2eafc4bf68",
+            "e1800569759e",
+            "d0588227b7db"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ets-onboard-carbon-capture-storage",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "If we fit onboard carbon capture and deliver the CO2 to a storage site, do we still have to surrender allowances for it?",
+      "answer": "No, provided the storage site is permitted. Under Article 12(3a), no obligation to surrender allowances arises for emissions verified as captured and transported for permanent storage to a facility with a permit in force under Directive 2009/31/EC on the geological storage of carbon dioxide. For ships, Annex II to Regulation (EU) 2015/757 multiplies CO2 emissions within the scope of Article 12(3a) by zero when calculating the emissions to be reported under the ETS.",
+      "references": [
+        {
+          "celex": "32003L0087",
+          "article": "12",
+          "content_hashes": [
+            "b1fe24e6ac5d",
+            "109a354eba8e",
+            "f8dd0e7bc6e7",
+            "f19fcd4ac888",
+            "706a58242e8b",
+            "32055f1cad23",
+            "b46fb4d12a72",
+            "e49a3ae8b328",
+            "e40994f0cac2",
+            "30b3346b50cb",
+            "3c9b32cb4273",
+            "5dec0dcdc89c",
+            "ac7aedb9b5e8",
+            "1f05044951b4",
+            "283ee1754ea6",
+            "a8a44e7708f7",
+            "e4200735d0c8",
+            "2d5c9d188297"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "II",
+          "content_hashes": [
+            "284acedbeb17",
+            "b3015d064055",
+            "e385c64c3654",
+            "92dc34d1652d",
+            "609f03015592",
+            "eafb849a1930",
+            "6881d4eea365",
+            "0616ead9c73c",
+            "09223ffd4ecc",
+            "ae2b24fb342e",
+            "7dcede886354",
+            "5286e50822a0",
+            "0aa0a3e34459"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-exempt-fishing-government-ships",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "We run a 6,000 GT fish-processing vessel and a government survey ship that both call at EU ports. Is either of them caught by EU MRV?",
+      "answer": "No, neither, provided the survey ship is not used commercially. Article 2(2) of the MRV Regulation says it does not apply to fish-catching or fish-processing ships, so the fish-processing vessel is out even though it is above 5,000 GT. The same paragraph excludes government ships used for non-commercial purposes, which takes out the survey ship as long as it is used for non-commercial purposes.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-small-offshore-ship-2025",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our 2,500 GT crew/supply vessel works North Sea projects out of Esbjerg. Does EU MRV apply to it, and from when?",
+      "answer": "Yes, from 1 January 2025. Annex I lists crew/supply vessels among the ships, other than icebreakers, designed or certified to perform service activities offshore or at offshore installations. Article 2(1a) extends the Regulation from 1 January 2025 to offshore ships below 5 000 but not below 400 gross tonnage, for emissions on voyages from their last port of call to a port of call under a Member State's jurisdiction, from such a port to their next port of call, and within those ports.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "I",
+          "content_hashes": [
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
+            "f65896f2be7f",
+            "102570ce21d2",
+            "7382dffa84ea",
+            "687618b8aafc",
+            "5a742135e2d8",
+            "ce657df84064",
+            "949049fb76a2",
+            "a718471450cf",
+            "38f336324b99",
+            "9c4a6e610e8e",
+            "9ef495a9a035"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-ballast-voyage-monitored",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Our general cargo ship discharges in Rotterdam, then sails empty to Brazil to load grain. Do we have to monitor and report that ballast leg under MRV?",
+      "answer": "Yes. Rotterdam is a port of call because the ship stops there to unload cargo (Article 3, point (z) of Directive 2003/87/EC, which the MRV Regulation adopts in its Article 3(b)), and under Article 3(c) a voyage is any movement of a ship that originates from or terminates in a port of call. Article 4(1) requires companies to monitor and report for any voyages to or from a port under a Member State's jurisdiction, so the ballast leg counts like any other. For a general cargo ship, Article 3(f) of Implementing Regulation (EU) 2016/1928 sets cargo carried at zero for ballast voyages.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "3",
+          "content_hashes": [
+            "4baf2fda8354",
+            "802dee62f372"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3",
+          "content_hashes": [
+            "451fe52df3d5",
+            "11ccfd5b8bee",
+            "1261afc40213",
+            "c9a6efcc1da5",
+            "3db2e4db4163",
+            "37ab169db45a"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "4",
+          "content_hashes": [
+            "e8e287269c14",
+            "fec5df2424d0",
+            "492f2d9e857a",
+            "90b06e2cc715",
+            "96a409b134b5",
+            "e139219e171a",
+            "8e3164166454",
+            "ce0d3ab7532c"
+          ]
+        },
+        {
+          "celex": "32016R1928",
+          "article": "3",
+          "content_hashes": [
+            "3bd20fb93e05",
+            "82b4f71abea6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-ship-to-ship-transfer-voyage-end",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We leave Antwerp, do a ship-to-ship transfer outside Houston port limits, then discharge in South Korea. Where does our MRV voyage end?",
+      "answer": "In South Korea. Article 3(b) of the MRV Regulation takes its definition of port of call from Article 3, point (z) of Directive 2003/87/EC, and that definition excludes ship-to-ship transfers carried out outside ports. The transfer off Houston is therefore not a port of call and does not end the voyage. The voyage covered under Article 2(1) runs from Antwerp to the next port of call, the discharge port in South Korea.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "3",
+          "content_hashes": [
+            "4baf2fda8354",
+            "802dee62f372"
+          ]
+        },
+        {
+          "celex": "32003L0087",
+          "article": "3",
+          "content_hashes": [
+            "451fe52df3d5",
+            "11ccfd5b8bee",
+            "1261afc40213",
+            "c9a6efcc1da5",
+            "3db2e4db4163",
+            "37ab169db45a"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-at-berth-emissions-separate",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Do the emissions from our ship while alongside in Hamburg count under MRV, and do they have to be reported separately from the voyage?",
+      "answer": "Yes, and yes. Article 2(1) covers emissions released within ports of call under a Member State's jurisdiction as well as on voyages. Article 10(f) makes greenhouse gas emissions within ports under a Member State's jurisdiction at berth a parameter of their own in annual monitoring, and Part A of Annex I requires fuel consumption at berth in those ports to be calculated separately. Under Article 11(3)(d) the emissions report includes the results of the annual monitoring of the Article 10 parameters.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "10",
+          "content_hashes": [
+            "459628078471"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "I",
+          "content_hashes": [
+            "75a73d35fc6a",
+            "5ef93abf4a33",
+            "d8537d0a44c2",
+            "0f560b15a9cf",
+            "fb99dc83445c",
+            "e316f9e01bb4",
+            "f65896f2be7f",
+            "102570ce21d2",
+            "7382dffa84ea",
+            "687618b8aafc",
+            "5a742135e2d8",
+            "ce657df84064",
+            "949049fb76a2",
+            "a718471450cf",
+            "38f336324b99",
+            "9c4a6e610e8e",
+            "9ef495a9a035"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "11",
+          "content_hashes": [
+            "083eabdaf38a",
+            "09c160a312db",
+            "07a0c766aea3",
+            "eff445a76af7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-voyage-timed-from-berth",
+      "kind": "in_corpus",
+      "question": "Our tanker loads in Houston and sails to Rotterdam. For MRV, do emissions start counting while we're loading in Houston or only once we leave the berth?",
+      "answer": "Only once you leave the berth. Article 2(1) covers emissions on the voyage from the last port of call to a port of call under a Member State's jurisdiction, and emissions within ports only for ports of call under a Member State's jurisdiction, so time loading alongside in Houston is outside it. Part A of Annex II records each voyage from the date and hour of departure from berth to arrival at berth.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "annex": "II",
+          "content_hashes": [
+            "284acedbeb17",
+            "b3015d064055",
+            "e385c64c3654",
+            "92dc34d1652d",
+            "609f03015592",
+            "eafb849a1930",
+            "6881d4eea365",
+            "0616ead9c73c",
+            "09223ffd4ecc",
+            "ae2b24fb342e",
+            "7dcede886354",
+            "5286e50822a0",
+            "0aa0a3e34459"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-emissions-report-deadline-recipients",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "By what date each year do we have to submit the verified MRV emissions report for each ship, and who do we send it to?",
+      "answer": "By 31 March. From 2025, Article 11(1) requires companies to submit, for each ship under their responsibility, an emissions report for the entire reporting period of the previous year, verified as satisfactory by a verifier, to the administering authority responsible, to the authorities of the flag State for ships flying the flag of a Member State, and to the Commission. The administering authority responsible may require the report earlier than 31 March, but not earlier than 28 February.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "11",
+          "content_hashes": [
+            "083eabdaf38a",
+            "09c160a312db",
+            "07a0c766aea3",
+            "eff445a76af7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-no-eu-voyages-no-doc",
+      "kind": "in_corpus",
+      "question": "One of our ships didn't call at any EU port all last year. Does it still need an MRV document of compliance for that year?",
+      "answer": "No. Article 18 requires a valid document of compliance on board only for ships that carried out voyages during the reporting period, and the Regulation covers only voyages to or from, and time within, ports of call under a Member State's jurisdiction (Article 2(1)). A ship with no such voyages in the year needs no document of compliance for it.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "18",
+          "content_hashes": [
+            "a059412b2899"
+          ]
+        },
+        {
+          "celex": "32015R0757",
+          "article": "2",
+          "content_hashes": [
+            "15859db9b5b0",
+            "ab0a53dc2b14",
+            "b5e163388316",
+            "a44844f99f2d",
+            "ee522bb91073"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-change-of-company-partial-report",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "We sold a ship to another company halfway through the year. What MRV report do we owe for our part of the year, who gets it, and by when?",
+      "answer": "A verified partial report. Under Article 11(2), where there is a change of company the previous company must submit a verified report covering the same elements as the annual emissions report, limited to the period of the activities carried out under its responsibility. It goes to the administering authority responsible, to the flag State authorities for ships flying the flag of a Member State, to the new company and to the Commission. It is due as close as practicable to the day the change is completed and no later than three months after it.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "11",
+          "content_hashes": [
+            "083eabdaf38a",
+            "09c160a312db",
+            "07a0c766aea3",
+            "eff445a76af7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-change-of-company-monitoring-plan",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "multi_part"
+      ],
+      "question": "The registered owner is taking over as the responsible company for one of our ships mid-year. Does the monitoring plan need changing, and does the verifier have to reassess it?",
+      "answer": "The plan must be modified, but the verifier does not assess that change. Article 7(2)(a) of Regulation (EU) 2015/757 requires the monitoring plan to be modified where a change of company occurs, and Article 7(3) requires the proposed modification to be notified to the verifier without undue delay. Article 7(4) subjects only modifications under points (b) to (d) to the verifier's assessment, so under Article 75(1) of Delegated Regulation (EU) 2023/2917 the modified plan goes to the administering authority responsible once the verifier has been notified. That authority approves it under Article 7(5), and under Article 76(2) of Regulation (EU) 2023/2917 the company must give it evidence of the change of company and, where the administering authority is not the same, an indication with supporting evidence of whether the plan had been approved before the change.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "7",
+          "content_hashes": [
+            "6d84af169c0f",
+            "8904e937928b",
+            "69574df17189",
+            "57f9336a5647",
+            "1e94f63774ed"
+          ]
+        },
+        {
+          "celex": "32023R2917",
+          "article": "75",
+          "content_hashes": [
+            "01924f4048ac",
+            "e1a32a2a3e47"
+          ]
+        },
+        {
+          "celex": "32023R2917",
+          "article": "76",
+          "content_hashes": [
+            "8e75f3b29f92",
+            "6ab3453061fd"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-voyage-across-two-years",
+      "kind": "in_corpus",
+      "question": "Our ship left Singapore on 20 December and arrived in Rotterdam on 15 January. Which year's MRV report do the voyage emissions go in?",
+      "answer": "Both years. Article 3(m) of Regulation (EU) 2015/757 defines the reporting period as 1 January to 31 December of a given year, and for voyages starting and ending in two different years the respective data are accounted under the year concerned. So the data for the December part of the voyage go in that year's report and the data for the January part go in the next year's.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "3",
+          "content_hashes": [
+            "4baf2fda8354",
+            "802dee62f372"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-virtual-site-visit-limit",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Can our MRV verifier do the site visit virtually instead of coming in person, and is there a limit on that?",
+      "answer": "Yes, within limits. Under Article 18(6) of Delegated Regulation (EU) 2023/2917 the verifier may carry out a virtual site visit where its risk analysis shows that it already has sufficient understanding of the ship's monitoring and reporting systems, that the system is simple enough not to need a physical visit, or that it can obtain and assess all requisite information remotely, or where serious, extraordinary and unforeseeable circumstances outside the company's control prevent a physical visit. Except in those circumstances, it may not carry out a virtual site visit if no physical site visit took place in the three reporting periods immediately preceding the current one.",
+      "references": [
+        {
+          "celex": "32023R2917",
+          "article": "18",
+          "content_hashes": [
+            "7da549ca3953",
+            "db404dd7cb3a",
+            "96bd4c96bbe6",
+            "3cc07a76e461",
+            "27ea978db9bd",
+            "bc3ca3a91e3e",
+            "b949befbed3f",
+            "e8de0c295a80",
+            "99d6bbd2f6b5",
+            "2806e04395e4"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-monitoring-plan-per-ship",
+      "kind": "in_corpus",
+      "question": "We have twelve sister ships. Can we submit one MRV monitoring plan for the whole fleet, or does each ship need its own?",
+      "answer": "Each ship needs its own. Article 6 of Regulation (EU) 2015/757 requires companies to submit a monitoring plan for each of their ships, documenting the monitoring method for the ship concerned.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "6",
+          "content_hashes": [
+            "6050537ad018",
+            "f0c3223277de",
+            "b19def84f728",
+            "2425b271d368",
+            "e5e462c9206f",
+            "1c6c945127ba",
+            "d25c2baa2c04",
+            "2aefe7dc2b68",
+            "5c44e828a501"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-monitoring-plan-english",
+      "kind": "in_corpus",
+      "question": "Our monitoring plan is written in Greek. Is that acceptable to the verifier, or does it have to be in English?",
+      "answer": "The plan can be in Greek, but you must also give the verifier an English translation. Article 4(1) of Regulation (EU) 2023/2917 requires companies to provide the verifier with their ship's monitoring plan and, where the plan is in a language other than English, an English translation of it.",
+      "references": [
+        {
+          "celex": "32023R2917",
+          "article": "4",
+          "content_hashes": [
+            "0911d7d472a0",
+            "ed679b9b4a32",
+            "12f0d4ad99fd",
+            "40a662c51277"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-monitoring-plan-contents",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "What does an MRV monitoring plan actually have to contain, and do we have to include procedures for navigating through ice?",
+      "answer": "At least ten elements, and the ice information is optional. Article 6(3) of Regulation (EU) 2015/757 requires the plan to be complete and transparent documentation of the ship's monitoring method containing at least: the ship's identification and type (name, IMO number, port of registry or home port, shipowner), the company's name, contact person and IMO unique company and registered owner identification number, a description of the emission sources on board (main and auxiliary engines, gas turbines, boilers and inert gas generators) and the fuel types used, the procedures for updating the list of emission sources and for monitoring the completeness of the list of voyages, the procedures for monitoring fuel consumption (the Annex I method for each emission source, measurement of fuel uplifts and fuel in tanks, density and fuel measurement uncertainty), the emission factors for each fuel type or the methodology for alternative fuels, the procedures for determining distance, cargo carried and passengers, and time at sea per voyage, the method for surrogate data to close data gaps, and a revision record sheet. Under Article 6(4) the plan may also contain the ship's ice class and the procedures for determining and recording the distance travelled and time spent at sea when navigating through ice.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "6",
+          "content_hashes": [
+            "6050537ad018",
+            "f0c3223277de",
+            "b19def84f728",
+            "2425b271d368",
+            "e5e462c9206f",
+            "1c6c945127ba",
+            "d25c2baa2c04",
+            "2aefe7dc2b68",
+            "5c44e828a501"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-monitoring-plan-thetis-template",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Do we submit our MRV monitoring plan through THETIS-MRV, and is there a set template we have to use?",
+      "answer": "Yes to both. Article 1 of Implementing Regulation (EU) 2023/2449 requires companies submitting the monitoring plan under Article 6 of Regulation (EU) 2015/757 to use the electronic version of the template available in THETIS-MRV, the system operated by the European Maritime Safety Agency, and that template contains the information set out in Annex I to the Implementing Regulation.",
+      "references": [
+        {
+          "celex": "32023R2449",
+          "article": "1",
+          "content_hashes": [
+            "159ac4b5a077",
+            "874927780558"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-verifier-accreditation-body",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part",
+        "multi_hop"
+      ],
+      "question": "We're a verification company based in the Netherlands. Which accreditation body do we apply to for MRV verifier accreditation, and can we go to another country's body instead?",
+      "answer": "The Dutch national accreditation body, as a rule. Article 16 of Regulation (EU) 2015/757 has MRV verifiers accredited by a national accreditation body under Regulation (EC) No 765/2008, and Article 7(1) of that Regulation requires a body seeking accreditation to apply to the national accreditation body of the Member State where it is established, or to the one that Member State has had recourse to. You may go to another country's body only where your Member State has no national accreditation body and has not had recourse to another's, where those bodies do not accredit the activities you seek accreditation for, or where they have not successfully undergone peer evaluation for those activities.",
+      "references": [
+        {
+          "celex": "32015R0757",
+          "article": "16",
+          "content_hashes": [
+            "6f7f387d6bf2",
+            "48c813c28639",
+            "bca07e5ba897"
+          ]
+        },
+        {
+          "celex": "32008R0765",
+          "article": "7",
+          "content_hashes": [
+            "f7747f93c3d3",
+            "f16afe40c8ca",
+            "41cec0bacc2e"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-verifier-accreditation-assessment",
+      "kind": "in_corpus",
+      "question": "We want to become an accredited MRV verifier. What does the national accreditation body actually do to assess us?",
+      "answer": "It sends an assessment team that must at least do three things. Under Article 50(1) of Regulation (EU) 2023/2917 the team reviews the documents and records you supply under Article 49, makes an on-site visit to review a representative sample of your internal verification documentation and assess how your quality management system and verification procedures are implemented, and witnesses a representative number of your staff assessing monitoring plans and verifying reports. Under Article 48 it is checking that you and your personnel have the competence to do this work, are in fact doing it in accordance with the Regulation, and meet the verifier requirements in Articles 37 to 45, including impartiality and independence. The team reports its findings and any non-conformities to you, you must take corrective action and respond within the time the accreditation body sets, and the body may ask for further action or carry out a follow-up assessment (Article 50(3) to (7)).",
+      "references": [
+        {
+          "celex": "32023R2917",
+          "article": "48",
+          "content_hashes": [
+            "5b8baedf47b3"
+          ]
+        },
+        {
+          "celex": "32023R2917",
+          "article": "50",
+          "content_hashes": [
+            "38c191224cff",
+            "d0cca2cf85b8",
+            "f87c1fc89181",
+            "79d61a121a4a",
+            "15f322b65ddc",
+            "1d400e2ef10e",
+            "e24e77e21424"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-accredited-verifier-database",
+      "kind": "in_corpus",
+      "question": "How can I check whether the verifier we're about to hire is actually accredited for EU MRV?",
+      "answer": "Look it up in the accreditation bodies' public databases. Article 70(1) of Regulation (EU) 2023/2917 requires each national accreditation body to set up and manage a publicly available database giving, for each verifier it has accredited, its name, accreditation number and business address, the date accreditation was granted and its expiry date, and any administrative measures imposed on it. Under Article 70(3) the body recognised under Article 14 of Regulation (EC) No 765/2008 facilitates and harmonises access to these national databases and may merge them into a single central one.",
+      "references": [
+        {
+          "celex": "32023R2917",
+          "article": "70",
+          "content_hashes": [
+            "efb64ad4505a",
+            "901d90ded48c",
+            "150ae87fbc1c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mrv-verifier-consultancy-conflict",
+      "kind": "in_corpus",
+      "question": "The consultancy that drafted our MRV monitoring plan has a sister company offering verification. Can we use them as our verifier?",
+      "answer": "No. Under Article 45(4) of Regulation (EU) 2023/2917, drafting the monitoring plan is a consulting service that creates an unacceptable risk to impartiality or a conflict of interest when the verifier or any part of the same legal entity provides it. Article 45(5) extends this to a company that received such consulting from a consultancy having relations with the verifier that threaten its impartiality, which is considered compromised where the relations rest on common ownership, governance or management, shared resources, common finances, contracts or marketing, or common payment of commission for referring clients. Article 45(3) forbids a verifier from verifying a company that poses an unacceptable risk to its impartiality or where it has a conflict of interest.",
+      "references": [
+        {
+          "celex": "32023R2917",
+          "article": "45",
+          "content_hashes": [
+            "eeba7c0b5e8e",
+            "cd0633ca073a",
+            "25576fd0c097",
+            "e16ceb0ca336",
+            "9ab7285d743a",
+            "45efd8b6443c",
+            "306c64d2d152",
+            "97e3cd51d12c",
+            "b5e7c31c28ca",
+            "480657638a91"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "external-agreement-ets-norway-feeder",
+      "kind": "out_of_corpus",
+      "question": "We run a feeder between Rotterdam and Bergen. Does the Norwegian port count like an EU port for the ETS, so the full voyage is covered, or is it only 50%?"
+    },
+    {
+      "id": "external-market-ets-auction-bid-size",
+      "kind": "out_of_corpus",
+      "question": "What's the minimum bid size in the EU allowance auctions, and what fee does a shipping company pay to be admitted as a bidder?"
+    },
+    {
+      "id": "unpublished-guidance-ets-biofuel-allocation",
+      "kind": "out_of_corpus",
+      "question": "On a Rotterdam to New York voyage only half the emissions count for the ETS. Can we allocate all the biofuel we burned to that half?"
+    },
+    {
+      "id": "unpublished-guidance-ets-charter-clause",
+      "kind": "out_of_corpus",
+      "question": "Is there an official EU standard ETS clause we can drop into our time charter parties?"
+    },
+    {
+      "id": "external-system-thetis-mrv-validation-error",
+      "kind": "out_of_corpus",
+      "question": "THETIS-MRV keeps rejecting our revised monitoring plan with a 'validation failed' error. What does that error mean and how do we get past it?"
+    },
+    {
+      "id": "external-territory-mrv-greenland-voyage",
+      "kind": "out_of_corpus",
+      "question": "Does a voyage from Nuuk in Greenland to Copenhagen count as a voyage between two EU ports for MRV, or as an incoming voyage from outside?"
     }
   ]
 }
