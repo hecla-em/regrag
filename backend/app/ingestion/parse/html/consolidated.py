@@ -1,11 +1,12 @@
 """The consolidated dialect: norm classes and title-gr-seq-level-N sub-headings."""
 
 import re
+from collections.abc import Iterator
 
 from selectolax.parser import HTMLParser, Node
 
 from app.ingestion.enums import SectionKind
-from app.ingestion.parse.html.paragraphs import block_text
+from app.ingestion.parse.html.paragraphs import block_text, blocks_text
 from app.ingestion.parse.html.text import LEADING_NUMBER_RE, clean_text
 from app.ingestion.parse.models import Section
 
@@ -21,22 +22,48 @@ SUBHEADING_LEVEL_RE = re.compile(r"title-gr-seq-level-(\d+)")
 ARTICLE_TITLE = "p.stitle-article-norm"
 ANNEX_SEPARATOR = "hr.separator-annex"
 NOTES_SEPARATOR = "hr.separator-short"
+NON_ELEMENT_TAGS = ("-text", "_comment")
+
+
+def _is_numbered(node: Node) -> bool:
+    """A norm block with a number marker of its own, not one nested in it, opens a paragraph."""
+    marker = node.css_first(PARAGRAPH_NUMBER)
+    return marker is not None and marker.parent == node and node.css_matches(PARAGRAPH_CONTAINER)
+
+
+def _following_blocks(node: Node) -> Iterator[Node]:
+    """The blocks after a paragraph's opening one: its later subparagraphs, lists and
+    tables sit beside it, not inside it, up to the next numbered paragraph."""
+    sibling = node.next
+    while sibling is not None and not _is_numbered(sibling):
+        if sibling.tag not in NON_ELEMENT_TAGS:
+            yield sibling
+        sibling = sibling.next
 
 
 def find_paragraphs(node: Node) -> list[Node]:
-    """Only the norm blocks carrying a number marker are paragraphs; the rest are prose."""
-    return [child for child in node.css(PARAGRAPH_CONTAINER) if child.css_first(PARAGRAPH_NUMBER)]
+    """The article's own numbered norm blocks, led by any text ahead of the first of them;
+    numbered blocks nested in a list are quoted amendments, not the article's paragraphs."""
+    blocks = [child for child in node.iter(include_text=False) if clean_text(child.text())]
+    if not any(_is_numbered(block) for block in blocks):
+        return []
+    return [block for index, block in enumerate(blocks) if index == 0 or _is_numbered(block)]
 
 
 def build_paragraph(node: Node) -> Section:
-    """Consolidated paragraphs number themselves in their own marker span, not in the text."""
-    marker = node.css_first(PARAGRAPH_NUMBER)
+    """A paragraph from its opening block through its following ones; a numbered one
+    carries its number in its own marker span, not in the text."""
+    marker = node.css_first(PARAGRAPH_NUMBER) if _is_numbered(node) else None
+    if marker is None:
+        text = blocks_text([node, *_following_blocks(node)])
+        return Section(kind=SectionKind.PARAGRAPH, text=text)
     body = node.css_first(PARAGRAPH_TEXT)
-    number = LEADING_NUMBER_RE.match(clean_text(marker.text()) if marker else "")
+    number = LEADING_NUMBER_RE.match(clean_text(marker.text()))
+    texts = (block_text(body) if body is not None else "", blocks_text(_following_blocks(node)))
     return Section(
         kind=SectionKind.PARAGRAPH,
         number=number.group(1) if number else None,
-        text=block_text(body) if body is not None else "",
+        text="\n".join(text for text in texts if text),
     )
 
 

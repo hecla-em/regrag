@@ -61,15 +61,17 @@ def _read_subheading(node: Node, subheading_re: re.Pattern[str] | None) -> Subhe
 def collect_lines(node: Node, subheading_re: re.Pattern[str] | None = None) -> list[Line]:
     """Walk in document order, one line per block, falling back to the node's own text."""
     lines: list[Line] = []
-    _collect(node, lines, subheading_re)
+    _collect(node.iter(include_text=False), lines, subheading_re)
     if not lines and (text := clean_text(node.text())):
         lines.append(text)
     return lines
 
 
-def _collect(node: Node, lines: list[Line], subheading_re: re.Pattern[str] | None) -> None:
+def _collect(
+    nodes: Iterable[Node], lines: list[Line], subheading_re: re.Pattern[str] | None
+) -> None:
     """Recurse into containers, emitting one line per text block."""
-    for child in node.iter(include_text=False):
+    for child in nodes:
         subheading = _read_subheading(child, subheading_re)
         if subheading is not None:
             lines.append(subheading)
@@ -81,7 +83,7 @@ def _collect(node: Node, lines: list[Line], subheading_re: re.Pattern[str] | Non
         elif child.tag in ("p", "td"):
             line = clean_text(child.text())
         else:
-            _collect(child, lines, subheading_re)
+            _collect(child.iter(include_text=False), lines, subheading_re)
             continue
         if line:
             lines.append(line)
@@ -90,3 +92,10 @@ def _collect(node: Node, lines: list[Line], subheading_re: re.Pattern[str] | Non
 def block_text(node: Node) -> str:
     """Join a node's text block by block, so flattened list rows stay on separate lines."""
     return "\n".join(line for line in collect_lines(node) if isinstance(line, str))
+
+
+def blocks_text(nodes: Iterable[Node]) -> str:
+    """Join a run of sibling blocks line by line, each read as block_text reads a child."""
+    lines: list[Line] = []
+    _collect(nodes, lines, None)
+    return "\n".join(line for line in lines if isinstance(line, str))
