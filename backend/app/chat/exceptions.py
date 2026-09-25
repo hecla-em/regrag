@@ -1,5 +1,7 @@
 """Chat failures that end a request before the graph runs."""
 
+import logging
+
 from fastapi import status
 
 from app.chat.enums import ChatErrorCode
@@ -11,6 +13,7 @@ class SpendCapReachedError(DomainError):
 
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     code = ChatErrorCode.SPEND_CAP_REACHED
+    log_level = logging.ERROR
 
     def __init__(self) -> None:
         super().__init__("The service is paused for the day; ask again later")

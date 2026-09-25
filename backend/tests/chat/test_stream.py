@@ -121,7 +121,7 @@ async def test_every_ending_records_one_request_with_what_the_run_reached(
     assert 0 <= sum(result.ms for result in state.steps) <= state.total_ms
 
 
-async def test_a_refusal_is_logged_as_a_warning(monkeypatch, recorded_requests, caplog):
+async def test_a_tripped_spend_cap_is_logged_as_an_error(monkeypatch, recorded_requests, caplog):
     monkeypatch.setattr(config, "CHAT_DAILY_SPEND_CAP_USD", 2.0)
 
     async def spent_the_cap(session, since):
@@ -132,7 +132,7 @@ async def test_a_refusal_is_logged_as_a_warning(monkeypatch, recorded_requests, 
     await collect_events(ChatQuery(question="q"))
 
     [line] = [r for r in caplog.records if "chat stream failed" in r.getMessage()]
-    assert line.levelno == logging.WARNING
+    assert line.levelno == logging.ERROR
 
 
 async def test_failed_write_is_logged_not_raised(two_results, monkeypatch, caplog):
