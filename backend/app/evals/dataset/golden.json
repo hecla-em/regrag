@@ -1336,6 +1336,395 @@
       ]
     },
     {
+      "id": "fueleu-island-ferry-exemption",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "We operate a ro-pax ferry between the Greek mainland and an island of about 20,000 people. Can that route be exempted from FuelEU, and for how long?",
+      "answer": "Yes, but only if the Member State grants it. A Member State may exempt specific routes and ports for passenger ships other than cruise ships sailing between its own ports and an island port under its jurisdiction with fewer than 200,000 permanent residents. The exemption covers the energy used on those voyages and during the stay in the island's port. The Member State must notify the exemption to the Commission before it takes effect, and the Commission publishes it in the Official Journal. No such exemption applies beyond 31 December 2029.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "2",
+          "content_hashes": [
+            "cebdcb0a2d14",
+            "d955a3cb432e",
+            "8f7cb48ca636",
+            "c1bcd569281b",
+            "a0230bff6858",
+            "74235ca8320d",
+            "1489b60f7645"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-onboard-carbon-capture",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We're looking at fitting onboard carbon capture on one of our tankers. Would the captured CO2 bring down our FuelEU GHG intensity?",
+      "answer": "Not under the current rules. The GHG intensity formula in Annex I counts well-to-tank and tank-to-wake emissions of the fuel used, with a reward factor only for wind-assisted propulsion. It has no term for captured carbon. Article 30(2)(i) only requires the Commission, in its review due by 31 December 2027 and every five years after, to consider including new abatement technologies such as onboard carbon capture in the GHG intensity and compliance balance calculations, subject to a verifiable method for monitoring and accounting for the captured carbon.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "30",
+          "content_hashes": [
+            "33e31cbb0759",
+            "195985fe6084",
+            "655c9a9e2a6d",
+            "101dae497834",
+            "d47c892208a1",
+            "1511c11b4193",
+            "4924032d9b00"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-rfnbo-subtarget-other-fuels",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "If the 2% RFNBO subtarget kicks in from 2034, can we meet it with advanced biofuels like UCO biodiesel instead of e-fuels?",
+      "answer": "Not with UCO biodiesel. Article 5(9) lets a ship escape the subtarget if it shows the same share of its yearly energy is met by other fuels that give equivalent GHG emissions savings and are certified under Article 10. Biofuels from the feedstocks in Part B of Annex IX to the Renewable Energy Directive are excluded, and that Part lists used cooking oil. Other certified fuels with equivalent savings can count.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "5",
+          "content_hashes": [
+            "7ea896cd586d",
+            "6e9965b194ce",
+            "dafc7e924cfc",
+            "44afefd85c42",
+            "0bb6db9d1c8c",
+            "22360405506f",
+            "5f78a0666ad0",
+            "2ed8ecc748ab",
+            "10d91ed16c3a",
+            "62777faee874"
+          ]
+        },
+        {
+          "celex": "32018L2001",
+          "annex": "IX",
+          "content_hashes": [
+            "92ea9b96dc3e",
+            "cc2bf3db9f4c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-boilers-at-berth",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "Once our cruise ship is plugged into shore power, do we also have to shut down the oil-fired boilers while we're alongside?",
+      "answer": "No. The shore-power obligation in Article 6 requires the ship to connect to OPS and use it for all its electrical power demand at berth, which Article 3(25) defines as the demand for electricity to meet all energy needs based on electricity on board. Oil-fired boilers meet a non-electrical need, so they are not caught. The fuel they burn at berth still counts as energy used in the port of call, and boilers are among the fuel consumer units in the Annex I GHG intensity calculation.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "3",
+          "content_hashes": [
+            "5eab2b27f70b",
+            "e40761c0ca23",
+            "d32c58bef04a",
+            "ad2efed8061c",
+            "004484f93ea6"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-con-ro-scope",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop"
+      ],
+      "question": "We run a con-ro that carries both containers and trailers. Does the 2030 FuelEU shore-power requirement apply to us?",
+      "answer": "No, unless it is a passenger ship. The shore-power obligations in Article 6(1) to (3) apply only to containerships and passenger ships. Article 3(31) defines a containership as a ship designed exclusively for the carriage of containers in holds and on deck, so a con-ro that also carries trailers falls outside.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "3",
+          "content_hashes": [
+            "5eab2b27f70b",
+            "e40761c0ca23",
+            "d32c58bef04a",
+            "ad2efed8061c",
+            "004484f93ea6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-ops-unavailable-cap",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "The terminal had no shore power available at our berth this call. Are we exempt, and is there a limit on how often we can use that excuse?",
+      "answer": "Yes, for that call. Article 6(5)(d) exempts ships unable to connect because the port has no OPS connection point available, and the competent authority records the exception in the FuelEU database. From 1 January 2035, in ports covered by Article 9 of the AFIR Regulation, this exception and the grid-stability and incompatibility ones ((e) and (f)) can together cover at most 10% of the ship's port calls in the reporting period, rounded up, or 10 port calls, whichever is lower. A call does not count towards that cap if the company shows, from the advance information exchanged with the port, that it could not reasonably have known the ship would be unable to connect.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "6",
+          "content_hashes": [
+            "64dea7780884",
+            "124a6fbcc1bd",
+            "99d81d6c746c",
+            "4492e1c00c9f",
+            "3a0e76c18c4b",
+            "17cbe4252348",
+            "8af4fea8fb0a",
+            "cb8c7e957660",
+            "1c42e485e65f",
+            "d523dd2ee897",
+            "edaff60640b6",
+            "6cc299211720"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-vlsfo-default-factors",
+      "kind": "in_corpus",
+      "question": "Which FuelEU default emission factors do we use for the VLSFO we bunker?",
+      "answer": "FuelEU has no VLSFO category. Annex II sets fossil fuel defaults by ISO 8217 grade, so it depends on the grade on the bunker delivery note. RME to RMK (HFO): LCV 0.0405 MJ/g, WtT 13.5 gCO2eq/MJ, Cf CO2 3.114 g/g. RMA to RMD (LFO): LCV 0.041, WtT 13.2, Cf CO2 3.151. DMX to DMB (MDO/MGO): LCV 0.0427, WtT 14.4, Cf CO2 3.206. All three use Cf CH4 0.00005 and Cf N2O 0.00018 for all ICEs. For fossil fuels the well-to-tank defaults cannot be replaced with actual values.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "II",
+          "content_hashes": [
+            "2a3678b506f3",
+            "7f0a315a6c4b",
+            "455563e23c7e",
+            "b262b430c152",
+            "4ce7fdb5cd19"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "10",
+          "content_hashes": [
+            "c65c67064687",
+            "cce9b74b33c4",
+            "638f9c94850d",
+            "6bccd7bd7652",
+            "98eae203e70e",
+            "af46cf31c0d7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-methane-slip-actual-values",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our engine maker says our dual-fuel engine slips far less methane than the FuelEU default. Can we use a lower slip figure, and what is the default we'd otherwise get?",
+      "answer": "Yes, if it is certified. Article 10(5) lets a company diverge from the Annex II tank-to-wake defaults, except the tank-to-wake CO2 factors of fossil fuels, where actual values are certified by laboratory testing or direct emissions measurement. The method goes in the monitoring plan and is assessed by the verifier. The Annex II LNG slip defaults (Cslip, as % of fuel mass, at 50% engine load) are 3.1% for Otto dual-fuel medium speed, 1.7% for Otto dual-fuel slow speed, 0.2% for Diesel dual-fuel slow speed and 2.6% for LBSI engines.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "10",
+          "content_hashes": [
+            "c65c67064687",
+            "cce9b74b33c4",
+            "638f9c94850d",
+            "6bccd7bd7652",
+            "98eae203e70e",
+            "af46cf31c0d7"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "annex": "II",
+          "content_hashes": [
+            "2a3678b506f3",
+            "7f0a315a6c4b",
+            "455563e23c7e",
+            "b262b430c152",
+            "4ce7fdb5cd19"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-per-voyage-report-deadline",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Under FuelEU do we have to record fuel for every voyage, or can we just report yearly totals? And when is the report due to our verifier?",
+      "answer": "Every voyage and port call. From 1 January 2025, Article 15(1) requires companies to monitor and record, for each ship arriving at or departing from a port of call and for each voyage in scope, the ports and times, fuel consumed at berth and at sea by type, OPS electricity, the emission factors and substitute energy used. They compile this annually, and by 31 January of the verification period they give the verifier a ship-specific FuelEU report containing it.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "15",
+          "content_hashes": [
+            "388374b2a3b9",
+            "7a3b22a541ae",
+            "ed7fd89fc99d",
+            "428ee8d04589"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-pool-borrowing-single-pool",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_hop",
+        "multi_part"
+      ],
+      "question": "If one of our ships is in a FuelEU pool, can it also borrow compliance from next year, and can it be in two pools at once?",
+      "answer": "No to borrowing, and only one pool per target. Article 21(7) says Article 20(2), the borrowing of an advance compliance surplus, does not apply to a ship in a pool. A ship's compliance balance cannot be in more than one pool in the same reporting period, though two separate pools may be used, one for the GHG intensity target and one for the RFNBO subtarget. Any surplus the ship ends up with after pooling can still be banked under Article 20(1).",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "21",
+          "content_hashes": [
+            "93a26861019b",
+            "a38ee4529416",
+            "67a9d12ab2ad",
+            "ec7246ac25b2",
+            "f5bb3aae5c22",
+            "44d67bc052d9",
+            "5aff897cec25",
+            "51610c5c13a9"
+          ]
+        },
+        {
+          "celex": "32023R1805",
+          "article": "20",
+          "content_hashes": [
+            "6351f36d642b",
+            "a0d6d951ef1f",
+            "5111b03862fe",
+            "29922b89e44f"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-penalty-charterer-reimbursement",
+      "kind": "in_corpus",
+      "traits": [
+        "multi_part"
+      ],
+      "question": "Our time charterer buys all the fuel and sets the route. Can we pass the FuelEU penalty on to them, and who is actually liable to pay it?",
+      "answer": "The company stays liable. It must pay the FuelEU penalty to its administering State by 30 June of the verification period. Article 23(8) lets it agree contractually that the commercial operator reimburses it, where the operator is responsible for buying the fuel or operating the ship, meaning deciding the cargo, route and speed. Article 23(9) allows the same with fuel suppliers. Neither agreement moves the legal responsibility off the company.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "article": "23",
+          "content_hashes": [
+            "df3cd9e19ad5",
+            "d72d419e0d1d",
+            "407656d8e29a",
+            "61f40a77eac6",
+            "81ab6e346afb",
+            "b8dbfb610622",
+            "d170a9df22e6",
+            "e88d4e4384f5",
+            "6b353d5a0ea6",
+            "94bfd6e5c0eb",
+            "d80f8434371b"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fueleu-wind-reward-factor",
+      "kind": "in_corpus",
+      "question": "We're fitting rotor sails that give about 10% of our propulsion power. How much does that cut our FuelEU GHG intensity?",
+      "answer": "About 3%. Annex I multiplies the GHG intensity result by a wind reward factor based on P_wind/P_prop: 0.99 at 0.05, 0.97 at 0.1 and 0.95 at 0.15 or more. A ratio of 0.1 gives 0.97. P_wind is the available effective power of the wind-assisted propulsion systems, calculated under the IMO EEDI/EEXI guidance on innovative technologies (MEPC.1/Circ.896), and P_prop is the ship's propulsion power.",
+      "references": [
+        {
+          "celex": "32023R1805",
+          "annex": "I",
+          "content_hashes": [
+            "2538b5115905",
+            "dc6419824250",
+            "b3051aed8274",
+            "f4287f972521",
+            "a28566e424c8",
+            "669e6dee4409",
+            "96d0465de40a"
+          ]
+        }
+      ]
+    },
+    {
       "id": "mrv-verification-report",
       "kind": "in_corpus",
       "traits": [
@@ -1396,6 +1785,26 @@
       "id": "adjacent-regime-uk-ets-maritime",
       "kind": "out_of_corpus",
       "question": "From what date does the UK ETS cover domestic maritime voyages, and which ships does it apply to?"
+    },
+    {
+      "id": "external-agreement-fueleu-norway-iceland",
+      "kind": "out_of_corpus",
+      "question": "Does FuelEU apply when my ship calls at Norwegian or Icelandic ports, or only at EU ones?"
+    },
+    {
+      "id": "unpublished-method-fueleu-reference-value",
+      "kind": "out_of_corpus",
+      "question": "What fleet data and method was the 91.16 g/MJ FuelEU reference value calculated from?"
+    },
+    {
+      "id": "external-market-fueleu-pool-price",
+      "kind": "out_of_corpus",
+      "question": "What's the going rate per tonne CO2e to buy surplus into a FuelEU pool for a ship in deficit?"
+    },
+    {
+      "id": "unpublished-guidance-fueleu-biofuel-allocation",
+      "kind": "out_of_corpus",
+      "question": "We burn B30 on a Rotterdam to Houston run. Can we allocate all of the bio part to the half of the energy that counts under FuelEU?"
     },
     {
       "id": "ets-surrender-base-full-plus-partial-reports",
