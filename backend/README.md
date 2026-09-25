@@ -26,16 +26,15 @@ chat API that answers from them.
 
 | Directory                                            | Contents                                                      |
 | ---------------------------------------------------- | ------------------------------------------------------------- |
-| `app/core/`                                          | Shared contracts: config, db session, http, llm, storage      |
+| `app/core/`                                          | Generic plumbing: config, db session, http, llm, storage      |
 | [`app/ingestion/`](app/ingestion/README.md)          | The corpus pipeline: discover → fetch → parse → chunk → embed |
 | [`app/retrieval/`](app/retrieval/README.md)          | The read side: hybrid search and exact article lookup         |
 | [`app/chat/`](app/chat/README.md)                    | The answering graph, its SSE endpoint, and the request ledger |
 | [`app/evals/`](app/evals/README.md)                  | The golden dataset and the runner that scores the graph on it |
+| `app/mrv/`                                           | The THETIS-MRV public dataset: download, parse, query         |
+| `app/analytics/`                                     | Chat and eval figures for hecla-admin, on the private port    |
 | `migrations/`                                        | Alembic revisions                                             |
 | `tests/`                                             | Mirrors `app/`, with shared fixtures in `tests/conftest.py`   |
-
-`app/core/` holds only what two or more capabilities use. Anything used by one
-capability lives in that capability's package.
 
 Each capability package follows the same file convention:
 
@@ -50,10 +49,7 @@ Each capability package follows the same file convention:
 | `cli.py`      | argparse entry point, listed in `[project.scripts]` |
 
 New ORM schemas must be imported in `app/core/db/registry.py` so their mappers
-register; a guard test fails if one is missing.
-
-The four capability directories link to their own READMEs, which cover how each
-works and why it is built that way.
+register.
 
 ## Setup
 
@@ -87,14 +83,12 @@ docker compose up --watch
 ```
 
 This builds the API image, migrates the database, and serves the API on the
-same port, syncing source edits into the container as you save. Running the
-API on the host with `uv run fastapi dev` stays the faster inner loop. The
-frontend runs on the host either way (`pnpm dev` in `frontend/`).
+same port, syncing source edits into the container as you save.
 
 ## Commands
 
 ```bash
-uv run ingest                  # build the corpus; `ingest fueleu` for one topic
+uv run ingest                  # build the corpus, then load the THETIS-MRV files
 uv run retrieve "query"        # search it from the terminal
 uv run evals run               # score the chat graph against the golden dataset, and store the run
 uv run evals compare 41 42     # print two stored runs side by side
@@ -106,7 +100,3 @@ uv run db restore              # pg_restore the newest prod dump from R2 into an
 
 Each is an argparse entry point that self-documents: `--help` prints what it
 does and every flag it takes.
-
-`ingest` needs `VOYAGE_API_KEY`, `evals run` also needs `OPENROUTER_API_KEY`, and
-re-running `ingest` is cheap — unchanged documents are neither downloaded nor
-re-embedded.

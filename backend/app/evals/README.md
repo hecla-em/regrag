@@ -1,6 +1,6 @@
 # Evals
 
-This module focuses on the evaluation of the graph against a set of authored cases stored in `dataset/golden.json`.
+This module scores the chat graph against the authored cases in `dataset/golden.json`.
 
 ```bash
 uv run evals check    # report how far the dataset has drifted from the corpus
@@ -26,29 +26,30 @@ A case is a question, what a correct answer must say, and the divisions of law t
 }
 ```
 
-A case is one of two kinds. An `in_corpus` case is scored on what retrieval found and what the answer cited, so it needs both an answer and references. An `out_of_corpus` case asks something the corpus does not cover and is scored on refusal alone.
+A case is one of two kinds. An `in_corpus` case is scored on what retrieval found and what the answer cited, so it needs an answer and, unless it holds the `dataset` trait, references. An `out_of_corpus` case asks something the corpus does not cover and is scored on refusal alone.
 
 ### Traits
 
-The kind says how a case is scored. What a case *tests* is a separate list, `traits`, which changes no scoring and which a case may hold several of:
+A case may also hold `traits`, which say what it tests and change no scoring:
 
 | Trait | What the question demands |
 | ----- | ------------------------- |
-| `multi_hop` | The answer sits a chain of citations away from where search lands: the landing article defines a term by pointing at another act, or names a procedure it leaves to an implementing act |
+| `multi_hop` | The answer sits a chain of citations away from where search lands |
 | `multi_part` | The question asks more than one thing in one sentence, so each part needs its own retrieval |
+| `dataset` | The answer needs a figure from a dataset tool, so the case may name no corpus reference |
 
-A run, tune or stamp can select on a trait with `--trait multi_part`, on a kind with `--kind out_of_corpus`, or on an id substring with `--case fueleu`; the three narrow together. Traits are left out of the dataset hash, so marking a case does not break comparability with the runs that scored it before.
+A run, tune or stamp can select on a trait with `--trait multi_part`, on a kind with `--kind out_of_corpus`, or on an id substring with `--case fueleu`, and the three narrow together.
 
 ### Ids
 
 An id reads like a test name: what would have to break for the case to fail. Kind and traits are fields, so neither appears in the id.
 
 - An in-corpus id is `<area>-<what it asks>`: `fueleu-borrowing-limits`, `mrv-verification-report`.
-- An out-of-corpus id is `<why the corpus cannot answer>-<what it asks>`: `unrelated-topic-airline-luggage`, `adjacent-regime-imo-cii-rating`, `fabricated-fact-maersk-fine`. The topic is incidental; the reason is what the case tests.
+- An out-of-corpus id is `<why the corpus cannot answer>-<what it asks>`: `unrelated-topic-airline-luggage`, `adjacent-regime-imo-cii-rating`, `fabricated-fact-maersk-fine`. The reason is what the case tests, not the topic.
 
 ## Drift
 
-A problem the dataset faces is that laws get amended which may render some of our eval cases as stale. To track this drift, each reference also records a fingerprint of the text that was there when the case was written. `evals check` fingerprints it again and compares:
+Laws get amended, so a case can go stale. Each reference records a fingerprint of the text it cited when the case was stamped. `evals check` fingerprints it again and compares:
 
 | Kind | What it means |
 | ---- | ------------- |
@@ -56,31 +57,31 @@ A problem the dataset faces is that laws get amended which may render some of ou
 | `stale` | The reference still exists but the cited text has changed since the case was stamped. This eval case needs to be updated |
 | `unstamped` | Nothing recorded to compare against, so drift cannot be seen on this reference |
 
-`evals run` reports the stale cases alongside the scores, but never fails on one: repairing a case means a human re-reading the new text. The check covers the whole dataset, so `--case` narrows what is scored, not what is checked for drift.
+`evals check` fails on an unresolved reference, and with `--fail-on-stale` on a stale one too, as the nightly ingest runs it. `evals run` lists stale cases beside the scores but never fails on one, since only a human can repair a case.
 
 ## Stamping
 
-`evals stamp` records what the cited text says now. Run it on a newly authored case, or on a stale one you have just re-reviewed against the new text. The stamp asserts that the dataset has been reviewed. `--case` stamps a subset.
+Run `evals stamp` on a newly authored case, or on a stale one you have just re-reviewed against the new text. A stamp asserts that review.
 
-Stamps and fields a case leaves at their default are excluded from `dataset_sha`, so neither re-stamping a case nor adding an optional field breaks comparability with runs that scored the same assertions before it.
+Stamps, traits and fields a case leaves at their default are excluded from `dataset_sha`, so none of them breaks comparability with runs that scored the same assertions.
 
 ## Running
 
-Each case is driven through the same graph the `/chat` endpoint runs, and ends in the same `ChatState` a real request ends in, so a run is scored off what production records rather than off a parallel eval path. Cases run one at a time, so a per-case timing measures that case alone.
+Each case runs, one at a time, through the same graph as `/chat` and is scored off the `ChatState` it ends in, so a run measures what production records and each timing measures one case alone.
 
 ## The no-retrieval baseline
 
-`evals run --no-retrieval` answers every case from the model's memory alone. Only synthesize runs, with no sources, under a prompt that swaps the context and citation rules for "answer from what you know, and name the act and article", with no instruction to decline. Set beside a normal run with `evals compare`, the correctness delta is what retrieval adds over asking the model cold.
+`evals run --no-retrieval` answers every case from the model's memory alone. Only synthesize runs, with no sources and a prompt that does not ask it to decline. Set beside a normal run with `evals compare`, the correctness delta is what retrieval adds over asking the model cold.
 
-The retrieval and citation scores of such a run are zero by construction, and faithfulness is unmeasured, since there is no context to be faithful to. Out-of-corpus cases never meet the gate or assess, so both refusal rates are unmeasured and the cases are scored on the judge's refusal check alone. The run records `retrieval: false`, and `evals compare` marks it "no retrieval" in its header.
+Its retrieval and citation scores are zero by construction. Faithfulness and the gate and assess refusal rates are unmeasured, so out-of-corpus cases are scored on the judge's refusal check alone. The run records `retrieval: false`, and `evals compare` marks it "no retrieval".
 
 ## Storing runs
 
-`evals run` stores each run in `eval_runs` and prints its id. `--no-store` only prints it. A stored run keeps its setup and its `EvalMetrics`, not its per-case results. It records the commit it ran at, and `git_dirty` when tracked files had uncommitted edits, so a score can be traced to the code behind it. Outside a checkout, as in the image, the commit is left empty. Settings and metrics are JSONB, since both grow with the config and the metrics. `evals compare BASE OTHER` prints every metric of both runs, with the other's delta from the base, then the settings the two differ on.
+`evals run` stores each run's setup and `EvalMetrics` in `eval_runs`, not its per-case results, and prints its id. `--no-store` only prints it. A run records the commit it ran at, and `git_dirty` when tracked files had uncommitted edits. `evals compare BASE OTHER` prints every metric of both runs, with the other's delta from the base, then the settings the two differ on.
 
 ## Metrics
 
-Scoring lives in `metrics.py`, each measure a plain function over the run's results. The run's `EvalMetrics` groups them into blocks — `counts`, `retrieval`, `context`, `gate`, `assess`, `citations`, `answers`, `judge`, `latency`, `usage`. A retrieval-only tune run fills the same model and leaves the blocks past the model call unmeasured.
+Scoring lives in `metrics.py`. The run's `EvalMetrics` groups the measures into blocks: `counts`, `retrieval`, `context`, `gate`, `assess`, `citations`, `answers`, `judge`, `latency`, `usage`.
 
 | Metric | Scored over | What it measures |
 | ------ | ----------- | ---------------- |
@@ -104,11 +105,11 @@ Scoring lives in `metrics.py`, each measure a plain function over the run's resu
 | `judge.refusal_rate` | judged out-of-corpus | Share that passed the gate and declined in the model's own words |
 | `judge.judged` | all | Cases the judge returned a verdict on |
 
-The raw and expanded pairs are worth reading together. Expansion widens each hit into its surrounding section, and against a fixed context budget that can push a reference *out*, so expanded recall is not guaranteed to be the higher of the two.
+Expanded recall can fall below raw: expansion widens each hit into its surrounding section, and against a fixed context budget that can push a reference *out*.
 
 ## Judge
 
-Every measure above the judged rows reads retrieval and citation plumbing; none reads what the answer says. The judge in `judge/` is the measure that does: a second model, set by `EVAL_JUDGE_MODEL` and deliberately not the one that wrote the answer, grades each answered case on the dimensions that apply to it, one model call per dimension.
+The other measures read retrieval and citations, not what the answer says. The judge in `judge/` does: a second model, set by `EVAL_JUDGE_MODEL`, grades each answered case on the dimensions that apply to it, one call per dimension.
 
 | Dimension | Applies to | Judge sees | Judge returns |
 | --------- | ---------- | ---------- | ------------- |
@@ -116,18 +117,18 @@ Every measure above the judged rows reads retrieval and citation plumbing; none 
 | Faithfulness | in-corpus answers citing a block they were given | the answer, the blocks it cited under their own markers | critique, then each claim marked supported or not |
 | Refusal | out-of-corpus answers that passed the gate | question, answer | critique, then pass (declined) / fail / cannot_judge |
 
-Verdicts are categorical at the judge and numeric only by aggregation: a pass is 1, a fail 0, faithfulness the supported share of the claims, and cannot_judge unmeasured rather than zero. The critique is written before the verdict, so the reasoning is on the page before the verdict is decided; `--verbose` prints it under any case the judge did not pass. A judge call that fails leaves its dimension unmeasured and the run green; a run asked to judge that gets no verdict on any answered case exits non-zero and says so, so a misnamed judge model does not pass as an unmeasured run. The run records `judged`, whether the judge was on, beside `cached`. `--no-judge` skips the judge, for a retrieval baseline that costs no model spend; tune never judges.
+Verdicts are categorical at the judge and numeric only by aggregation: a pass is 1, a fail 0, faithfulness the supported share of the claims, and cannot_judge unmeasured rather than zero. The critique comes before the verdict, and `--verbose` prints it under any case the judge did not pass. A failed judge call leaves its dimension unmeasured. A run exits non-zero when the judge returns a verdict on under `EVAL_JUDGE_MIN_COVERAGE` of the answered cases, so a misnamed judge model does not pass as an unmeasured run. `--no-judge` skips the judge, and tune never judges.
 
-Judging is a pass over the run once every case has been timed, so no case's timing carries a judge call; cases are judged `EVAL_JUDGE_CONCURRENCY` at a time, and an in-corpus answer's correctness and faithfulness calls run together.
+Judging runs after every case has been timed, so no timing carries a judge call, with `EVAL_JUDGE_CONCURRENCY` cases judged at a time.
 
 ## Tuning
 
 Tune measures a baseline, then re-measures once per candidate value, one factor at a time. It runs retrieval only so a sweep costs Postgres time rather than model spend. Rows are ranked by expanded recall, ties broken by the cheaper context.
 
-The grid of parameters is stored in `tune/params.py`. Because some parameters, like `MIN_RERANKER_RELEVANCE` are dependent on the reranker being enabled, there is a `requires` field to ensure that this is applied even if the baseline doesn't have it.
+The grid lives in `tune/params.py`. A param only read under another setting, like `MIN_RERANKER_RELEVANCE` under `RERANK_ENABLED`, names it in `requires` so it is measured with that setting on.
 
 ## Caching
 
-Embed and rerank calls replay from disk under `EVAL_CACHE_DIR`, keyed on each call's own request parameters. The first run over a case pays for them and every run after it does not. Deleting the directory invalidates the lot.
+Embed and rerank calls replay from disk under `EVAL_CACHE_DIR`, keyed on each call's own request parameters. Deleting the directory invalidates the lot.
 
-Synthesis is deliberately not cached as a run replaying its own answers would measure the cache rather than the model. Cached timings measure a disk read where a provider call would be, so `cached` is recorded on every run to keep the two from being compared. Use `--no-cache` for a latency baseline, or when a change alters what those calls *are*, such as a different embedding model.
+Completions are never cached, since replayed answers would measure the cache rather than the model. A cached run's timings measure disk reads, so every run records `cached`. Use `--no-cache` for a latency baseline, or when a change alters what those calls *are*, such as a different embedding model.
