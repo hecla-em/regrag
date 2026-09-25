@@ -41,6 +41,12 @@ TABLES = (
     "markdown table and cite it in the sentence that introduces it. "
 )
 
+UNUSED = (
+    "You are usually shown more blocks than the question needs: use only those that answer "
+    "it and leave the rest uncited. Stop once the question is answered, with no closing "
+    "paragraph on related rules it did not ask about. "
+)
+
 FORMULAS = (
     "Quote an equation from a passage exactly as the passage writes it, between $$ and $$, "
     "on a line of its own, and cite it in the sentence that introduces it. Write a symbol "
@@ -66,6 +72,7 @@ SYSTEM_PROMPT = (
     f"{TABLES}"
     f"{FORMULAS}"
     f"{STYLE}"
+    f"{UNUSED}"
     "Refer to an act by the name and number the passages give it; never invent a title for one."
 )
 
