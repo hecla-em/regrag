@@ -1,7 +1,7 @@
 """The ingest pipeline: one run, discover -> fetch -> parse -> chunk -> embed."""
 
 import logging
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncGenerator, Mapping, Sequence
 from contextlib import asynccontextmanager
 
 import httpx
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def _recorded_run(
     session: AsyncSession,
-) -> AsyncIterator[tuple[IngestRun, IngestRunResult]]:
+) -> AsyncGenerator[tuple[IngestRun, IngestRunResult], None]:
     """Open a run and close it out however the body ends, marking it aborted on a raise."""
     run = await create_ingest_run(session)
     result = IngestRunResult(run_id=run.id)

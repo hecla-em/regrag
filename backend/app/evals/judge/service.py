@@ -3,8 +3,10 @@
 import asyncio
 import logging
 from collections.abc import Sequence
+from typing import cast
 
 import litellm
+from litellm import ModelResponse
 
 from app.chat.citations import find_cited_sources
 from app.chat.enums import ChatOutcome
@@ -40,13 +42,16 @@ logger = logging.getLogger(__name__)
 async def call_judge_model[T: FrozenModel](system: str, user: str, output: type[T]) -> T:
     """One blocking judge turn answering in the verdict's own shape, with the key of whichever
     provider the judge names; an answer off the schema is a failed call, not a verdict."""
-    response = await litellm.acompletion(
-        model=config.EVAL_JUDGE_MODEL,
-        api_key=api_key_for(config.EVAL_JUDGE_MODEL),
-        messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        response_format=output,
-        max_tokens=config.EVAL_JUDGE_MAX_TOKENS,
-        timeout=config.EVAL_JUDGE_TIMEOUT,
+    response = cast(
+        ModelResponse,
+        await litellm.acompletion(
+            model=config.EVAL_JUDGE_MODEL,
+            api_key=api_key_for(config.EVAL_JUDGE_MODEL),
+            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
+            response_format=output,
+            max_tokens=config.EVAL_JUDGE_MAX_TOKENS,
+            timeout=config.EVAL_JUDGE_TIMEOUT,
+        ),
     )
     choice = response.choices[0]
     return parse_model_answer(

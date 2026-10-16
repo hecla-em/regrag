@@ -1,14 +1,14 @@
 """Shared fan-out policy: many awaitable calls in flight at once, capped and cancel-safe."""
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncGenerator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
 async def run_concurrently[T, R](
     items: Sequence[T], fn: Callable[[T], Awaitable[R]], *, limit: int
-) -> AsyncIterator[list[tuple[T, asyncio.Task[R]]]]:
+) -> AsyncGenerator[list[tuple[T, asyncio.Task[R]]], None]:
     """Every item's `fn` call in flight, at most `limit` at once, each task paired with its
     item; leaving the block cancels whatever an abort left running."""
     semaphore = asyncio.Semaphore(limit)
