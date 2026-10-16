@@ -103,10 +103,12 @@ async def check_tool_calls() -> CapabilityCheck:
     follow. A model that could call one and judged it unnecessary reads the same way here,
     so this is the one check a capable model can fail."""
     messages = [
-        SystemMessage(build_assess_system_prompt(may_refuse=config.ASSESS_MAY_REFUSE)),
+        SystemMessage(
+            build_assess_system_prompt(may_refuse=config.ASSESS_MAY_REFUSE, may_clarify=False)
+        ),
         HumanMessage(ASSESS_PROBE),
     ]
-    response = await assess_model().ainvoke(messages)
+    response = await assess_model(may_clarify=False).ainvoke(messages)
     called = [call["name"] for call in response.tool_calls]
     return CapabilityCheck(
         capability=ModelCapability.TOOL_CALLS,

@@ -13,12 +13,13 @@ from pydantic import ValidationError
 from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState, ChatStepResult
-from app.chat.prompts import format_context, system_prompt, thread_messages
+from app.chat.prompts import format_context, format_named, system_prompt, thread_messages
 from app.chat.toolbox.models import ToolCall
 from app.chat.toolbox.service import (
     already_in_context,
     build_call_step,
-    is_refusal,
+    clarification_from,
+    ends_the_run,
     refusal_from,
     run_tool_call,
     tool_definitions,
@@ -41,8 +42,8 @@ ASSESS_SYSTEM_PROMPT = (
     "use it when a needed concept is named without a citation, or a part of the "
     "question has no context at all, narrowing with celex when the act is known. "
     "mrv_query reads one reporting period of the THETIS-MRV public dataset: how many emissions "
-    "reports were filed and their CO2 totals, for the whole fleet or narrowed to a company or "
-    "ship named in the question, summed per report type (Full, Partial) or per company or ship "
+    "reports were filed and their CO2 totals, for the whole fleet or narrowed to companies or "
+    "ships by IMO number, summed per report type (Full, Partial) or per company or ship "
     "to rank them or list a company's ships, and how the ETS figure compares with the ETS scope "
     "split — use it whenever the answer needs one of those figures or one worked out from "
     "them, such as a share, a change between periods, a company's exposure or an amount to "
@@ -51,7 +52,18 @@ ASSESS_SYSTEM_PROMPT = (
     "question about the dataset needs mrv_query even when the blocks state the rule. An "
     "amount to surrender or a company's exposure needs both mrv_query and, unless the context "
     "shows it, follow_reference to Article 3gb of Directive 2003/87/EC (32003L0087), the "
-    "phase-in. You get one round, so call every tool the question needs together. "
+    "phase-in. "
+    "A name the question gives is listed with every company or ship in THETIS-MRV it could "
+    "mean, each with its IMO number and the years it reported; mrv_query takes them by those "
+    "numbers, never by name. "
+    "Names are matched on words alone, so a port, place or ordinary word can match too: use a "
+    "candidate only when the question asks about that company or ship, and ignore the rest. "
+    "When a name could mean one, query it. When it could mean two or "
+    "three and the question does not say which, query them together in one call, so the "
+    "answer gives each its own figures. "
+    "Never query a candidate for a year it did not report: when it is the only one, query a "
+    "year it reported instead. "
+    "You get one round, so call every tool the question needs together. "
     "Never re-fetch what the context already shows. You never answer the question "
     "yourself: your output is tool calls, or nothing when the context suffices."
 )
@@ -66,11 +78,16 @@ ASSESS_REFUSAL_INSTRUCTION = (
     "answer."
 )
 
+ASSESS_CLARIFY_INSTRUCTION = " When it could mean more than three, call clarify alone instead."
 
-def build_assess_system_prompt(*, may_refuse: bool) -> str:
-    """The assess system prompt, telling the model when to refuse only when it is offered
-    the tool to do it with."""
-    return ASSESS_SYSTEM_PROMPT + (ASSESS_REFUSAL_INSTRUCTION if may_refuse else "")
+
+def build_assess_system_prompt(*, may_refuse: bool, may_clarify: bool) -> str:
+    """The assess system prompt, telling the model when to refuse or ask back only when it
+    is offered the tool to do it with."""
+    prompt = ASSESS_SYSTEM_PROMPT
+    prompt += ASSESS_REFUSAL_INSTRUCTION if may_refuse else ""
+    prompt += ASSESS_CLARIFY_INSTRUCTION if may_clarify else ""
+    return prompt
 
 
 def reference_addresses(source: RetrievedChunk) -> list[str]:
@@ -111,27 +128,30 @@ def build_assess_message(
         else "Context: no corpus passage matched. The question matches what these tools hold: "
         f"{', '.join(matched_tools)}."
     )
-    named = f"\n\nThe question names {'; '.join(entities)}." if entities else ""
+    named = format_named(entities)
     return f"{context}{named}\n\nQuestion: {question}"
 
 
-def assess_model() -> Runnable:
+def assess_model(*, may_clarify: bool) -> Runnable:
     """The assess model as assess calls it: one blocking turn, the tool surface bound."""
-    return chat_model(streaming=False).bind_tools(tool_definitions())
+    return chat_model(streaming=False).bind_tools(tool_definitions(may_clarify=may_clarify))
 
 
 @llm_retry
 @wrap_provider_errors("assess call")
 async def call_assess_model(state: ChatState) -> dict[str, Any]:
     """One model turn asking what would fill the gaps in the context — or, called alone,
-    saying nothing bears on the question. That call beside a fetch is dropped, the fetch
-    being the model's own doubt; a fetch that would only re-fetch a division the context
-    already shows is dropped too, then the rest are capped to the calls a round may run —
-    none of the dropped reaches state or the ledger."""
+    saying nothing bears on the question. A refuse or clarify call beside a fetch is dropped,
+    the fetch being the model's own doubt; a fetch that would only re-fetch a division the
+    context already shows is dropped too, then the rest are capped to the calls a round may
+    run — none of the dropped reaches state or the ledger."""
     messages = [
         SystemMessage(
             system_prompt(
-                build_assess_system_prompt(may_refuse=config.ASSESS_MAY_REFUSE), state.history
+                build_assess_system_prompt(
+                    may_refuse=config.ASSESS_MAY_REFUSE, may_clarify=state.may_clarify
+                ),
+                state.history,
             )
         ),
         *thread_messages(state.history),
@@ -139,14 +159,14 @@ async def call_assess_model(state: ChatState) -> dict[str, Any]:
             build_assess_message(state.question, state.sources, state.matched_tools, state.entities)
         ),
     ]
-    response = await assess_model().ainvoke(messages)
+    response = await assess_model(may_clarify=state.may_clarify).ainvoke(messages)
     asked = [ToolCall(name=c["name"], args=c["args"]) for c in response.tool_calls]
-    refusals = [call for call in asked if is_refusal(call)]
-    fetches = [call for call in asked if not is_refusal(call)]
-    if refusals and not fetches:
-        return {"pending_calls": (refusals[0],), "reply": response}
-    if refusals:
-        logger.info("assess hedged its refusal with a fetch, so the fetch runs")
+    endings = [call for call in asked if ends_the_run(call)]
+    fetches = [call for call in asked if not ends_the_run(call)]
+    if endings and not fetches:
+        return {"pending_calls": (endings[0],), "reply": response}
+    if endings:
+        logger.info("assess hedged its refusal or question with a fetch, so the fetch runs")
     useful = [call for call in fetches if not already_in_context(call, state.sources)]
     calls = tuple(useful[: config.ASSESS_MAX_CALLS])
     return {"pending_calls": calls, "reply": response}
@@ -191,20 +211,24 @@ async def run_timed_call(call: ToolCall) -> tuple[tuple[ContextBlock, ...], Chat
 async def assess_tools(state: ChatState) -> dict[str, Any]:
     """The round's calls run at once and folded into the context in the order asked: dedup
     by block, earlier context kept, growth capped. Each call is timed as its own step, so
-    the path says what it cost. A refuse call fetches nothing and leaves its refusal on the
-    state, which is what routes the round to the refusal."""
+    the path says what it cost. A refuse or clarify call fetches nothing and leaves its
+    ending on the state, which is what routes the round to it."""
     results = await asyncio.gather(*(run_timed_call(call) for call in state.pending_calls))
     fetched = [block for blocks, _ in results for block in blocks]
-    refusal = state.refusal
+    refusal, clarification = state.refusal, state.clarification
     for call in state.pending_calls:
         if refused := refusal_from(call):
             refusal = refused
             logger.info("assess refused for want of context: %s", refused.explanation)
+        if clarified := clarification_from(call):
+            clarification = clarified
+            logger.info("assess asked which was meant: %s", clarified.question)
 
     cap = state.retrieved_sources + config.ASSESS_EXTRA_CHUNKS
     return {
         "sources": merge_sources(state.sources, fetched, cap=cap),
         "pending_calls": (),
         "refusal": refusal,
+        "clarification": clarification,
         "steps": tuple(step for _, step in results),
     }

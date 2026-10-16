@@ -16,6 +16,10 @@ from app.core.llm.models import Usage
 from app.core.models import AppModel, FrozenModel
 from app.retrieval.models import SearchResult
 
+MAX_ANSWERED_CANDIDATES = 3
+"""The most candidates one name may have and still be answered side by side; more are asked
+about."""
+
 
 class ChatQuery(AppModel):
     """The question a caller asks, and the thread it continues — none on a first question,
@@ -78,6 +82,14 @@ class Refusal(FrozenModel):
     explanation: str = ""
 
 
+class Clarification(FrozenModel):
+    """How a question ended when it ended in a question back: what assess asked, and the
+    options the reader picks from, each one candidate by name and IMO number."""
+
+    question: str
+    options: tuple[str, ...]
+
+
 class CachedAnswer(FrozenModel):
     """What the answer cache keeps for a question: the answer, and the blocks its [n]
     markers number."""
@@ -113,6 +125,8 @@ class ChatState(AppModel):
     entities: what the question names in a dataset tool's data, like 'Carras (Hellas) S.A.
         (IMO company number 5123456), a company in THETIS-MRV', for assess to read beside the
         context.
+    most_candidates: the most companies or ships any one name in the question could mean;
+        above MAX_ANSWERED_CANDIDATES assess may ask which.
     pending_calls: the tool calls assess asked for, not yet executed. Only a tool round
         starts holding any, since each round clears the calls it ran; the stream reads a
         round off that.
@@ -121,6 +135,8 @@ class ChatState(AppModel):
     refusal: why the question ended without an answer, set by the tool round that ran
         assess's refuse call, and by the refuse node itself when nothing was retrieved to
         assess; None on any run that has not refused.
+    clarification: the question back to the reader when a name could mean several companies
+        or ships, set by the tool round that ran assess's clarify call; None otherwise.
     cached: whether the answer was served from the answer cache, with no graph run behind it.
     """
 
@@ -138,6 +154,7 @@ class ChatState(AppModel):
     retrieved_sources: int = 0
     matched_tools: tuple[str, ...] = ()
     entities: tuple[str, ...] = ()
+    most_candidates: int = 0
     pending_calls: tuple[ToolCall, ...] = ()
 
     # The path
@@ -146,9 +163,16 @@ class ChatState(AppModel):
     # How it ended
     answer: str = ""
     refusal: Refusal | None = None
+    clarification: Clarification | None = None
     total_ms: int | None = None
     error: str | None = None
     cached: bool = False
+
+    @property
+    def may_clarify(self) -> bool:
+        """Whether some name in the question could mean more than MAX_ANSWERED_CANDIDATES
+        companies or ships, so assess is offered clarify."""
+        return self.most_candidates > MAX_ANSWERED_CANDIDATES
 
     @property
     def last_step(self) -> ChatNode | ToolStep | None:
@@ -215,14 +239,18 @@ class ChatState(AppModel):
     def context_settled(self) -> bool:
         """Whether the context is final: retrieval ended with the loop off or the gate shut
         with no card opening it, assess asked for nothing, or the last round consumed the
-        budget or refused."""
+        budget, refused or asked back."""
         match self.last_step:
             case ChatNode.RETRIEVE:
                 return (not self.sources and not self.matched_tools) or not config.ASSESS_ENABLED
             case ChatNode.ASSESS:
                 return not self.pending_calls
             case ToolStep():
-                return self.refusal is not None or self.assess_rounds() >= config.ASSESS_MAX_ROUNDS
+                return (
+                    self.refusal is not None
+                    or self.clarification is not None
+                    or self.assess_rounds() >= config.ASSESS_MAX_ROUNDS
+                )
             case _:
                 return False
 
@@ -230,7 +258,8 @@ class ChatState(AppModel):
     @property
     def outcome(self) -> ChatOutcome:
         """How the run ended, read off the error, the cache flag and the path: raised, served
-        from the cache, refused, answered, or left by the client before any of them."""
+        from the cache, refused, asked back, answered, or left by the client before any of
+        them."""
         visited = {result.step for result in self.steps}
         if self.error:
             return ChatOutcome.ERROR
@@ -238,6 +267,8 @@ class ChatState(AppModel):
             return ChatOutcome.CACHED
         if ChatNode.REFUSE in visited:
             return ChatOutcome.REFUSED
+        if ChatNode.CLARIFY in visited:
+            return ChatOutcome.CLARIFIED
         if ChatNode.SYNTHESIZE in visited:
             return ChatOutcome.DONE
         return ChatOutcome.ABORTED

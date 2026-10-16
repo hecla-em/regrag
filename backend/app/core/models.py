@@ -17,6 +17,14 @@ class FrozenModel(AppModel):
     model_config = ConfigDict(frozen=True)
 
 
+class NamedEntities(FrozenModel):
+    """What a question names in a dataset's data: a line per name for the prompts, and the most
+    candidates any one name could mean."""
+
+    lines: tuple[str, ...] = ()
+    most_candidates: int = 0
+
+
 def _is_none(value: object) -> bool:
     return value is None
 

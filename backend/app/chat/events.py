@@ -114,10 +114,19 @@ class StepEvent(ChatEventBase):
 
 
 class TextEvent(ChatEventBase):
-    """One fragment of the answer's text, as the model streams it — or the whole refusal."""
+    """One fragment of the answer's text, as the model streams it — or the whole refusal or
+    question back."""
 
     event: Literal[ChatEventName.TEXT] = ChatEventName.TEXT
     data: str
+
+
+class OptionsEvent(ChatEventBase):
+    """The options a question back offers, sent after its text; the one the reader picks is sent
+    as the thread's next question."""
+
+    event: Literal[ChatEventName.OPTIONS] = ChatEventName.OPTIONS
+    data: list[str]
 
 
 class DoneEvent(ChatEventBase):
@@ -141,6 +150,7 @@ class ErrorEvent(ChatEventBase):
 
 
 ChatEvent = Annotated[
-    SourcesEvent | StepEvent | TextEvent | DoneEvent | ErrorEvent, Field(discriminator="event")
+    SourcesEvent | StepEvent | TextEvent | OptionsEvent | DoneEvent | ErrorEvent,
+    Field(discriminator="event"),
 ]
 """Every frame a chat stream carries, told apart by its event name."""

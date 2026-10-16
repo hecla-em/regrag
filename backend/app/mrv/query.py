@@ -1,15 +1,11 @@
-"""THETIS-MRV queries: a period's reports, narrowed to a company or ship, summed per group."""
+"""THETIS-MRV queries: a period's reports, narrowed to companies or ships by IMO number, summed
+per group."""
 
-from collections.abc import Callable
-from typing import Any
-
-from sqlalchemy import ColumnElement, false, func, literal, or_, select
+from sqlalchemy import ColumnElement, func, literal, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import InstrumentedAttribute
 
 from app.mrv.enums import MrvGrouping
 from app.mrv.models import FIGURE_LABELS, FigureTotals, MrvBlock, MrvQueryArgs
-from app.mrv.names import company_key, name_key
 from app.mrv.schemas import MrvReport
 
 GROUP_LIMIT = 10
@@ -72,27 +68,12 @@ GROUPINGS = {
 company's stored key where it has none), and the label naming a group, one spelling picked."""
 
 
-def key_or_imo(
-    key: InstrumentedAttribute[Any],
-    imo: InstrumentedAttribute[Any],
-    query: str,
-    to_key: Callable[[str], str],
-) -> ColumnElement[bool]:
-    """Reports whose IMO number is the query, or whose stored key holds the query's key as
-    whole words, so 'msc' matches 'msc mediterranean' but not 'amsco'."""
-    query_key = to_key(query)
-    whole_words = (" " + key + " ").contains(f" {query_key} ")
-    return or_(imo == query.strip(), whole_words if query_key else false())
-
-
 def matched_reports(args: MrvQueryArgs) -> list[ColumnElement[bool]]:
     matched = [MrvReport.period == args.period]
-    if args.company:
-        matched.append(
-            key_or_imo(MrvReport.company_key, MrvReport.company_imo, args.company, company_key)
-        )
-    if args.ship:
-        matched.append(key_or_imo(MrvReport.ship_key, MrvReport.imo, args.ship, name_key))
+    if args.companies:
+        matched.append(MrvReport.company_imo.in_(args.companies))
+    if args.ships:
+        matched.append(MrvReport.imo.in_(args.ships))
     return matched
 
 
@@ -108,7 +89,7 @@ async def query_reports(session: AsyncSession, args: MrvQueryArgs) -> MrvBlock |
     if loaded is None:
         return None
     matched = matched_reports(args)
-    key, label = GROUPINGS[args.by]
+    key, label = GROUPINGS[args.grouping]
     grouped = (
         select(
             label.label("label"),
@@ -121,7 +102,7 @@ async def query_reports(session: AsyncSession, args: MrvQueryArgs) -> MrvBlock |
     )
     ordered = (
         grouped.order_by(key)
-        if args.by is MrvGrouping.REPORT_TYPE
+        if args.grouping is MrvGrouping.REPORT_TYPE
         else grouped.order_by(
             func.sum(MrvReport.co2_ets).desc().nulls_last(), func.sum(MrvReport.co2_total).desc()
         ).limit(GROUP_LIMIT)
@@ -134,6 +115,7 @@ async def query_reports(session: AsyncSession, args: MrvQueryArgs) -> MrvBlock |
         version=loaded.version,
         generated=loaded.generated,
         subject=args.subject,
+        names_several=args.names_several,
         groups=tuple(FigureTotals.model_validate(row) for row in rows),
         group_count=rows[0].group_count if rows else 0,
         overall=FigureTotals(**overall._asdict(), label="all matched reports together"),

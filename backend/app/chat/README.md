@@ -17,7 +17,7 @@ START ─┬→ rewrite ─┬→ decompose ──┐                      a fol
        └──────────────────────→ retrieve ─┬→ refuse ──────────────→ END   nothing opened the gate, or the loop found nothing or refused
                                           │      ↑
                                           ├→ assess ⇄ assess_tools       while assess asks and the budget remains
-                                          │      │
+                                          │      │  └────────────→ clarify ─→ END   a name could mean more than three
                                           └──────┴→ synthesize ────→ END   the context is settled
 ```
 
@@ -30,6 +30,8 @@ START ─┬→ rewrite ─┬→ decompose ──┐                      a fol
 Past the gate, the assess loop runs. `assess` makes one blocking model call and answers with the tool calls that would fill what the context is missing: a fresh `search`, a `follow_reference` fetching a division the context cites, or an `mrv_query` reading THETIS-MRV emission figures. `assess_tools` runs them at once and appends what they find after the earlier blocks. The loop ends when assess asks for nothing or `ASSESS_MAX_ROUNDS` is spent, and `ASSESS_ENABLED=false` skips it. Either way, `synthesize` makes one streamed call answering from the numbered blocks.
 
 The gate only asks whether the hits are junk, so a question about another regime, or a fact no law states, clears it on real text about something adjacent. For that, assess has a `refuse` tool, called alone to say why nothing in the context bears on the question. It routes the round to the same `refuse` node, recording reason `insufficient_context` against the gate's `nothing_retrieved`. Called beside a search or fetch it is dropped and the fetch runs, so the bias stays toward answering. `ASSESS_MAY_REFUSE=false` takes the tool away, so such a question reaches synthesize and is declined in the model's own words.
+
+assess also has a `clarify` tool, offered only when a name in the question could mean more than three companies or ships in THETIS-MRV — two or three are queried together by IMO number and answered side by side instead. Called alone, it ends the run in a question back to the reader with the candidates as options, sent as an `options` event. The reader's pick comes back as the next question and resolves to its one company or ship by IMO number.
 
 Two bounds keep the loop honest. A search's hits face the same score bar `retrieve` holds its own to, and the merge stops once the loop has added `ASSESS_EXTRA_CHUNKS` on top of what retrieval left.
 
@@ -55,13 +57,14 @@ A call that would only re-fetch a paragraph the context already shows in full is
 
 ## The stream
 
-`POST /chat` responds with SSE. Five frame types, in this order:
+`POST /chat` responds with SSE. Six frame types, in this order:
 
 | Event | When | Data |
 | ----- | ---- | ---- |
 | `step` | twice per node or tool call: as it starts, and again once it finishes | what the step was and whether it has finished, then how long it took, the tokens it spent and the model, and for a tool call what it was for |
 | `sources` | once, as soon as the context settles — after retrieval, or after the loop's last round | the context blocks, each bound to the `[n]` marker the answer will cite it by |
-| `text` | repeatedly as the model writes, or once for a refusal | a fragment of the answer |
+| `text` | repeatedly as the model writes, or once for a refusal or a clarify question | a fragment of the answer |
+| `options` | once, right after `text`, only when the run asked back which company or ship was meant | the candidates, for the reader to pick from |
 | `done` | last, on a completed stream, once the turn is recorded | the thread id, which a follow-up sends back as `thread_id`, and the request id, which `PUT /chat/{request_id}/vote` names (null when the write failed) |
 | `error` | last, in place of everything after it | the app's one error shape, with the request id |
 
@@ -75,7 +78,7 @@ A thread holds at most `CHAT_THREAD_TURNS` answered turns. The next question on 
 
 ## The ledger
 
-Every request is recorded however it ended — answered, served from the cache, refused, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step, holding the question, the outcome, the reader's vote, and the time, tokens and cost each step spent. A step is a graph node, or one tool call an assess round ran, prefixed `tool_` so one column holds both. The spend cap sums its cost, and a slow path is diagnosed from it.
+Every request is recorded however it ended — answered, served from the cache, refused, asked back which company or ship was meant, errored, or abandoned by the client — as a `chat_requests` row with a `chat_request_steps` row per step, holding the question, the outcome, the reader's vote, and the time, tokens and cost each step spent. A step is a graph node, or one tool call an assess round ran, prefixed `tool_` so one column holds both. The spend cap sums its cost, and a slow path is diagnosed from it.
 
 It is the tracing, in place of a tracing library: a flat span list ordered by `position`, where a tool step's parent is the assess step before it.
 

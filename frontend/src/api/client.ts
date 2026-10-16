@@ -68,6 +68,7 @@ function toStreamEvent(message: EventSourceMessage): ChatStreamEvent | null {
 		case "sources":
 		case "step":
 		case "text":
+		case "options":
 		case "done":
 		case "error":
 			return { event: message.event, data: JSON.parse(message.data) }

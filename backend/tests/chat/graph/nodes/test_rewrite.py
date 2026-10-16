@@ -61,7 +61,7 @@ async def test_a_follow_up_is_restated_searched_and_answered_with_the_thread_in_
 
     [assess_prompt] = assess.received
     [answer_prompt] = answer_model.received
-    assess_base = build_assess_system_prompt(may_refuse=config.ASSESS_MAY_REFUSE)
+    assess_base = build_assess_system_prompt(may_refuse=config.ASSESS_MAY_REFUSE, may_clarify=False)
     for messages, base in ((assess_prompt, assess_base), (answer_prompt, SYSTEM_PROMPT)):
         assert [type(m) for m in messages] == [SystemMessage, HumanMessage, AIMessage, HumanMessage]
         assert messages[0].content == base + THREAD_NOTE

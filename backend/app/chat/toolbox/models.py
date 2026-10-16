@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.chat.blocks import ContextBlock
 from app.chat.enums import ToolStep
-from app.core.models import FrozenModel
+from app.core.models import FrozenModel, NamedEntities
 
 
 class ToolCall(FrozenModel):
@@ -30,7 +30,7 @@ class ToolSpec(NamedTuple):
     description: str
     card: str | None = None
     card_terms: tuple[str, ...] = ()
-    find_entities: Callable[[AsyncSession, str], Awaitable[tuple[str, ...]]] | None = None
+    find_entities: Callable[[AsyncSession, str], Awaitable[NamedEntities]] | None = None
 
     def definition(self) -> dict:
         """The tool as bind_tools wants it: an openai function-tool dictionary."""

@@ -58,7 +58,8 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
         )
     else:
         per_query, named = await searches, {}
-    entities = tuple(entity for found in named.values() for entity in found)
+    entities = tuple(entity for found in named.values() for entity in found.lines)
+    most_candidates = max((found.most_candidates for found in named.values()), default=0)
     hits = interleave_by_rank(per_query)
     cleared = [found for found in per_query if meets_thresholds(found)]
     if not cleared:
@@ -71,6 +72,7 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
             "retrieved_sources": 0,
             "matched_tools": matched,
             "entities": entities,
+            "most_candidates": most_candidates,
         }
 
     sources: tuple[ContextBlock, ...] = interleave_by_rank(cleared)
@@ -83,4 +85,5 @@ async def retrieve(state: ChatState) -> dict[str, Any]:
         "sources": sources,
         "retrieved_sources": len(sources),
         "entities": entities,
+        "most_candidates": most_candidates,
     }

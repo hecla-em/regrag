@@ -65,11 +65,13 @@ export const ChatTurn = memo(function ChatTurn({
 	onRetry,
 	onNewThread,
 	onVote,
+	onChooseOption,
 }: {
 	turn: Turn
 	onRetry: () => void
 	onNewThread: () => void
 	onVote: (turn: Turn, vote: Vote | null) => void
+	onChooseOption?: (option: string) => void
 }) {
 	const [sourcesView, setSourcesView] = useState<SourcesView | null>(null)
 	const isSettled = turn.status === "settled"
@@ -120,6 +122,21 @@ export const ChatTurn = memo(function ChatTurn({
 								sources={turn.sources}
 								onOpenMarker={openSource}
 							/>
+							{isSettled && onChooseOption && turn.options.length > 0 && (
+								<div className="fade-in flex animate-in flex-wrap gap-2 duration-300">
+									{turn.options.map((option) => (
+										<Button
+											key={option}
+											variant="outline"
+											size="xs"
+											className="h-auto whitespace-normal py-1 text-left"
+											onClick={() => onChooseOption(option)}
+										>
+											{option}
+										</Button>
+									))}
+								</div>
+							)}
 							<div
 								className={
 									isSettled

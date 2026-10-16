@@ -79,6 +79,9 @@ export function ChatPage() {
 												onRetry={getRetry(turn.id, turn.question)}
 												onNewThread={startNewThread}
 												onVote={vote}
+												onChooseOption={
+													turn.id === turns.at(-1)?.id ? ask : undefined
+												}
 											/>
 										</MessageScrollerItem>
 									))}

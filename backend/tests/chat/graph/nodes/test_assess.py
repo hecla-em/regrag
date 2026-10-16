@@ -105,7 +105,7 @@ class TestAssessLoop:
         """An assess round is best-effort: it must never destroy a request that already
         has answerable context, even when the model keeps failing."""
         assess = FailingModel(messages=iter([]), failures=10, usage=USAGE)
-        monkeypatch.setattr("app.chat.graph.nodes.assess.assess_model", lambda: assess)
+        monkeypatch.setattr("app.chat.graph.nodes.assess.assess_model", lambda **_: assess)
 
         state = await run_graph()
 

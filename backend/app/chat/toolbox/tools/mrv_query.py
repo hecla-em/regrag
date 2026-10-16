@@ -25,9 +25,10 @@ MRV_QUERY = ToolSpec(
     "companies and the EU ETS figure from 2024): "
     "how many emissions reports were filed and their CO2 in tonnes as total, to be reported "
     "under the EU ETS, and split by EU scope (between, departed from, arrived at Member State "
-    "ports, at berth), plus how the ETS figure compares with that scope split. Covers the whole "
-    "fleet, or one company's or ship's reports when named; sums per report type (Full, Partial), "
-    "or per company or ship, largest ETS figure first, to rank the largest or list a company's "
+    "ports, at berth), plus how the ETS figure compares with that scope split. "
+    "Covers the whole fleet, or the companies or ships named by the IMO numbers the question's "
+    "candidates give, several each summed on its own; sums per report type (Full, Partial), or "
+    "per company or ship, largest ETS figure first, to rank the largest or list a company's "
     "ships, never the smallest. "
     "Use whenever the answer needs one of these figures or one worked out from them, or turns "
     "on what they include.",

@@ -222,7 +222,7 @@ def assess_turns(
 
     def install(*turns: AIMessage) -> RecordingChatModel:
         model = ToolCallStreamingModel(messages=iter(turns), usage=USAGE)
-        monkeypatch.setattr("app.chat.graph.nodes.assess.assess_model", lambda: model)
+        monkeypatch.setattr("app.chat.graph.nodes.assess.assess_model", lambda **_: model)
         return model
 
     return install

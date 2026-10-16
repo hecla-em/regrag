@@ -14,6 +14,7 @@ from app.chat.events import (
     ChatEvent,
     DoneEvent,
     ErrorEvent,
+    OptionsEvent,
     SourcesEvent,
     StepEvent,
     TextEvent,
@@ -56,6 +57,8 @@ def frames(events: list[ChatEvent]) -> list[tuple]:
                 read[-1] = ("text", read[-1][1] + event.data)
             case TextEvent():
                 read.append(("text", event.data))
+            case OptionsEvent():
+                read.append(("options", event.data))
             case ErrorEvent():
                 read.append(("error", event.data.error))
             case DoneEvent():
@@ -211,6 +214,8 @@ SEARCH_ROUND = (
     AIMessage(content="The context now covers the question."),
 )
 REFUSE_CALL = (tool_call_message("refuse", {"explanation": "nothing bears on it"}),)
+OPTIONS = ["STENA A (IMO company number 1111111)", "STENA B (IMO company number 2222222)"]
+CLARIFY_CALL = (tool_call_message("clarify", {"question": "Which Stena?", "options": OPTIONS}),)
 ASSESS = [(ChatNode.ASSESS, RUNNING, None), (ChatNode.ASSESS, COMPLETED, None)]
 
 
@@ -248,6 +253,23 @@ ASSESS = [(ChatNode.ASSESS, RUNNING, None), (ChatNode.ASSESS, COMPLETED, None)]
             ChatOutcome.REFUSED,
             id="a refusal assess asked for sends the context it read, then the refusal",
         ),
+        pytest.param(
+            CLARIFY_CALL,
+            (),
+            [
+                (ToolStep.CLARIFY, RUNNING, f"Which Stena? · {', '.join(OPTIONS)}"),
+                (ToolStep.CLARIFY, COMPLETED, f"Which Stena? · {', '.join(OPTIONS)}"),
+                ("sources", [1]),
+                (ChatNode.CLARIFY, RUNNING, None),
+                (ChatNode.CLARIFY, COMPLETED, None),
+                ("text", "Which Stena?"),
+                ("options", OPTIONS),
+                ("done",),
+            ],
+            ChatOutcome.CLARIFIED,
+            id="a question assess asks back sends the context it read, then the question and "
+            "options",
+        ),
     ],
 )
 async def test_the_loop_streams_its_calls_by_subject_and_none_of_what_assess_said(
@@ -277,8 +299,9 @@ async def test_the_loop_streams_its_calls_by_subject_and_none_of_what_assess_sai
     ]
     [state] = recorded_requests
     assert state.outcome is outcome
-    if outcome is ChatOutcome.REFUSED:
+    if outcome is not ChatOutcome.DONE:
         assert answer_model.received == []
+    if outcome is ChatOutcome.REFUSED:
         assert state.refusal == Refusal(
             reason=RefusalReason.INSUFFICIENT_CONTEXT, explanation="nothing bears on it"
         )

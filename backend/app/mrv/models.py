@@ -81,6 +81,7 @@ class MrvBlock(FrozenModel):
     version: int
     generated: date
     subject: str
+    names_several: bool = False
     groups: tuple[FigureTotals, ...]
     group_count: int
     overall: FigureTotals
@@ -134,22 +135,25 @@ class MrvBlock(FrozenModel):
             else ""
         )
         groups = [group.describe(self.phase_in) for group in self.groups]
-        overall = self.overall.describe(self.phase_in)
+        overall = "" if self.names_several else self.overall.describe(self.phase_in)
         return "\n\n".join(part for part in [heading, *groups, shown, overall, check] if part)
 
     prompt_text = text
 
 
 class MrvQueryArgs(FrozenModel):
-    """A THETIS-MRV query: one reporting period's reports, narrowed to a company or ship when
-    named, summed per report type, company or ship."""
+    """A THETIS-MRV query: one reporting period's reports, narrowed to companies or ships by IMO
+    number, summed per report type, company or ship."""
 
     period: int = Field(description="Reporting period (calendar year), 2018 or later.")
-    company: str | None = Field(
-        default=None, description="Only this company's reports: its name or IMO company number."
+    companies: tuple[str, ...] = Field(
+        default=(),
+        description="Only these companies' reports, by the IMO company numbers the question's "
+        "candidates give. Several are summed each on its own, never together.",
     )
-    ship: str | None = Field(
-        default=None, description="Only this ship's reports: its name or IMO number."
+    ships: tuple[str, ...] = Field(
+        default=(),
+        description="Only these ships' reports, by the IMO numbers the question's candidates give.",
     )
     by: MrvGrouping = Field(
         default=MrvGrouping.REPORT_TYPE,
@@ -159,11 +163,24 @@ class MrvQueryArgs(FrozenModel):
     )
 
     @property
+    def names_several(self) -> bool:
+        return len(self.companies) > 1 or len(self.ships) > 1
+
+    @property
+    def grouping(self) -> MrvGrouping:
+        """The grouping asked for, except that several companies or ships are never summed per
+        report type across them, but each on its own."""
+        if self.by is MrvGrouping.REPORT_TYPE and self.names_several:
+            return MrvGrouping.SHIP if len(self.ships) > 1 else MrvGrouping.COMPANY
+        return self.by
+
+    @property
     def subject(self) -> str:
-        """The query as the block's heading states it: 'company matching "Carras", per ship'."""
+        """The query as the block's heading states it: 'company IMO 6349424, 1575593, per
+        company'."""
         parts = [
-            f'{kind} matching "{value}"'
-            for kind, value in (("company", self.company), ("ship", self.ship))
-            if value
+            f"{kind} {', '.join(numbers)}"
+            for kind, numbers in (("company IMO", self.companies), ("ship IMO", self.ships))
+            if numbers
         ]
-        return ", ".join([*parts, f"per {self.by.value.replace('_', ' ')}"])
+        return ", ".join([*parts, f"per {self.grouping.value.replace('_', ' ')}"])

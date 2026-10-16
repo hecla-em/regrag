@@ -10,6 +10,7 @@ export type ChatStreamEvent =
 	| components["schemas"]["SourcesEvent"]
 	| components["schemas"]["StepEvent"]
 	| components["schemas"]["TextEvent"]
+	| components["schemas"]["OptionsEvent"]
 	| components["schemas"]["DoneEvent"]
 	| components["schemas"]["ErrorEvent"]
 

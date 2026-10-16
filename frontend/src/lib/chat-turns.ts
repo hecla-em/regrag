@@ -7,7 +7,8 @@ import type {
 	Vote,
 } from "@/api/types"
 
-/** requestId: what the server recorded the turn as, which a vote names; null until done. */
+/** requestId: what the server recorded the turn as, which a vote names; null until done.
+ * options: what a question back offers the reader to pick, empty on an answer. */
 export type ChatTurn = {
 	id: string
 	question: string
@@ -20,6 +21,7 @@ export type ChatTurn = {
 	endedAt: number | null
 	requestId: string | null
 	vote: Vote | null
+	options: string[]
 }
 
 /** Whether the run behind a turn is still under way: asked and not yet answering, or answering. */
@@ -84,6 +86,8 @@ function applyToTurn(turn: ChatTurn, action: ChatAction): ChatTurn {
 					answer: turn.answer + action.data,
 					status: "streaming",
 				}
+			case "options":
+				return { ...turn, options: action.data }
 			case "done":
 				return turn.status === "failed"
 					? turn
@@ -150,6 +154,7 @@ export function chatReducer(
 				endedAt: null,
 				requestId: null,
 				vote: null,
+				options: [],
 			},
 		]
 	}

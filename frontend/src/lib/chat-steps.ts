@@ -19,12 +19,17 @@ const LABELS: Record<ChatStep["step"], { running: string; done: string }> = {
 		running: "Finding nothing that bears on the question",
 		done: "Found nothing that bears on the question",
 	},
+	tool_clarify: {
+		running: "Finding several companies or ships it could mean",
+		done: "Found several companies or ships it could mean",
+	},
 	tool_unknown: {
 		running: "Asking for a tool it does not have",
 		done: "Asked for a tool it does not have",
 	},
 	synthesize: { running: "Writing the answer", done: "Wrote the answer" },
 	refuse: { running: "Declining to answer", done: "Declined to answer" },
+	clarify: { running: "Asking which you mean", done: "Asked which you mean" },
 }
 
 /** What a step is called in the trail, in the tense its status calls for. A step the schema

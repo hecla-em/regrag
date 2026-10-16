@@ -13,6 +13,7 @@ class ChatNode(StrEnum):
     ASSESS_TOOLS = "assess_tools"
     SYNTHESIZE = "synthesize"
     REFUSE = "refuse"
+    CLARIFY = "clarify"
 
 
 class ToolStep(StrEnum):
@@ -23,6 +24,7 @@ class ToolStep(StrEnum):
     FOLLOW_REFERENCE = "tool_follow_reference"
     MRV_QUERY = "tool_mrv_query"
     REFUSE = "tool_refuse"
+    CLARIFY = "tool_clarify"
     UNKNOWN = "tool_unknown"
     """A call to a tool the surface does not have, kept in the path because a model asking
     for one is worth seeing, and because a round that ran must leave a step behind."""
@@ -41,17 +43,20 @@ class ChatEventName(StrEnum):
     SOURCES = "sources"
     STEP = "step"
     TEXT = "text"
+    OPTIONS = "options"
     DONE = "done"
     ERROR = "error"
 
 
 class ChatOutcome(StrEnum):
-    """How a chat stream ended: done, served from the cache, refused before any model call, an
-    error event, or the client leaving first. An ERROR run's timings stop at the error."""
+    """How a chat stream ended: done, served from the cache, refused before any model call, asked
+    back which company or ship was meant, an error event, or the client leaving first. An ERROR
+    run's timings stop at the error."""
 
     DONE = "done"
     CACHED = "cached"
     REFUSED = "refused"
+    CLARIFIED = "clarified"
     ERROR = "error"
     ABORTED = "aborted"
 
@@ -72,8 +77,9 @@ class Vote(StrEnum):
     DOWN = "down"
 
 
-ANSWERED_OUTCOMES = frozenset({ChatOutcome.DONE, ChatOutcome.CACHED})
-"""The outcomes that left an answer on the thread: what a follow-up's history reads."""
+ANSWERED_OUTCOMES = frozenset({ChatOutcome.DONE, ChatOutcome.CACHED, ChatOutcome.CLARIFIED})
+"""The outcomes that left an answer or a question back on the thread: what a follow-up's history
+reads."""
 
 
 class ChatErrorCode(StrEnum):

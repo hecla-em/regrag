@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.chat.blocks import ContextBlock
 from app.chat.graph.node import chat_model, traced
 from app.chat.models import ChatState
-from app.chat.prompts import format_context, system_prompt, thread_messages
+from app.chat.prompts import format_context, format_named, system_prompt, thread_messages
 from app.core.config import config
 from app.core.llm.errors import llm_retry, wrap_provider_errors
 
@@ -38,7 +38,8 @@ UNCOVERED = (
 
 TABLES = (
     "When you give more than a couple of rows from a passage's table, give them as a "
-    "markdown table and cite it in the sentence that introduces it. "
+    "markdown table and cite it in the sentence that introduces it. Figures for several "
+    "companies or ships go in one table, a row each, never summed. "
 )
 
 UNUSED = (
@@ -87,9 +88,15 @@ BASELINE_SYSTEM_PROMPT = (
 graph refuses before synthesize when nothing was retrieved, so no chat request sees it."""
 
 
-def build_user_message(question: str, sources: Sequence[ContextBlock]) -> str:
-    """The full user turn: the numbered passages first, then the question."""
-    return f"Passages found:\n\n{format_context(sources)}\n\nQuestion: {question}"
+def build_user_message(
+    question: str, sources: Sequence[ContextBlock], entities: Sequence[str] = ()
+) -> str:
+    """The full user turn: the numbered passages first, what the question names, then the
+    question."""
+    return (
+        f"Passages found:\n\n{format_context(sources)}{format_named(entities)}\n\n"
+        f"Question: {question}"
+    )
 
 
 @traced
@@ -103,7 +110,11 @@ async def synthesize(state: ChatState) -> dict[str, Any]:
     mid-stream restarts the answer, so its tokens reach the client twice.
     """
     base = SYSTEM_PROMPT if state.sources else BASELINE_SYSTEM_PROMPT
-    user = build_user_message(state.question, state.sources) if state.sources else state.question
+    user = (
+        build_user_message(state.question, state.sources, state.entities)
+        if state.sources
+        else state.question
+    )
     messages = [
         SystemMessage(system_prompt(base, state.history)),
         *thread_messages(state.history),

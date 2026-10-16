@@ -1,12 +1,14 @@
 """Chat graph: restate a follow-up, split a multi-part question, retrieve corpus context,
 run the assess ⇄ assess_tools loop, then synthesize a cited answer — or refuse, before any
-model call, a question neither the corpus nor a dataset tool's card covers."""
+model call, a question neither the corpus nor a dataset tool's card covers, or ask back
+which company or ship was meant."""
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from app.chat.enums import ChatNode
 from app.chat.graph.nodes.assess import assess, assess_tools
+from app.chat.graph.nodes.clarify import clarify
 from app.chat.graph.nodes.decompose import decompose
 from app.chat.graph.nodes.refuse import refuse
 from app.chat.graph.nodes.retrieve import retrieve
@@ -24,10 +26,13 @@ def assess_tools_or_synthesize_or_refuse(state: ChatState) -> ChatNode:
     return ChatNode.SYNTHESIZE if state.sources else ChatNode.REFUSE
 
 
-def assess_or_synthesize_or_refuse(state: ChatState) -> ChatNode:
-    """After retrieve or a tool round: refuse for want of context — none cleared the gate
-    and no card opened it, the loop ended with nothing, or assess found what there is bears
-    on nothing — else review again while budget remains, or answer with what there is."""
+def assess_or_conclude(state: ChatState) -> ChatNode:
+    """After retrieve or a tool round: ask back when assess asked which was meant; refuse for
+    want of context, when none cleared the gate and no card opened it, the loop ended with
+    nothing, or assess found what there is bears on nothing; else review again while budget
+    remains, or answer with what there is."""
+    if state.clarification is not None:
+        return ChatNode.CLARIFY
     if state.refusal is not None or (not state.sources and state.context_settled):
         return ChatNode.REFUSE
     return ChatNode.SYNTHESIZE if state.context_settled else ChatNode.ASSESS
@@ -47,7 +52,7 @@ def rewrite_or_decompose_or_retrieve(state: ChatState) -> ChatNode:
 
 def build_graph() -> CompiledStateGraph[ChatState]:
     """The compiled (rewrite →) (decompose →) retrieve → (assess ⇄ assess_tools) →
-    (synthesize | refuse) graph."""
+    (synthesize | refuse | clarify) graph."""
     graph = StateGraph(ChatState)
     graph.add_node(ChatNode.REWRITE, rewrite)
     graph.add_node(ChatNode.DECOMPOSE, decompose)
@@ -56,6 +61,7 @@ def build_graph() -> CompiledStateGraph[ChatState]:
     graph.add_node(ChatNode.ASSESS_TOOLS, assess_tools)
     graph.add_node(ChatNode.SYNTHESIZE, synthesize)
     graph.add_node(ChatNode.REFUSE, refuse)
+    graph.add_node(ChatNode.CLARIFY, clarify)
     graph.add_conditional_edges(
         START,
         rewrite_or_decompose_or_retrieve,
@@ -67,8 +73,8 @@ def build_graph() -> CompiledStateGraph[ChatState]:
     graph.add_edge(ChatNode.DECOMPOSE, ChatNode.RETRIEVE)
     graph.add_conditional_edges(
         ChatNode.RETRIEVE,
-        assess_or_synthesize_or_refuse,
-        [ChatNode.ASSESS, ChatNode.SYNTHESIZE, ChatNode.REFUSE],
+        assess_or_conclude,
+        [ChatNode.ASSESS, ChatNode.SYNTHESIZE, ChatNode.REFUSE, ChatNode.CLARIFY],
     )
     graph.add_conditional_edges(
         ChatNode.ASSESS,
@@ -77,11 +83,12 @@ def build_graph() -> CompiledStateGraph[ChatState]:
     )
     graph.add_conditional_edges(
         ChatNode.ASSESS_TOOLS,
-        assess_or_synthesize_or_refuse,
-        [ChatNode.ASSESS, ChatNode.SYNTHESIZE, ChatNode.REFUSE],
+        assess_or_conclude,
+        [ChatNode.ASSESS, ChatNode.SYNTHESIZE, ChatNode.REFUSE, ChatNode.CLARIFY],
     )
     graph.add_edge(ChatNode.SYNTHESIZE, END)
     graph.add_edge(ChatNode.REFUSE, END)
+    graph.add_edge(ChatNode.CLARIFY, END)
     return graph.compile()
 
 

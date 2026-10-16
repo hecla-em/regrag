@@ -93,7 +93,7 @@ export interface components {
          * @description The graph's nodes, as astream keys their updates.
          * @enum {string}
          */
-        ChatNode: "rewrite" | "decompose" | "retrieve" | "assess" | "assess_tools" | "synthesize" | "refuse";
+        ChatNode: "rewrite" | "decompose" | "retrieve" | "assess" | "assess_tools" | "synthesize" | "refuse" | "clarify";
         /**
          * ChatQuery
          * @description The question a caller asks, and the thread it continues — none on a first question,
@@ -233,6 +233,20 @@ export interface components {
          */
         HealthStatus: "ok" | "degraded";
         /**
+         * OptionsEvent
+         * @description The options a question back offers, sent after its text; the one the reader picks is sent
+         *     as the thread's next question.
+         */
+        OptionsEvent: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "options";
+            /** Data */
+            data: string[];
+        };
+        /**
          * ServiceStatus
          * @enum {string}
          */
@@ -264,7 +278,8 @@ export interface components {
         };
         /**
          * TextEvent
-         * @description One fragment of the answer's text, as the model streams it — or the whole refusal.
+         * @description One fragment of the answer's text, as the model streams it — or the whole refusal or
+         *     question back.
          */
         TextEvent: {
             /**
@@ -281,7 +296,7 @@ export interface components {
          *     graph's nodes without either being read for the other.
          * @enum {string}
          */
-        ToolStep: "tool_search" | "tool_follow_reference" | "tool_mrv_query" | "tool_refuse" | "tool_unknown";
+        ToolStep: "tool_search" | "tool_follow_reference" | "tool_mrv_query" | "tool_refuse" | "tool_clarify" | "tool_unknown";
         /**
          * TurnRecord
          * @description Where the turn was recorded: the thread it joined, which a follow-up sends back, and
@@ -366,7 +381,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "text/event-stream": components["schemas"]["SourcesEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["TextEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"];
+                    "text/event-stream": components["schemas"]["SourcesEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["TextEvent"] | components["schemas"]["OptionsEvent"] | components["schemas"]["DoneEvent"] | components["schemas"]["ErrorEvent"];
                 };
             };
             /** @description Forbidden */

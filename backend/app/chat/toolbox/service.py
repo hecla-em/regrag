@@ -11,6 +11,11 @@ from app.chat.blocks import ContextBlock
 from app.chat.enums import ChatStepStatus, ToolStep
 from app.chat.models import ChatStepResult
 from app.chat.toolbox.models import ToolCall
+from app.chat.toolbox.tools.clarify import (  # noqa: F401
+    CLARIFY,
+    clarification_from,
+    is_clarification,
+)
 from app.chat.toolbox.tools.follow_reference import (  # noqa: F401
     FOLLOW_REFERENCE,
     already_in_context,
@@ -22,30 +27,40 @@ from app.core.config import config
 from app.core.db.session import get_session
 from app.core.llm.embed import EmbedInput, cosine_similarity, embed, embed_query
 from app.core.llm.errors import LLMError
+from app.core.models import NamedEntities
 
 logger = logging.getLogger(__name__)
 
-TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_QUERY, REFUSE)}
+TOOLS = {spec.name: spec for spec in (SEARCH, FOLLOW_REFERENCE, MRV_QUERY, CLARIFY, REFUSE)}
 """Every tool the surface has, whether or not this run offers it to the model."""
 
 TOOL_CARD_EMBEDDINGS: dict[str, list[float]] = {}
 """Each tool card's embedding by tool name, computed once per process: cards are fixed text."""
 
 
-def tool_definitions() -> list[dict]:
-    """The surface as assess is shown it: the fetch tools, and refuse while refusing is
-    allowed."""
+def tool_definitions(*, may_clarify: bool) -> list[dict]:
+    """The surface as assess is shown it: the fetch tools, refuse while refusing is allowed,
+    and clarify only when a name in the question could mean more than three."""
     return [
         spec.definition()
         for spec in TOOLS.values()
-        if spec is not REFUSE or config.ASSESS_MAY_REFUSE
+        if (spec is not REFUSE or config.ASSESS_MAY_REFUSE) and (spec is not CLARIFY or may_clarify)
     ]
+
+
+def ends_the_run(call: ToolCall) -> bool:
+    """Whether the call ends the question without an answer, in a refusal or a question back."""
+    return is_refusal(call) or is_clarification(call)
 
 
 def describe_call(call: ToolCall) -> str | None:
     """What a call was for, as the trail shows it: the arguments it was given, in the order
-    the model gave them — a query, or a citation's address — and nothing when it gave none."""
-    given = [str(value) for value in call.args.values() if value]
+    the model gave them, a list joined by commas, and nothing when it gave none."""
+    given = [
+        ", ".join(map(str, value)) if isinstance(value, list) else str(value)
+        for value in call.args.values()
+        if value
+    ]
     return " · ".join(given) or None
 
 
@@ -87,7 +102,7 @@ async def run_tool_call(call: ToolCall) -> tuple[ContextBlock, ...]:
         return ()
 
 
-async def find_tool_entities(question: str) -> dict[str, tuple[str, ...]]:
+async def find_tool_entities(question: str) -> dict[str, NamedEntities]:
     """What the question names in each dataset tool's data, by tool; empty when it names
     nothing or the lookup fails."""
     try:
@@ -100,7 +115,7 @@ async def find_tool_entities(question: str) -> dict[str, tuple[str, ...]]:
     except SQLAlchemyError as exc:
         logger.warning("tool entity lookup failed: %s", exc)
         return {}
-    return {name: entities for name, entities in found.items() if entities}
+    return {name: entities for name, entities in found.items() if entities.lines}
 
 
 async def embed_tool_cards() -> dict[str, list[float]]:

@@ -58,6 +58,14 @@ def format_context(
     return "\n\n".join(blocks)
 
 
+def format_named(entities: Sequence[str]) -> str:
+    """What the question names in a dataset's data, one line each, for a prompt to read beside
+    its context; nothing when it names nothing."""
+    if not entities:
+        return ""
+    return "\n\nThe question names:\n" + "\n".join(f"- {entity}" for entity in entities)
+
+
 def thread_messages(history: Sequence[ChatTurn]) -> list[BaseMessage]:
     """The thread's earlier turns as the message pairs a model reads them as, oldest first,
     to go between the system prompt and this turn's user message."""

@@ -127,3 +127,9 @@ it.each([
 
 	expect(turns.map((turn) => turn.id)).toEqual(expected)
 })
+
+it("keeps the options a question back offers", () => {
+	const turn = run({ event: "options", data: ["A (IMO 1)", "B (IMO 2)"] })
+
+	expect(turn.options).toEqual(["A (IMO 1)", "B (IMO 2)"])
+})
