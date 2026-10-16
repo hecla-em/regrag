@@ -1,6 +1,6 @@
 """Tune values: a configuration under test, one value's measurement, and the whole run."""
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 
@@ -38,7 +38,7 @@ class TunableParam(FrozenModel):
             setattr(probe, self.name, value)
 
     @contextmanager
-    def override(self, value: Any) -> Iterator[None]:
+    def override(self, value: Any) -> Generator[None, None, None]:
         """Temporarily apply a value to this parameter, and its required companions."""
         applied = {**self.requires, self.name: value}
         previous = {name: getattr(config, name) for name in applied}

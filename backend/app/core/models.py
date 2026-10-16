@@ -21,7 +21,7 @@ def _is_none(value: object) -> bool:
     return value is None
 
 
-class ErrorResponse(AppModel):
+class ErrorResponse(FrozenModel):
     """The single JSON shape every error response uses, however it is serialized:
     the optional fields are left out rather than sent as null."""
 
